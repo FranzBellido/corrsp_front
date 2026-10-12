@@ -1,14 +1,17 @@
 import type { RespuestaApi, RespuestaLista } from "~/types/respuestas";
 
+import type { $Fetch } from "ofetch";
+
 /**
  * Función helper para obtener un cliente $fetch pre-configurado
  * con la BaseURL y el token de Keycloak inyectado (si está autenticado).
  */
-export const getApi = () => {
-  const { $api, $keycloak } = useNuxtApp();
+export const getApi = (): $Fetch => {
+  const nuxtApp = useNuxtApp() as any;
+  const { $api, $keycloak } = nuxtApp;
 
   if ($api) {
-    return $api;
+    return $api as $Fetch;
   }
 
   // Fallback if $api is not available (shouldn't happen on client)
@@ -21,24 +24,19 @@ export const getApi = () => {
     headers: {
       "Content-Type": "application/json",
     },
-    async onRequest({ options }: { options: RequestInit }) {
+    async onRequest(context: any) {
       if ($keycloak && ($keycloak as any).authenticated) {
         try {
-          //console.log("[DEBUG] Updating Keycloak token...");
           await ($keycloak as any).updateToken(30);
-          const headers = new Headers(options.headers || {});
+          const headers = new Headers(context.options.headers || {});
           headers.set("Authorization", `Bearer ${($keycloak as any).token}`);
-          options.headers = headers;
-          // console.log('[DEBUG] Authorization header added.');
-        } catch (error) {
-          // console.error('[DEBUG] Keycloak token update failed:', error);
+          context.options.headers = headers;
+        } catch {
           ($keycloak as any).logout();
         }
-      } else {
-        // console.warn('[DEBUG] Keycloak not authenticated or not available!');
       }
     },
-  });
+  }) as $Fetch;
 };
 
 /**

@@ -12,7 +12,7 @@ export default defineEventHandler(async (event) => {
   }
 
   // Generate JWT using jsonwebtoken
-  const token = jwt.sign(body, secret, { expiresIn: '12h' });
+  const token = jwt.sign((body ?? {}) as Record<string, any>, secret, { expiresIn: '12h' });
   
   return { token };
 });

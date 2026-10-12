@@ -36,6 +36,13 @@ const links = [[{
     open.value = false
   }
 }, {
+  label: 'Cargos',
+  icon: 'i-lucide-briefcase',
+  to: '/cargos',
+  onSelect: () => {
+    open.value = false
+  }
+}, {
   label: 'Settings',
   to: '/settings',
   icon: 'i-lucide-settings',

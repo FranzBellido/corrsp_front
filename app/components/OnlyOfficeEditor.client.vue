@@ -73,7 +73,7 @@ onMounted(async () => {
     };
 
     // Fetch the JWT token signed with the secret on the backend
-    const response = await $fetch('/api/onlyoffice/token', {
+    const response = await $fetch<{ token: string }>('/api/onlyoffice/token', {
       method: 'POST',
       body: baseConfig
     });
