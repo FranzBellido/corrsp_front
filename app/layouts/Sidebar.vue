@@ -34,9 +34,30 @@ const defaultNavItems: NavItem[] = [
     to: '/'
   },
   {
-    label: 'Bandeja',
+    label: 'Bandejas',
     icon: 'i-lucide-inbox',
-    to: '/inbox'
+    children: [
+      {
+        label: 'Borrador',
+        to: '/bandejas/borrador',
+        icon: 'i-lucide-file-edit'
+      },
+      {
+        label: 'Ingreso',
+        to: '/bandejas/ingreso',
+        icon: 'i-lucide-arrow-down-left'
+      },
+      {
+        label: 'Salida',
+        to: '/bandejas/salida',
+        icon: 'i-lucide-arrow-up-right'
+      },
+      {
+        label: 'Archivo',
+        to: '/bandejas/archivo',
+        icon: 'i-lucide-archive'
+      }
+    ]
   },
   {
     label: 'Documentos',
@@ -48,6 +69,11 @@ const defaultNavItems: NavItem[] = [
     icon: 'i-lucide-folder-cog',
     children: [
       {
+        label: 'Usuarios',
+        to: '/usuarios',
+        icon: 'i-lucide-users'
+      },
+      {
         label: 'Cargos',
         to: '/cargos',
         icon: 'i-lucide-briefcase'
@@ -55,7 +81,7 @@ const defaultNavItems: NavItem[] = [
       {
         label: 'Clientes',
         to: '/customers',
-        icon: 'i-lucide-users'
+        icon: 'i-lucide-building-2'
       }
     ]
   },
@@ -114,19 +140,9 @@ const isItemActive = (item: NavItem) => {
   <div class="flex flex-col h-full bg-neutral-50/50 dark:bg-neutral-950 overflow-hidden select-none">
     <!-- Brand Header -->
     <div class="p-4 shrink-0 border-b border-neutral-200/80 dark:border-neutral-800/80 bg-white/60 dark:bg-neutral-900/60 backdrop-blur-md">
-      <NuxtLink to="/" class="flex items-center gap-3 group">
-        <div class="size-10 bg-primary-600 rounded-xl flex items-center justify-center text-white font-bold shrink-0 shadow-md shadow-primary-500/20 group-hover:scale-105 transition-transform">
-          <UIcon name="i-lucide-mail" class="size-5" />
-        </div>
-        <div v-if="!collapsed" class="flex flex-col truncate">
-          <span class="font-bold text-neutral-900 dark:text-white leading-tight text-xs uppercase tracking-tight">
-            Correspondencia
-          </span>
-          <span class="text-[10px] text-primary-600 dark:text-primary-400 font-bold uppercase tracking-widest mt-0.5">
-            AFCOOP
-          </span>
-        </div>
-      </NuxtLink>
+      
+      <img src="/logo_afcoop.png" alt="Logo AfCoop"/>
+     
     </div>
 
     <!-- Navigation List -->

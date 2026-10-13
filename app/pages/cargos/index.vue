@@ -39,9 +39,7 @@ const columns: TableColumn<Cargo>[] = [
       const cargo = row.original
       return h('div', { class: 'flex flex-col gap-0.5' }, [
         h('span', { class: 'font-semibold text-gray-900 dark:text-white' }, cargo.nombre),
-        cargo.cargos_cod_depto
-          ? h('span', { class: 'text-xs text-gray-400 font-mono' }, `Cód: ${cargo.cargos_cod_depto}`)
-          : null,
+       
       ])
     },
   },
@@ -77,14 +75,7 @@ const columns: TableColumn<Cargo>[] = [
       ])
     },
   },
-  {
-    accessorKey: 'id_anterior',
-    header: 'ID Ant.',
-    cell: ({ row }) => {
-      const val = row.original.id_anterior
-      return val ? h('span', { class: 'text-xs font-mono text-gray-400' }, `#${val}`) : '-'
-    },
-  },
+ 
   {
     id: 'acciones',
     header: 'Acciones',

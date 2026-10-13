@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
+import { z } from 'zod'
+import type { FormSubmitEvent } from '@nuxt/ui'
 import type { Cargo, CreateCargoPayload, UpdateCargoPayload } from '~/types/cargo'
 import { backendService } from '~/services/backend.service'
 
@@ -15,7 +17,22 @@ const emit = defineEmits<{
 const toast = useToast()
 const saving = ref(false)
 
-const form = ref<CreateCargoPayload>({
+// Esquema de validación con Zod
+const cargoSchema = z.object({
+  nombre: z
+    .string()
+    .trim()
+    .min(1, 'El nombre del cargo es obligatorio')
+    .max(255, 'No puede exceder 255 caracteres'),
+  id_anterior: z.number().int().optional(),
+  cargos_cod_depto: z.string().max(255, 'No puede exceder 255 caracteres').optional(),
+  area_id: z.string().optional(),
+  usuario_id: z.string().optional(),
+})
+
+type CargoSchemaType = z.infer<typeof cargoSchema>
+
+const form = ref<CargoSchemaType>({
   nombre: '',
   id_anterior: undefined,
   cargos_cod_depto: '',
@@ -49,25 +66,17 @@ watch(
   { immediate: true },
 )
 
-const handleSave = async () => {
-  if (!form.value.nombre?.trim()) {
-    toast.add({
-      title: 'Validación',
-      description: 'El nombre del cargo es obligatorio.',
-      color: 'warning',
-      icon: 'i-lucide-alert-triangle',
-    })
-    return
-  }
+const handleSave = async (event?: FormSubmitEvent<CargoSchemaType>) => {
+  const data = event?.data || form.value
 
   saving.value = true
   try {
     const payload: CreateCargoPayload = {
-      nombre: form.value.nombre.trim(),
-      id_anterior: form.value.id_anterior ? Number(form.value.id_anterior) : undefined,
-      cargos_cod_depto: form.value.cargos_cod_depto?.trim() || undefined,
-      area_id: form.value.area_id || undefined,
-      usuario_id: form.value.usuario_id || undefined,
+      nombre: data.nombre.trim(),
+      id_anterior: data.id_anterior !== undefined ? Number(data.id_anterior) : undefined,
+      cargos_cod_depto: data.cargos_cod_depto?.trim() || undefined,
+      area_id: data.area_id || undefined,
+      usuario_id: data.usuario_id || undefined,
     }
 
     if (isEditing.value && props.cargo?.id) {
@@ -119,9 +128,20 @@ const handleSave = async () => {
     }"
   >
     <template #body>
-      <form class="space-y-4" @submit.prevent="handleSave">
+      <UForm
+        id="cargo-form"
+        :schema="cargoSchema"
+        :state="form"
+        class="space-y-4"
+        @submit="handleSave"
+      >
         <!-- Nombre del Cargo -->
-        <UFormField label="Nombre del Cargo" required help="Denominación formal del cargo o puesto.">
+        <UFormField
+          label="Nombre del Cargo"
+          name="nombre"
+          required
+          help="Denominación formal del cargo o puesto."
+        >
           <UInput
             v-model="form.nombre"
             placeholder="Ej. JEFE DE UNIDAD FINANCIERA"
@@ -131,9 +151,13 @@ const handleSave = async () => {
           />
         </UFormField>
 
-        <!-- Código de Departamento -->
+        <!-- Código de Departamento y ID Anterior -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <UFormField label="Código de Departamento" help="Opcional. Identificador departamental.">
+          <UFormField
+            label="Código de Departamento"
+            name="cargos_cod_depto"
+            help="Opcional. Identificador departamental."
+          >
             <UInput
               v-model="form.cargos_cod_depto"
               placeholder="Ej. LPZ-ADM-01"
@@ -142,7 +166,11 @@ const handleSave = async () => {
             />
           </UFormField>
 
-          <UFormField label="ID Anterior (Migración)" help="Opcional. Identificador del sistema previo.">
+          <UFormField
+            label="ID Anterior (Migración)"
+            name="id_anterior"
+            help="Opcional. Identificador del sistema previo."
+          >
             <UInput
               v-model.number="form.id_anterior"
               type="number"
@@ -154,7 +182,11 @@ const handleSave = async () => {
         </div>
 
         <!-- Área asignada (CodificadorSelect) -->
-        <UFormField label="Área / Unidad Organizacional" help="Seleccione el área a la que pertenece este cargo.">
+        <UFormField
+          label="Área / Unidad Organizacional"
+          name="area_id"
+          help="Seleccione el área a la que pertenece este cargo."
+        >
           <CodificadorSelect
             v-model="form.area_id"
             endpoint="comun/codificador/areas"
@@ -164,7 +196,11 @@ const handleSave = async () => {
         </UFormField>
 
         <!-- Usuario asignado (CodificadorSelect) -->
-        <UFormField label="Usuario Asignado (Opcional)" help="Funcionario que ocupa actualmente este cargo.">
+        <UFormField
+          label="Usuario Asignado (Opcional)"
+          name="usuario_id"
+          help="Funcionario que ocupa actualmente este cargo."
+        >
           <CodificadorSelect
             v-model="form.usuario_id"
             endpoint="comun/codificador/usuarios"
@@ -172,7 +208,7 @@ const handleSave = async () => {
             class="w-full"
           />
         </UFormField>
-      </form>
+      </UForm>
     </template>
 
     <template #footer>
@@ -189,7 +225,8 @@ const handleSave = async () => {
           color="primary"
           icon="i-lucide-check"
           :loading="saving"
-          @click="handleSave"
+          type="submit"
+          form="cargo-form"
         />
       </div>
     </template>

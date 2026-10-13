@@ -45,3 +45,5 @@ export interface VistaCargo {
   limite: number;
   totalPaginas: number;
 }
+
+export type RespuestaBusquedaCargo = VistaCargo;

@@ -15,8 +15,8 @@ const filteredMembers = computed(() => {
 <template>
   <div>
     <UPageCard
-      title="Members"
-      description="Invite new members by email address."
+      title="Miembros del Ärea"
+      description="Usuarios de la misma área organizacional"
       variant="naked"
       orientation="horizontal"
       class="mb-4"
