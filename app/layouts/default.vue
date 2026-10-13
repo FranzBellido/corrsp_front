@@ -1,170 +1,61 @@
 <script setup lang="ts">
-import type { NavigationMenuItem } from '@nuxt/ui'
+import LayoutSidebar from './Sidebar.vue'
+import LayoutHeader from './Header.vue'
+import LayoutFooter from './Footer.vue'
 
+const isSidebarOpen = ref(false)
+const isCollapsed = ref(false)
 const route = useRoute()
-const toast = useToast()
 
-const open = ref(false)
-
-const links = [[{
-  label: 'Home',
-  icon: 'i-lucide-house',
-  to: '/',
-  onSelect: () => {
-    open.value = false
-  }
-}, {
-  label: 'Inbox',
-  icon: 'i-lucide-inbox',
-  to: '/inbox',
-  badge: '4',
-  onSelect: () => {
-    open.value = false
-  }
-}, {
-  label: 'Customers',
-  icon: 'i-lucide-users',
-  to: '/customers',
-  onSelect: () => {
-    open.value = false
-  }
-}, {
-  label: 'Documentos',
-  icon: 'i-lucide-file-text',
-  to: '/documents',
-  onSelect: () => {
-    open.value = false
-  }
-}, {
-  label: 'Cargos',
-  icon: 'i-lucide-briefcase',
-  to: '/cargos',
-  onSelect: () => {
-    open.value = false
-  }
-}, {
-  label: 'Settings',
-  to: '/settings',
-  icon: 'i-lucide-settings',
-  defaultOpen: true,
-  type: 'trigger',
-  children: [{
-    label: 'General',
-    to: '/settings',
-    exact: true,
-    onSelect: () => {
-      open.value = false
-    }
-  }, {
-    label: 'Members',
-    to: '/settings/members',
-    onSelect: () => {
-      open.value = false
-    }
-  }, {
-    label: 'Notifications',
-    to: '/settings/notifications',
-    onSelect: () => {
-      open.value = false
-    }
-  }, {
-    label: 'Security',
-    to: '/settings/security',
-    onSelect: () => {
-      open.value = false
-    }
-  }]
-}], [{
-  label: 'Feedback',
-  icon: 'i-lucide-message-circle',
-  to: 'https://github.com/nuxt-ui-templates/dashboard',
-  target: '_blank'
-}, {
-  label: 'Help & Support',
-  icon: 'i-lucide-info',
-  to: 'https://github.com/nuxt-ui-templates/dashboard',
-  target: '_blank'
-}]] satisfies NavigationMenuItem[][]
-
-const groups = computed(() => [{
-  id: 'links',
-  label: 'Go to',
-  items: links.flat()
-}, {
-  id: 'code',
-  label: 'Code',
-  items: [{
-    id: 'source',
-    label: 'View page source',
-    icon: 'i-simple-icons-github',
-    to: `https://github.com/nuxt-ui-templates/dashboard/blob/main/app/pages${route.path === '/' ? '/index' : route.path}.vue`,
-    target: '_blank'
-  }]
-}])
-
-onMounted(async () => {
-  const cookie = useCookie('cookie-consent')
-  if (cookie.value === 'accepted') {
-    return
-  }
-
-  toast.add({
-    title: 'We use first-party cookies to enhance your experience on our website.',
-    duration: 0,
-    close: false,
-    actions: [{
-      label: 'Accept',
-      color: 'neutral',
-      variant: 'outline',
-      onClick: () => {
-        cookie.value = 'accepted'
-      }
-    }, {
-      label: 'Opt out',
-      color: 'neutral',
-      variant: 'ghost'
-    }]
-  })
+watch(() => route.path, () => {
+  isSidebarOpen.value = false
 })
 </script>
 
 <template>
-  <UDashboardGroup unit="rem">
-    <UDashboardSidebar
-      id="default"
-      v-model:open="open"
-      collapsible
-      resizable
-      class="bg-elevated/25"
-      :ui="{ footer: 'lg:border-t lg:border-default' }"
+  <div class="flex h-screen bg-neutral-100/60 dark:bg-neutral-950 font-sans antialiased text-neutral-900 dark:text-neutral-100 overflow-hidden">
+    <!-- Desktop Sidebar -->
+    <aside 
+      class="border-r border-neutral-200/80 dark:border-neutral-800 hidden lg:block h-full shrink-0 transition-all duration-300 shadow-xs"
+      :class="[isCollapsed ? 'w-20' : 'w-64']"
     >
-     <template #header="{ collapsed }">
-       
+      <LayoutSidebar :collapsed="isCollapsed" />
+    </aside>
+
+    <!-- Mobile Sidebar (Slideover) -->
+    <USlideover 
+      v-model:open="isSidebarOpen" 
+      side="left" 
+      class="lg:hidden"
+      :ui="{ content: 'max-w-xs p-0 overflow-hidden' }"
+    >
+      <template #content>
+        <div class="h-full w-full">
+          <LayoutSidebar @navigate="isSidebarOpen = false" />
+        </div>
       </template>
+    </USlideover>
 
-      <template #default="{ collapsed }">
-        <UDashboardSearchButton :collapsed="collapsed" class="bg-transparent ring-default" />
+    <!-- Main Content Area -->
+    <div class="flex-1 flex flex-col overflow-hidden relative min-w-0">
+      <LayoutHeader 
+        :is-collapsed="isCollapsed" 
+        @toggle-sidebar="isSidebarOpen = true" 
+        @toggle-collapse="isCollapsed = !isCollapsed"
+      />
 
-        <UNavigationMenu
-          :collapsed="collapsed"
-          :items="links[0]"
-          orientation="vertical"
-          tooltip
-          popover
-        />
+      <main class="flex-1 overflow-y-auto flex flex-col bg-neutral-50/40 dark:bg-neutral-900/30">
+        <div class="flex-1 p-4 sm:p-6 lg:p-8">
+          <div class="max-w-7xl mx-auto w-full">
+            <slot />
+          </div>
+        </div>
+        
+        <LayoutFooter />
+      </main>
+    </div>
 
-      
-      </template>
-
-      <template #footer="{ collapsed }">
-        <UserMenu :collapsed="collapsed" />
-      </template>
-    </UDashboardSidebar>
-
-    <UDashboardSearch :groups="groups" />
-
-    <slot />
-
+    <!-- Slideover global de notificaciones -->
     <NotificationsSlideover />
-  </UDashboardGroup>
+  </div>
 </template>

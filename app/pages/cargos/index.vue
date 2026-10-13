@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted, h } from 'vue'
 import type { TableColumn } from '@nuxt/ui'
-import type { Cargo, FiltroCargo } from '~/types/cargo'
-import { cargoService } from '~/services/cargo.service'
+import type { Cargo, FiltroCargo, RespuestaBusquedaCargo } from '~/types/cargo'
+import { backendService } from '~/services/backend.service'
 
 const UBadge = resolveComponent('UBadge')
 const UButton = resolveComponent('UButton')
@@ -123,9 +123,11 @@ const cargarCargos = async () => {
       area_id: selectedAreaId.value || undefined,
     }
 
-    const res = await cargoService.buscar(filtro)
-    cargos.value = res.datos || []
-    total.value = res.total || 0
+    const res = await backendService.post<RespuestaBusquedaCargo>('cargos/buscar', filtro)
+    // El backend devuelve los datos paginados (datos, total, ...)
+    const data = (res as any)?.data || res
+    cargos.value = data.datos || []
+    total.value = data.total || 0
   } catch (error: any) {
     toast.add({
       title: 'Error de conexión',
@@ -175,7 +177,7 @@ const ejecutarEliminacion = async () => {
   if (!cargoToDelete.value) return
   deleting.value = true
   try {
-    await cargoService.eliminar(cargoToDelete.value.id)
+    await backendService.delete<Cargo>('cargos', cargoToDelete.value.id)
     toast.add({
       title: 'Cargo eliminado',
       description: `El cargo "${cargoToDelete.value.nombre}" fue eliminado exitosamente.`,
@@ -207,74 +209,71 @@ onMounted(() => {
 </script>
 
 <template>
-  <UDashboardPanel id="cargos-panel">
-    <template #header>
-      <UDashboardNavbar title="Administración de Cargos" :ui="{ right: 'gap-3' }">
-        <template #leading>
-          <UDashboardSidebarCollapse />
-        </template>
+  <div class="space-y-6">
+    <!-- Encabezado de página -->
+    <PageHeader
+      title="Administración de Cargos"
+      description="Listado institucional, asignación de áreas y funcionarios del sistema de correspondencia"
+    >
+      <template #actions>
+        <UButton
+          icon="i-lucide-plus"
+          color="primary"
+          class="justify-center h-10 rounded-xl font-bold px-6 shadow-lg shadow-primary-500/20 hover:shadow-primary-500/30 transition-all duration-300 cursor-pointer"
+          @click="handleCrear"
+        >
+          Nuevo Cargo
+        </UButton>
+      </template>
+    </PageHeader>
 
-        <template #right>
-          <UButton
-            label="Nuevo Cargo"
-            color="primary"
-            icon="i-lucide-plus"
-            @click="handleCrear"
-          />
-        </template>
-      </UDashboardNavbar>
+    <!-- Barra de Filtros (Glassmorphism con AppFilter) -->
+    <AppFilter>
+      <AppFilterItem label="Búsqueda" min-w="320px" flex1>
+        <UInput
+          v-model="searchCriterio"
+          icon="i-lucide-search"
+          placeholder="Buscar por cargo, código o funcionario..."
+          variant="ghost"
+          class="w-full font-medium text-neutral-800 dark:text-neutral-200"
+          @update:model-value="onSearchInput"
+        />
+      </AppFilterItem>
 
-      <!-- Barra de Filtros y Búsqueda -->
-      <UDashboardToolbar>
-        <template #left>
-          <div class="flex flex-wrap items-center gap-3 w-full">
-            <!-- Buscador general por texto -->
-            <UInput
-              v-model="searchCriterio"
-              placeholder="Buscar por nombre, código o funcionario..."
-              icon="i-lucide-search"
-              class="w-72"
-              @update:model-value="onSearchInput"
-            />
+      <AppFilterItem label="Área / Unidad" min-w="260px" border>
+        <CodificadorSelect
+          v-model="selectedAreaId"
+          endpoint="comun/codificador/areas"
+          placeholder="Filtrar por Área..."
+          incluir-todos
+          class="w-full"
+          @update:model-value="() => { page = 1; cargarCargos() }"
+        />
+      </AppFilterItem>
 
-            <!-- Filtro de Área con CodificadorSelect -->
-            <div class="w-64">
-              <CodificadorSelect
-                v-model="selectedAreaId"
-                endpoint="comun/codificador/areas"
-                placeholder="Filtrar por Área..."
-                incluir-todos
-                @update:model-value="() => { page = 1; cargarCargos() }"
-              />
-            </div>
+      <div v-if="searchCriterio || selectedAreaId" class="pl-3 flex items-center">
+        <UButton
+          icon="i-lucide-x"
+          color="neutral"
+          variant="ghost"
+          size="xs"
+          label="Limpiar"
+          @click="limpiarFiltros"
+        />
+      </div>
+    </AppFilter>
 
-            <!-- Botón para limpiar filtros -->
-            <UButton
-              v-if="searchCriterio || selectedAreaId"
-              icon="i-lucide-x"
-              color="neutral"
-              variant="ghost"
-              size="xs"
-              label="Limpiar filtros"
-              @click="limpiarFiltros"
-            />
-          </div>
-        </template>
-      </UDashboardToolbar>
-    </template>
-
-    <template #body>
-      <!-- Tabla con el componente CorTable -->
-      <CorTable
-        :columns="columns"
-        :data="cargos"
-        :loading="loading"
-        :total="total"
-        v-model:page="page"
-        v-model:page-size="pageSize"
-        @update:page="cargarCargos"
-        @update:page-size="cargarCargos"
-      />
+    <!-- Tabla con CorTable -->
+    <CorTable
+      :columns="columns"
+      :data="cargos"
+      :loading="loading"
+      :total="total"
+      v-model:page="page"
+      v-model:page-size="pageSize"
+      @update:page="cargarCargos"
+      @update:page-size="cargarCargos"
+    />
 
       <!-- Modal de Creación / Edición -->
       <CargosCargoFormModal
@@ -322,6 +321,5 @@ onMounted(() => {
           </div>
         </template>
       </UModal>
-    </template>
-  </UDashboardPanel>
+  </div>
 </template>

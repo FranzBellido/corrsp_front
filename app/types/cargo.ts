@@ -38,7 +38,7 @@ export interface FiltroCargo {
   limite?: number;
 }
 
-export interface RespuestaBusquedaCargo {
+export interface VistaCargo {
   datos: Cargo[];
   total: number;
   pagina: number;

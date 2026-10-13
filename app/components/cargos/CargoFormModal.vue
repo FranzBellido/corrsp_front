@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import type { Cargo, CreateCargoPayload, UpdateCargoPayload } from '~/types/cargo'
-import { cargoService } from '~/services/cargo.service'
+import { backendService } from '~/services/backend.service'
 
 const props = defineProps<{
   cargo?: Cargo | null
@@ -71,7 +71,7 @@ const handleSave = async () => {
     }
 
     if (isEditing.value && props.cargo?.id) {
-      await cargoService.actualizar(props.cargo.id, payload as UpdateCargoPayload)
+      await backendService.patch<Cargo>('cargos', props.cargo.id, payload as UpdateCargoPayload)
       toast.add({
         title: 'Cargo actualizado',
         description: 'El cargo ha sido modificado exitosamente.',
@@ -79,7 +79,7 @@ const handleSave = async () => {
         icon: 'i-lucide-check-circle',
       })
     } else {
-      await cargoService.crear(payload)
+      await backendService.post<Cargo>('cargos', payload)
       toast.add({
         title: 'Cargo creado',
         description: 'El nuevo cargo fue registrado exitosamente.',
