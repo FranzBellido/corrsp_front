@@ -4,9 +4,12 @@ export function useAuth() {
 
   const logout = () => {
     if (import.meta.client && $keycloak) {
-      localStorage.clear()
+      // Limpiar solo datos de la sesión actual, preservando las preferencias en localStorage
       sessionStorage.clear()
-      useProfile().clearProfile()
+      const { profile, needsCargoSelection } = useProfile()
+      profile.value = null
+      needsCargoSelection.value = false
+
       $keycloak.logout({
         redirectUri: window.location.origin
       })

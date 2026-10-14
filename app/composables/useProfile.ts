@@ -66,13 +66,25 @@ export const useProfile = () => {
 
     if (import.meta.client) {
       localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(updatedProfile))
+      if (updatedProfile.cargo_activo_id) {
+        localStorage.setItem('cargo_activo_id', updatedProfile.cargo_activo_id)
+      }
+      if (updatedProfile.area_activa_id) {
+        localStorage.setItem('area_activa_id', updatedProfile.area_activa_id)
+      }
       syncSessionArea(updatedProfile.area_activa_id, updatedProfile.area_activa_nombre)
     }
   }
 
+  // Bandera para indicar si se requiere que el usuario escoja cargo entre múltiples opciones
+  const needsCargoSelection = useState<boolean>('needs-cargo-selection', () => false)
+
   /**
    * Obtiene el perfil desde la API del backend.
-   * Si en localStorage ya se había seleccionado un cargo_activo_id, se preserva.
+   * Reglas de negocio:
+   * 1. Si no hay info en localStorage y solo tiene 1 cargo -> se almacena automáticamente y continúa.
+   * 2. Si no hay info en localStorage y tiene 2 o más cargos -> activa needsCargoSelection para mostrar el modal.
+   * 3. Si ya tiene cargo seleccionado en localStorage -> se preserva y continúa.
    */
   const fetchProfile = async (): Promise<ProfileDto | null> => {
     if (!import.meta.client) return null
@@ -84,17 +96,32 @@ export const useProfile = () => {
         const apiData = resp.data
         const existingStored = loadProfileFromStorage()
 
-        // Si ya tenía un cargo seleccionado previamente en localStorage y dicho cargo aún le pertenece
+        const numCargos = apiData.cargos?.length || 0
+
+        // Verificar si el cargo previamente guardado aún existe en sus cargos actuales
         let defaultCargoId = existingStored?.cargo_activo_id
         const cargoExists = apiData.cargos?.some(c => c.id === defaultCargoId)
 
-        if (!defaultCargoId || !cargoExists) {
-          // Si tiene exactamente un solo cargo, se autoselecciona por defecto
-          if (apiData.cargos && apiData.cargos.length === 1 && apiData.cargos[0]) {
+        if (!cargoExists) {
+          defaultCargoId = null
+        }
+
+        // Si no hay cargo seleccionado previamente guardado
+        if (!defaultCargoId) {
+          if (numCargos === 1 && apiData.cargos?.[0]) {
+            // Caso 1: Solo tiene 1 cargo -> guardar directamente en localStorage
             defaultCargoId = apiData.cargos[0].id
+            needsCargoSelection.value = false
+          } else if (numCargos > 1) {
+            // Caso 2: Tiene 2 o más cargos -> requerir selección mediante modal
+            needsCargoSelection.value = true
           } else {
-            defaultCargoId = null
+            // No tiene cargos asignados
+            needsCargoSelection.value = false
           }
+        } else {
+          // Ya tenía selección previa en localStorage
+          needsCargoSelection.value = false
         }
 
         let areaId: string | null = null
@@ -117,11 +144,9 @@ export const useProfile = () => {
           area_activa_nombre: areaNombre
         }
 
-        // Si ya hay configuración guardada o si solo tiene un cargo (o ninguno), lo persistimos
-        if (existingStored || (apiData.cargos && apiData.cargos.length <= 1)) {
+        if (defaultCargoId || numCargos <= 1) {
           saveProfileToStorage(fullProfile)
         } else {
-          // Si tiene múltiples cargos y aún no ha seleccionado, dejamos el state
           profile.value = fullProfile
         }
 
@@ -160,6 +185,7 @@ export const useProfile = () => {
       area_activa_nombre: areaNombre
     }
     saveProfileToStorage(updated)
+    needsCargoSelection.value = false
   }
 
   /**
@@ -167,8 +193,11 @@ export const useProfile = () => {
    */
   const clearProfile = () => {
     profile.value = null
+    needsCargoSelection.value = false
     if (import.meta.client) {
       localStorage.removeItem(PROFILE_STORAGE_KEY)
+      localStorage.removeItem('cargo_activo_id')
+      localStorage.removeItem('area_activa_id')
       sessionStorage.removeItem('area_activa_id')
       sessionStorage.removeItem('area_activa_nombre')
       sessionStorage.removeItem('profile')
@@ -202,6 +231,7 @@ export const useProfile = () => {
     cargoActivo,
     areaActiva,
     loading,
+    needsCargoSelection,
     fetchProfile,
     loadProfileFromStorage,
     saveProfileToStorage,

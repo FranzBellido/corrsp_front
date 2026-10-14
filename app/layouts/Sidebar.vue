@@ -74,6 +74,11 @@ const defaultNavItems: NavItem[] = [
         icon: 'i-lucide-users'
       },
       {
+        label: 'Áreas / Unidades',
+        to: '/areas',
+        icon: 'i-lucide-building-2'
+      },
+      {
         label: 'Cargos',
         to: '/cargos',
         icon: 'i-lucide-briefcase'
@@ -94,32 +99,9 @@ const defaultNavItems: NavItem[] = [
 
 const navItems = ref<NavItem[]>(defaultNavItems)
 
-const fetchMenu = async () => {
-  if (!isAuthenticated.value) return
-  
-  try {
-    const response = await backendService.get<NavItem[]>('/roles/menu')
-    if (response && (response as any).data && Array.isArray((response as any).data) && (response as any).data.length > 0) {
-      navItems.value = (response as any).data
-    }
-  } catch {
-    // Si no existe el endpoint dinámico en el backend actual, mantiene el defaultNavItems
-  }
-}
-
-watch(() => profile.value, (newProfile) => {
-  if (newProfile) {
-    fetchMenu()
-  }
-}, { immediate: true })
-
 onMounted(() => {
-  if (isAuthenticated.value) {
-    if (!profile.value) {
-      fetchProfile()
-    } else {
-      fetchMenu()
-    }
+  if (isAuthenticated.value && !profile.value) {
+    fetchProfile()
   }
 })
 

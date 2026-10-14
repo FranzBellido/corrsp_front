@@ -1,16 +1,26 @@
-version: '3.8'
-
 services:
-  nuxt-app:
+
+  # ==========================================
+  # Frontend - Nuxt / Nitro
+  # ==========================================
+  frontend:
     build:
       context: .
       dockerfile: Dockerfile
-    image: nuxt-app:latest
-    container_name: nuxt-app-container
+    image: afcoop-frontend:latest
+    container_name: afcoop-frontend
+    restart: unless-stopped
     ports:
       - "3000:3000"
     environment:
       - NODE_ENV=production
       - HOST=0.0.0.0
       - PORT=3000
-    restart: unless-stopped
+      # Variables públicas que consumen el navegador y el servidor Nuxt
+      - NUXT_PUBLIC_KEYCLOAK_URL=http://localhost:8080
+      - NUXT_PUBLIC_KEYCLOAK_REALM=desarrollo
+      - NUXT_PUBLIC_KEYCLOAK_CLIENT_ID=ssp-client
+      - NUXT_PUBLIC_API_BASE_URL=http://localhost:3001
+      - NUXT_PUBLIC_API_PUBLIC_URL=http://localhost:3001
+      - NUXT_PUBLIC_ONLY_OFFICE_TOKEN=palabra_secreta_afcoop_29876533322
+      - NUXT_PUBLIC_ONLY_OFFICE_SERVER=http://192.168.0.61:8095

@@ -2,6 +2,10 @@
 import LayoutSidebar from './Sidebar.vue'
 import LayoutHeader from './Header.vue'
 import LayoutFooter from './Footer.vue'
+import CargoSelectorModal from '~/components/settings/CargoSelectorModal.vue'
+import { useProfile } from '~/composables/useProfile'
+
+const { needsCargoSelection } = useProfile()
 
 const isSidebarOpen = ref(false)
 const isCollapsed = ref(false)
@@ -57,5 +61,8 @@ watch(() => route.path, () => {
 
     <!-- Slideover global de notificaciones -->
     <NotificationsSlideover />
+
+    <!-- Modal para selección de cargo por defecto si tiene múltiples cargos -->
+    <CargoSelectorModal v-model:open="needsCargoSelection" />
   </div>
 </template>

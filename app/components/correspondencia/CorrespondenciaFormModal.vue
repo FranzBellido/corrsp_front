@@ -38,6 +38,7 @@ const correspondenciaSchema = z.object({
   prioridad_id: z.number({ message: 'Debe seleccionar una prioridad' }),
   confidencial: z.boolean().default(false),
   cite_origen: z.string().optional(),
+  firmado_id: z.string().optional(),
 })
 
 type CorrespondenciaSchemaType = z.infer<typeof correspondenciaSchema>
@@ -48,9 +49,40 @@ const form = ref<CorrespondenciaSchemaType>({
   prioridad_id: undefined as any,
   confidencial: false,
   cite_origen: '',
+  firmado_id: '',
 })
 
 const isEditing = computed(() => !!props.correspondencia?.id)
+
+// Obtener area_activa_id priorizando localStorage, sessionStorage y useProfile
+const areaActivaId = computed(() => {
+  if (import.meta.client) {
+    const fromLocal = localStorage.getItem('area_activa_id')
+    if (fromLocal) return fromLocal
+
+    const userProfileRaw = localStorage.getItem('user_profile_data')
+    if (userProfileRaw) {
+      try {
+        const parsed = JSON.parse(userProfileRaw)
+        if (parsed?.area_activa_id) return parsed.area_activa_id
+      } catch (e) {
+        // Ignorar error de parsing
+      }
+    }
+
+    const fromSession = sessionStorage.getItem('area_activa_id')
+    if (fromSession) return fromSession
+  }
+  return profile.value?.area_activa_id || areaActiva.value?.id || null
+})
+
+// Parámetros para filtrar procesos en CodificadorSelect en base a area_proceso
+const procesoParams = computed(() => {
+  if (areaActivaId.value) {
+    return { area_id: areaActivaId.value }
+  }
+  return {}
+})
 
 // Observar cambio de correspondencia a editar
 watch(
@@ -63,6 +95,7 @@ watch(
         prioridad_id: val.prioridad_id,
         confidencial: Boolean(val.confidencial),
         cite_origen: val.cite_origen || '',
+        firmado_id: val.firmado_id || '',
       }
       tipoHr.value = 'existente'
       nroHrInput.value = val.hoja_ruta?.numero
@@ -74,6 +107,7 @@ watch(
         prioridad_id: undefined as any,
         confidencial: false,
         cite_origen: '',
+        firmado_id: profile.value?.usuario?.id || (profile.value as any)?.id || '',
       }
       tipoHr.value = 'nueva'
       nroHrInput.value = undefined
@@ -138,8 +172,8 @@ const handleSave = async (event?: FormSubmitEvent<CorrespondenciaSchemaType>) =>
     return
   }
 
-  // Obtener área_activa_id y cargo_activo_id de localStorage / composable
-  const areaOrigenId = profile.value?.area_activa_id || (import.meta.client ? sessionStorage.getItem('area_activa_id') : null)
+  // Obtener área_activa_id y cargo_activo_id de localStorage / sessionStorage / composable
+  const areaOrigenId = areaActivaId.value || profile.value?.area_activa_id || (import.meta.client ? sessionStorage.getItem('area_activa_id') : null)
   const remitenteId = profile.value?.cargo_activo_id || cargoActivo.value?.id
 
   if (!areaOrigenId) {
@@ -174,6 +208,7 @@ const handleSave = async (event?: FormSubmitEvent<CorrespondenciaSchemaType>) =>
         prioridad_id: Number(data.prioridad_id),
         confidencial: Boolean(data.confidencial),
         cite_origen: data.cite_origen?.trim() || undefined,
+        firmado_id: data.firmado_id || undefined,
       }
 
       await backendService.patch<Correspondencia>('correspondencia', props.correspondencia.id, payload)
@@ -191,6 +226,7 @@ const handleSave = async (event?: FormSubmitEvent<CorrespondenciaSchemaType>) =>
         confidencial: Boolean(data.confidencial),
         area_origen_id: areaOrigenId,
         remitente_id: remitenteId || undefined,
+        firmado_id: data.firmado_id || undefined,
         es_nueva_hr: tipoHr.value === 'nueva',
         nro_hr: tipoHr.value === 'existente' ? Number(nroHrInput.value) : undefined,
         cite_origen: data.cite_origen?.trim() || undefined,
@@ -366,11 +402,12 @@ const handleSave = async (event?: FormSubmitEvent<CorrespondenciaSchemaType>) =>
             label="Proceso"
             name="proc_id"
             required
-            help="Tipo de trámite o proceso institucional."
+            help="Filtrado según los procesos autorizados para el área activa."
           >
             <CodificadorSelect
               v-model="form.proc_id"
               endpoint="comun/codificador/procesos"
+              :params="procesoParams"
               placeholder="Seleccione proceso..."
               class="w-full"
             />
@@ -391,6 +428,20 @@ const handleSave = async (event?: FormSubmitEvent<CorrespondenciaSchemaType>) =>
             />
           </UFormField>
         </div>
+
+        <!-- Usuario que Firma (firmado_id) -->
+        <UFormField
+          label="Usuario que Firma"
+          name="firmado_id"
+          help="Funcionario responsable de la firma del documento (por defecto el usuario actual)."
+        >
+          <CodificadorSelect
+            v-model="form.firmado_id"
+            endpoint="comun/codificador/usuarios"
+            placeholder="Seleccione el funcionario que firma..."
+            class="w-full"
+          />
+        </UFormField>
 
         <!-- CITE de origen y Check Confidencial -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">

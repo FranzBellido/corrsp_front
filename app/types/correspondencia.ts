@@ -34,6 +34,7 @@ export interface Correspondencia {
   gestion: number;
   cite_origen?: string | null;
   prioridad_id: number;
+  firmado_id?: string | null;
   hoja_ruta?: HojaRuta | null;
   proceso?: {
     id: number;
@@ -71,6 +72,7 @@ export interface CreateCorrespondenciaPayload {
   confidencial: boolean;
   area_origen_id: string;
   remitente_id?: string;
+  firmado_id?: string;
   es_nueva_hr?: boolean;
   nro_hr?: number;
   hr_id?: string;
@@ -83,6 +85,7 @@ export interface UpdateCorrespondenciaPayload {
   prioridad_id?: number;
   confidencial?: boolean;
   cite_origen?: string;
+  firmado_id?: string;
 }
 
 export interface FiltroCorrespondencia {
