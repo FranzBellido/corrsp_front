@@ -2,9 +2,80 @@
 import * as z from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
 import { useProfile } from '~/composables/useProfile'
+import { backendService } from '~/services/backend.service'
 
 const toast = useToast()
 const { profile, loading, fetchProfile, loadProfileFromStorage, saveProfileToStorage } = useProfile()
+
+const uploadingFoto = ref(false)
+const loadingFoto = ref(false)
+const fotoPreviewLocal = ref<string | null>(null)
+/** Blob URL resuelta desde storage (o http externo legado) */
+const fotoUrlActual = ref<string | null>(null)
+/** Clave MinIO persistida (ej: avatars/xxx.jpg) */
+const fotoPathActual = ref<string | null>(null)
+const fileInputRef = ref<HTMLInputElement | null>(null)
+
+const MAX_FOTO_MB = 2
+const TIPOS_FOTO = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+
+const liberarBlobUrl = (url: string | null) => {
+  if (url?.startsWith('blob:')) {
+    URL.revokeObjectURL(url)
+  }
+}
+
+const liberarPreviewLocal = () => {
+  liberarBlobUrl(fotoPreviewLocal.value)
+  fotoPreviewLocal.value = null
+}
+
+const liberarFotoActual = () => {
+  liberarBlobUrl(fotoUrlActual.value)
+  fotoUrlActual.value = null
+}
+
+const avatarFallback = computed(() => {
+  const nombre = state.nombre_completo?.trim() || state.nombre_usuario?.trim() || 'Usuario'
+  return `https://ui-avatars.com/api/?name=${encodeURIComponent(nombre)}&background=0BB69B&color=fff`
+})
+
+const avatarSrc = computed(
+  () => fotoPreviewLocal.value || fotoUrlActual.value || avatarFallback.value,
+)
+
+const cargarFotoDesdeStorage = async (fotoPath: string | null | undefined) => {
+  liberarFotoActual()
+  fotoPathActual.value = fotoPath || null
+
+  if (!fotoPath) {
+    return
+  }
+
+  loadingFoto.value = true
+  try {
+    fotoUrlActual.value = await backendService.obtenerUrlDesdeStorage(fotoPath)
+  } catch {
+    fotoUrlActual.value = null
+  } finally {
+    loadingFoto.value = false
+  }
+}
+
+watch(
+  () => profile.value?.foto_url,
+  (path) => {
+    if (!fotoPreviewLocal.value && path !== fotoPathActual.value) {
+      void cargarFotoDesdeStorage(path)
+    }
+  },
+  { immediate: true },
+)
+
+onBeforeUnmount(() => {
+  liberarPreviewLocal()
+  liberarFotoActual()
+})
 
 onMounted(async () => {
   loadProfileFromStorage()
@@ -12,7 +83,96 @@ onMounted(async () => {
     await fetchProfile()
   }
   syncFormFromProfile()
+  if (profile.value?.foto_url && profile.value.foto_url !== fotoPathActual.value) {
+    await cargarFotoDesdeStorage(profile.value.foto_url)
+  }
 })
+
+const abrirSelectorFoto = () => {
+  fileInputRef.value?.click()
+}
+
+const onFotoSeleccionada = async (event: Event) => {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+
+  if (!file || !profile.value?.id) {
+    return
+  }
+
+  if (!TIPOS_FOTO.includes(file.type)) {
+    toast.add({
+      title: 'Archivo no válido',
+      description: 'Seleccione una imagen JPG, PNG, WEBP o GIF.',
+      color: 'warning',
+      icon: 'i-lucide-alert-triangle',
+    })
+    return
+  }
+
+  if (file.size > MAX_FOTO_MB * 1024 * 1024) {
+    toast.add({
+      title: 'Archivo muy grande',
+      description: `La foto no puede superar ${MAX_FOTO_MB} MB.`,
+      color: 'warning',
+      icon: 'i-lucide-alert-triangle',
+    })
+    return
+  }
+
+  liberarPreviewLocal()
+  fotoPreviewLocal.value = URL.createObjectURL(file)
+
+  uploadingFoto.value = true
+  try {
+    const formData = new FormData()
+    formData.append('file', file)
+
+    const res = await backendService.patchMultipart<{ foto_url?: string }>(
+      `storage/${profile.value.id}/foto`,
+      formData,
+    )
+
+    const fotoPath =
+      (res as { foto_url?: string })?.foto_url ||
+      (res as { data?: { foto_url?: string } })?.data?.foto_url
+
+    liberarPreviewLocal()
+
+    if (fotoPath) {
+      await cargarFotoDesdeStorage(fotoPath)
+      saveProfileToStorage({
+        ...profile.value,
+        foto_url: fotoPath,
+      })
+    }
+
+    toast.add({
+      title: 'Foto actualizada',
+      description: 'Su fotografía de perfil se guardó correctamente.',
+      color: 'success',
+      icon: 'i-lucide-check-circle',
+    })
+  } catch (error: unknown) {
+    liberarPreviewLocal()
+    const err = error as { data?: { message?: string | string[] }; message?: string }
+    const errorMsg =
+      err?.data?.message ||
+      (Array.isArray(err?.data?.message) ? err.data.message.join(', ') : null) ||
+      err?.message ||
+      'No se pudo subir la foto de perfil'
+
+    toast.add({
+      title: 'Error al subir foto',
+      description: errorMsg,
+      color: 'error',
+      icon: 'i-lucide-alert-circle',
+    })
+  } finally {
+    uploadingFoto.value = false
+  }
+}
 
 // Esquema Zod de validación
 const profileSchema = z.object({
@@ -173,21 +333,49 @@ async function onSubmit(event: FormSubmitEvent<ProfileFormSchema>) {
       <UFormField
         label="Fotografía / Avatar"
         description="Identificador visual del usuario."
-        class="flex max-sm:flex-col justify-between sm:items-center gap-4"
+        class="flex max-sm:flex-col justify-between sm:items-start gap-4"
       >
-        <div class="flex items-center gap-4">
+        <div class="flex flex-col sm:flex-row sm:items-center gap-4 w-full sm:max-w-md">
           <UAvatar
-            :src="profile?.foto_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(state.nombre_completo || 'Usuario')}&background=0BB69B&color=fff`"
-            :alt="state.nombre_completo"
-            size="xl"
-            class="border border-neutral-200 dark:border-neutral-700 shadow-xs"
+            :key="avatarSrc"
+            :src="avatarSrc"
+            :alt="state.nombre_completo || 'Foto de perfil'"
+            size="3xl"
+            class="ring-2 ring-primary/20 shrink-0 border border-neutral-200 dark:border-neutral-700"
           />
-          <div>
-            <div class="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
-              {{ state.nombre_completo || 'Sin nombre' }}
+
+          <div class="flex-1 space-y-2 min-w-0">
+            <div>
+              <div class="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                {{ state.nombre_completo || 'Sin nombre' }}
+              </div>
+              <div class="text-xs text-neutral-400">
+                {{ state.nombre_usuario }} &bull; {{ state.email }}
+              </div>
             </div>
-            <div class="text-xs text-neutral-400">
-              {{ state.nombre_usuario }} &bull; {{ state.email }}
+            <p class="text-xs text-muted">
+              JPG, PNG, WEBP o GIF. Máximo {{ MAX_FOTO_MB }} MB.
+            </p>
+            <div class="flex flex-wrap items-center gap-2">
+              <input
+                ref="fileInputRef"
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                class="hidden"
+                :disabled="uploadingFoto || !profile?.id"
+                @change="onFotoSeleccionada"
+              >
+              <UButton
+                type="button"
+                :label="fotoPathActual || profile?.foto_url ? 'Cambiar foto' : 'Subir foto'"
+                icon="i-lucide-upload"
+                color="primary"
+                variant="soft"
+                size="sm"
+                :loading="uploadingFoto || loadingFoto"
+                :disabled="!profile?.id"
+                @click="abrirSelectorFoto"
+              />
             </div>
           </div>
         </div>

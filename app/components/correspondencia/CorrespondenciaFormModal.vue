@@ -2,10 +2,13 @@
 import { ref, watch, computed } from 'vue'
 import { z } from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
-import type { Correspondencia, CreateCorrespondenciaPayload, UpdateCorrespondenciaPayload } from '~/types/correspondencia'
+import type { CodificadorDto } from '~/types/codificador'
+import type { Correspondencia, CorrespCooperativaPayload, CorrespEntidadPayload, CreateCorrespondenciaPayload, UpdateCorrespondenciaPayload } from '~/types/correspondencia'
 import { TipoCodificadorEnum } from '~/types/correspondencia'
 import { backendService } from '~/services/backend.service'
 import CodificadorSelect from '~/components/codificador/CodificadorSelect.vue'
+import CorrespCooperativaFields, { type CorrespCooperativaFormState } from '~/components/correspondencia/CorrespCooperativaFields.vue'
+import EntidadSelect from '~/components/correspondencia/EntidadSelect.vue'
 
 const props = defineProps<{
   correspondencia?: Correspondencia | null
@@ -26,22 +29,87 @@ const nroHrInput = ref<number | undefined>(undefined)
 const verificandoHr = ref(false)
 const hrEncontrada = ref<any | null>(null)
 const errorHr = ref<string | null>(null)
+const requiereCooperativa = ref(false)
+const requiereEntidad = ref(false)
+const entidadId = ref<number | undefined>(undefined)
 
-// Esquema de validación con Zod
-const correspondenciaSchema = z.object({
-  referencia: z
-    .string()
-    .trim()
-    .min(3, 'La referencia debe tener al menos 3 caracteres')
-    .max(1000, 'No puede exceder 1000 caracteres'),
-  proc_id: z.number({ message: 'Debe seleccionar un proceso' }),
-  prioridad_id: z.number({ message: 'Debe seleccionar una prioridad' }),
-  confidencial: z.boolean().default(false),
-  cite_origen: z.string().optional(),
-  firmado_id: z.string().optional(),
+const emptyCooperativa = (): CorrespCooperativaFormState => ({
+  cooperativa_id: undefined,
+  solicitante: '',
+  nro_carnet: '',
+  cargo_solicitante: '',
+  correo_solicitante: '',
+  nro_poder: '',
+  nro_deposito: '',
+  importe: undefined,
+  telefono: '',
 })
 
-type CorrespondenciaSchemaType = z.infer<typeof correspondenciaSchema>
+const cooperativaSchema = z.object({
+  cooperativa_id: z.number({ message: 'Debe seleccionar una cooperativa' }),
+  solicitante: z
+    .string()
+    .trim()
+    .min(3, 'El nombre del solicitante debe tener al menos 3 caracteres'),
+  nro_carnet: z
+    .string()
+    .trim()
+    .min(5, 'El número de carnet es obligatorio')
+    .max(20, 'El número de carnet no puede exceder 20 caracteres'),
+  cargo_solicitante: z.string().optional(),
+  correo_solicitante: z
+    .string()
+    .trim()
+    .optional()
+    .refine(
+      (valor) => !valor || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(valor),
+      'El correo del solicitante no es válido',
+    ),
+  nro_poder: z.string().optional(),
+  nro_deposito: z.string().optional(),
+  importe: z
+    .union([z.number().nonnegative('El importe no puede ser negativo'), z.nan(), z.undefined()])
+    .optional(),
+  telefono: z.string().optional(),
+})
+
+// Esquema de validación con Zod
+const correspondenciaSchema = computed(() => {
+  const baseFields = {
+    referencia: z
+      .string()
+      .trim()
+      .min(3, 'La referencia debe tener al menos 3 caracteres')
+      .max(1000, 'No puede exceder 1000 caracteres'),
+    proc_id: z.number({ message: 'Debe seleccionar un proceso' }),
+    prioridad_id: z.number({ message: 'Debe seleccionar una prioridad' }),
+    confidencial: z.boolean().default(false),
+    cite_origen: z.string().optional(),
+    firmado_id: z.string().optional(),
+  }
+
+  if (!requiereCooperativa.value) {
+    return z.object({
+      ...baseFields,
+      cooperativa: z.any().optional(),
+    })
+  }
+
+  return z.object({
+    ...baseFields,
+    cooperativa: cooperativaSchema,
+  })
+})
+
+type CorrespondenciaSchemaType = {
+  referencia: string
+  proc_id: number
+  prioridad_id: number
+  confidencial: boolean
+  cite_origen?: string
+  firmado_id?: string
+  cooperativa: CorrespCooperativaFormState
+}
 
 const form = ref<CorrespondenciaSchemaType>({
   referencia: '',
@@ -50,7 +118,85 @@ const form = ref<CorrespondenciaSchemaType>({
   confidencial: false,
   cite_origen: '',
   firmado_id: '',
+  cooperativa: emptyCooperativa(),
 })
+
+const onProcesoSeleccionado = (item: CodificadorDto | null) => {
+  if (!item) {
+    if (!form.value.proc_id) {
+      requiereCooperativa.value = false
+      requiereEntidad.value = false
+      entidadId.value = undefined
+    }
+    return
+  }
+
+  const nextCoop = Boolean(item.requiere_cooperativa)
+  if (requiereCooperativa.value && !nextCoop) {
+    form.value.cooperativa = emptyCooperativa()
+  }
+  requiereCooperativa.value = nextCoop
+
+  const nextEntidad = Boolean(item.requiere_entidad)
+  if (requiereEntidad.value && !nextEntidad) {
+    entidadId.value = undefined
+  }
+  requiereEntidad.value = nextEntidad
+}
+
+const mapCooperativaExistente = (val: Correspondencia): CorrespCooperativaFormState => {
+  const existente = val.corresp_cooperativa?.[0]
+  if (!existente) {
+    return emptyCooperativa()
+  }
+
+  const importeNumerico =
+    existente.importe === null || existente.importe === undefined || existente.importe === ''
+      ? undefined
+      : Number(existente.importe)
+
+  return {
+    cooperativa_id: existente.cooperativa_id,
+    solicitante: existente.solicitante || '',
+    nro_carnet: existente.nro_carnet || '',
+    cargo_solicitante: existente.cargo_solicitante || '',
+    correo_solicitante: existente.correo_solicitante || '',
+    nro_poder: existente.nro_poder || '',
+    nro_deposito: existente.nro_deposito || '',
+    importe: Number.isFinite(importeNumerico) ? importeNumerico : undefined,
+    telefono: existente.telefono || '',
+  }
+}
+
+const buildCooperativaPayload = (): CorrespCooperativaPayload | undefined => {
+  if (!requiereCooperativa.value) {
+    return undefined
+  }
+
+  const coop = form.value.cooperativa
+  return {
+    cooperativa_id: Number(coop.cooperativa_id),
+    solicitante: coop.solicitante.trim(),
+    nro_carnet: coop.nro_carnet.trim(),
+    cargo_solicitante: coop.cargo_solicitante?.trim() || undefined,
+    correo_solicitante: coop.correo_solicitante?.trim() || undefined,
+    nro_poder: coop.nro_poder?.trim() || undefined,
+    nro_deposito: coop.nro_deposito?.trim() || undefined,
+    importe: coop.importe === undefined || coop.importe === null || Number.isNaN(Number(coop.importe))
+      ? undefined
+      : Number(coop.importe),
+    telefono: coop.telefono?.trim() || undefined,
+  }
+}
+
+const buildEntidadesPayload = (): CorrespEntidadPayload | undefined => {
+  if (!requiereEntidad.value || !entidadId.value) {
+    return undefined
+  }
+  return {
+    entidades_ids: [Number(entidadId.value)],
+  }
+}
 
 const isEditing = computed(() => !!props.correspondencia?.id)
 
@@ -96,7 +242,15 @@ watch(
         confidencial: Boolean(val.confidencial),
         cite_origen: val.cite_origen || '',
         firmado_id: val.firmado_id || '',
+        cooperativa: mapCooperativaExistente(val),
       }
+      requiereCooperativa.value = Boolean(
+        val.proceso?.requiere_cooperativa || val.corresp_cooperativa?.length,
+      )
+      requiereEntidad.value = Boolean(
+        val.proceso?.requiere_entidad || val.corresp_entidad?.length,
+      )
+      entidadId.value = val.corresp_entidad?.[0]?.entidad_id
       tipoHr.value = 'existente'
       nroHrInput.value = val.hoja_ruta?.numero
       hrEncontrada.value = val.hoja_ruta || null
@@ -108,7 +262,11 @@ watch(
         confidencial: false,
         cite_origen: '',
         firmado_id: profile.value?.usuario?.id || (profile.value as any)?.id || '',
+        cooperativa: emptyCooperativa(),
       }
+      requiereCooperativa.value = false
+      requiereEntidad.value = false
+      entidadId.value = undefined
       tipoHr.value = 'nueva'
       nroHrInput.value = undefined
       hrEncontrada.value = null
@@ -172,6 +330,29 @@ const handleSave = async (event?: FormSubmitEvent<CorrespondenciaSchemaType>) =>
     return
   }
 
+  if (requiereCooperativa.value) {
+    const coop = data.cooperativa || form.value.cooperativa
+    if (!coop?.cooperativa_id || !coop.solicitante?.trim() || !coop.nro_carnet?.trim()) {
+      toast.add({
+        title: 'Validación',
+        description: 'Debe completar cooperativa, solicitante y número de carnet.',
+        color: 'warning',
+        icon: 'i-lucide-alert-triangle',
+      })
+      return
+    }
+  }
+
+  if (requiereEntidad.value && !entidadId.value) {
+    toast.add({
+      title: 'Validación',
+      description: 'Debe seleccionar una entidad externa.',
+      color: 'warning',
+      icon: 'i-lucide-alert-triangle',
+    })
+    return
+  }
+
   // Obtener área_activa_id y cargo_activo_id de localStorage / sessionStorage / composable
   const areaOrigenId = areaActivaId.value || profile.value?.area_activa_id || (import.meta.client ? sessionStorage.getItem('area_activa_id') : null)
   const remitenteId = profile.value?.cargo_activo_id || cargoActivo.value?.id
@@ -209,6 +390,8 @@ const handleSave = async (event?: FormSubmitEvent<CorrespondenciaSchemaType>) =>
         confidencial: Boolean(data.confidencial),
         cite_origen: data.cite_origen?.trim() || undefined,
         firmado_id: data.firmado_id || undefined,
+        cooperativa: buildCooperativaPayload(),
+        entidades: buildEntidadesPayload(),
       }
 
       await backendService.patch<Correspondencia>('correspondencia', props.correspondencia.id, payload)
@@ -230,6 +413,8 @@ const handleSave = async (event?: FormSubmitEvent<CorrespondenciaSchemaType>) =>
         es_nueva_hr: tipoHr.value === 'nueva',
         nro_hr: tipoHr.value === 'existente' ? Number(nroHrInput.value) : undefined,
         cite_origen: data.cite_origen?.trim() || undefined,
+        cooperativa: buildCooperativaPayload(),
+        entidades: buildEntidadesPayload(),
       }
 
       await backendService.post<Correspondencia>('correspondencia', payload)
@@ -270,7 +455,7 @@ const handleSave = async (event?: FormSubmitEvent<CorrespondenciaSchemaType>) =>
     :title="isEditing ? 'Editar Correspondencia' : 'Nueva Correspondencia'"
     :description="isEditing ? 'Modifique los campos correspondientes del registro.' : 'Complete la información para generar o asociar la correspondencia.'"
     :ui="{
-      content: 'sm:max-w-2xl',
+      content: requiereCooperativa || requiereEntidad ? 'sm:max-w-3xl' : 'sm:max-w-2xl',
     }"
   >
     <template #body>
@@ -410,6 +595,7 @@ const handleSave = async (event?: FormSubmitEvent<CorrespondenciaSchemaType>) =>
               :params="procesoParams"
               placeholder="Seleccione proceso..."
               class="w-full"
+              @item-selected="onProcesoSeleccionado"
             />
           </UFormField>
 
@@ -426,6 +612,37 @@ const handleSave = async (event?: FormSubmitEvent<CorrespondenciaSchemaType>) =>
               placeholder="Seleccione prioridad..."
               class="w-full"
             />
+          </UFormField>
+        </div>
+
+        <CorrespCooperativaFields
+          v-if="requiereCooperativa"
+          v-model="form.cooperativa"
+        />
+
+        <div
+          v-if="requiereEntidad"
+          class="p-4 rounded-xl border border-sky-200 dark:border-sky-900/50 bg-sky-50/50 dark:bg-sky-950/20 space-y-4"
+        >
+          <div class="flex items-start gap-2">
+            <UIcon name="i-lucide-building-2" class="size-4 text-sky-600 dark:text-sky-400 mt-0.5 shrink-0" />
+            <div>
+              <p class="text-xs font-bold uppercase tracking-wider text-sky-800 dark:text-sky-200">
+                Entidad externa
+              </p>
+              <p class="text-[11px] text-sky-700/80 dark:text-sky-300/80 mt-0.5">
+                El proceso seleccionado requiere vincular una entidad de la tabla de entidades.
+              </p>
+            </div>
+          </div>
+
+          <UFormField
+            label="Entidad"
+            name="entidad_id"
+            required
+            help="Seleccione la entidad externa asociada a este trámite."
+          >
+            <EntidadSelect v-model="entidadId" />
           </UFormField>
         </div>
 

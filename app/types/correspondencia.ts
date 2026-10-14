@@ -40,7 +40,12 @@ export interface Correspondencia {
     id: number;
     nombre: string;
     codigo?: string;
+    plantilla?: string | null;
+    requiere_cooperativa?: boolean;
+    requiere_entidad?: boolean;
   } | null;
+  corresp_cooperativa?: CorrespCooperativa[];
+  corresp_entidad?: CorrespEntidad[];
   codificador?: {
     codificadorId: number;
     nombre?: string;
@@ -65,6 +70,51 @@ export interface Correspondencia {
   };
 }
 
+export interface CorrespCooperativa {
+  corresp_id?: string;
+  cooperativa_id: number;
+  solicitante: string;
+  nro_carnet: string;
+  cargo_solicitante?: string | null;
+  correo_solicitante?: string | null;
+  nro_poder?: string | null;
+  nro_deposito?: string | null;
+  importe?: number | string | null;
+  telefono?: string | null;
+  cooperativa?: {
+    id: number;
+    denominacion?: string | null;
+    razon_social?: string | null;
+    nro_registro?: string | null;
+  };
+}
+
+export interface CorrespCooperativaPayload {
+  cooperativa_id: number;
+  solicitante: string;
+  nro_carnet: string;
+  cargo_solicitante?: string;
+  correo_solicitante?: string;
+  nro_poder?: string;
+  nro_deposito?: string;
+  importe?: number;
+  telefono?: string;
+}
+
+export interface CorrespEntidad {
+  corresp_id?: string;
+  entidad_id: number;
+  entidad?: {
+    id: number;
+    nombre_ent?: string | null;
+    estado?: number;
+  };
+}
+
+export interface CorrespEntidadPayload {
+  entidades_ids: number[];
+}
+
 export interface CreateCorrespondenciaPayload {
   referencia: string;
   proc_id: number;
@@ -77,6 +127,8 @@ export interface CreateCorrespondenciaPayload {
   nro_hr?: number;
   hr_id?: string;
   cite_origen?: string;
+  cooperativa?: CorrespCooperativaPayload;
+  entidades?: CorrespEntidadPayload;
 }
 
 export interface UpdateCorrespondenciaPayload {
@@ -86,6 +138,8 @@ export interface UpdateCorrespondenciaPayload {
   confidencial?: boolean;
   cite_origen?: string;
   firmado_id?: string;
+  cooperativa?: CorrespCooperativaPayload;
+  entidades?: CorrespEntidadPayload;
 }
 
 export interface FiltroCorrespondencia {

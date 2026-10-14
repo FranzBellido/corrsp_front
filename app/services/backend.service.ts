@@ -25,16 +25,24 @@ export const getApi = (): $Fetch => {
       "Content-Type": "application/json",
     },
     async onRequest(context: any) {
+      const headers = new Headers(context.options.headers || {});
+
+      // FormData debe enviar el boundary automático; application/json rompe la subida multipart.
+      if (context.options.body instanceof FormData) {
+        headers.delete("Content-Type");
+        headers.delete("content-type");
+      }
+
       if ($keycloak && ($keycloak as any).authenticated) {
         try {
           await ($keycloak as any).updateToken(30);
-          const headers = new Headers(context.options.headers || {});
           headers.set("Authorization", `Bearer ${($keycloak as any).token}`);
-          context.options.headers = headers;
         } catch {
           ($keycloak as any).logout();
         }
       }
+
+      context.options.headers = headers;
     },
   }) as $Fetch;
 };
@@ -172,17 +180,65 @@ export async function descargarBlob(endpoint: string): Promise<Blob> {
 }
 
 /**
+ * Convierte una clave de storage (ej: avatars/xxx.jpg) en un blob URL
+ * listo para mostrar en <img> / UAvatar. Las URLs http(s)/blob se dejan igual.
+ */
+export async function obtenerUrlDesdeStorage(
+  fotoPath: string | null | undefined,
+): Promise<string | null> {
+  if (!fotoPath) {
+    return null;
+  }
+
+  if (
+    fotoPath.startsWith("blob:") ||
+    fotoPath.startsWith("http://") ||
+    fotoPath.startsWith("https://") ||
+    fotoPath.includes("ui-avatars.com")
+  ) {
+    return fotoPath;
+  }
+
+  // Clave MinIO: folder/filename → GET storage/download/:folder/:filename
+  const blob = await descargarBlob(`storage/download/${fotoPath}`);
+  return URL.createObjectURL(blob);
+}
+
+/**
  * POST multipart/form-data (subida de archivos)
  */
+const multipartFetch = async <T>(
+  method: "POST" | "PATCH",
+  endpoint: string,
+  body: FormData,
+): Promise<RespuestaApi<T>> => {
+  const api = getApi();
+  return await api(endpoint, {
+    method,
+    body,
+    headers: {
+      Accept: "application/json",
+      // Evita heredar application/json del cliente por defecto (ofetch/h3).
+      "Content-Type": false,
+    },
+  });
+};
+
 export async function postMultipart<T>(
   endpoint: string,
   body: FormData,
 ): Promise<RespuestaApi<T>> {
-  const api = getApi();
-  return await api(endpoint, {
-    method: "POST",
-    body,
-  });
+  return multipartFetch<T>("POST", endpoint, body);
+}
+
+/**
+ * PATCH multipart/form-data (actualización con archivos)
+ */
+export async function patchMultipart<T>(
+  endpoint: string,
+  body: FormData,
+): Promise<RespuestaApi<T>> {
+  return multipartFetch<T>("PATCH", endpoint, body);
 }
 
 /**
@@ -199,5 +255,7 @@ export const backendService = {
   buscar: buscarGenerico,
   crear: crearGenerico,
   descargarBlob,
+  obtenerUrlDesdeStorage,
   postMultipart,
+  patchMultipart,
 };

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, computed, onMounted } from 'vue'
+import { ref, watch, computed, onMounted, onBeforeUnmount } from 'vue'
 import { z } from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
 import type { Usuario, CreateUsuarioPayload, UpdateUsuarioPayload, Rol } from '~/types/usuario'
@@ -16,8 +16,61 @@ const emit = defineEmits<{
 
 const toast = useToast()
 const saving = ref(false)
+const uploadingFoto = ref(false)
+const loadingFoto = ref(false)
 const loadingRoles = ref(false)
 const rolesDisponibles = ref<Rol[]>([])
+const fotoPendiente = ref<File | null>(null)
+const fotoPreviewLocal = ref<string | null>(null)
+/** Blob URL resuelta desde storage (o http externo legado) */
+const fotoUrlActual = ref<string | null>(null)
+/** Clave MinIO persistida (ej: avatars/xxx.jpg) */
+const fotoPathActual = ref<string | null>(null)
+const fileInputRef = ref<HTMLInputElement | null>(null)
+
+const MAX_FOTO_MB = 2
+const TIPOS_FOTO = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+
+const liberarBlobUrl = (url: string | null) => {
+  if (url?.startsWith('blob:')) {
+    URL.revokeObjectURL(url)
+  }
+}
+
+const liberarPreviewLocal = () => {
+  liberarBlobUrl(fotoPreviewLocal.value)
+  fotoPreviewLocal.value = null
+}
+
+const liberarFotoActual = () => {
+  liberarBlobUrl(fotoUrlActual.value)
+  fotoUrlActual.value = null
+}
+
+const avatarFallback = computed(() => {
+  const nombre = form.value.nombre_completo?.trim() || form.value.nombre_usuario?.trim() || 'Usuario'
+  return `https://ui-avatars.com/api/?name=${encodeURIComponent(nombre)}&background=0BB69B&color=fff`
+})
+
+const avatarSrc = computed(() => fotoPreviewLocal.value || fotoUrlActual.value || avatarFallback.value)
+
+const cargarFotoDesdeStorage = async (fotoPath: string | null | undefined) => {
+  liberarFotoActual()
+  fotoPathActual.value = fotoPath || null
+
+  if (!fotoPath) {
+    return
+  }
+
+  loadingFoto.value = true
+  try {
+    fotoUrlActual.value = await backendService.obtenerUrlDesdeStorage(fotoPath)
+  } catch {
+    fotoUrlActual.value = null
+  } finally {
+    loadingFoto.value = false
+  }
+}
 
 // Esquema de validación con Zod
 const usuarioSchema = z.object({
@@ -75,37 +128,160 @@ const cargarRoles = async () => {
   }
 }
 
-watch(
-  () => props.usuario,
-  (val) => {
-    if (val) {
-      form.value = {
-        nombre_completo: val.nombre_completo || '',
-        nombre_usuario: val.nombre_usuario || '',
-        email: val.email || '',
-        titulo: val.titulo || '',
-        ni: val.ni || '',
-        emitido_en: val.emitido_en || '',
-        activo: val.activo ?? true,
-        disponible: val.disponible ?? true,
-        roles_ids: val.roles?.map((r) => r.id) || [],
-      }
-    } else {
-      form.value = {
-        nombre_completo: '',
-        nombre_usuario: '',
-        email: '',
-        titulo: '',
-        ni: '',
-        emitido_en: '',
-        activo: true,
-        disponible: true,
-        roles_ids: [],
-      }
+const aplicarUsuarioAlFormulario = (val: Usuario | null | undefined) => {
+  liberarPreviewLocal()
+  fotoPendiente.value = null
+
+  if (val) {
+    form.value = {
+      nombre_completo: val.nombre_completo || '',
+      nombre_usuario: val.nombre_usuario || '',
+      email: val.email || '',
+      titulo: val.titulo || '',
+      ni: val.ni || '',
+      emitido_en: val.emitido_en || '',
+      activo: val.activo ?? true,
+      disponible: val.disponible ?? true,
+      roles_ids: val.roles?.map((r) => r.id) || [],
     }
-  },
-  { immediate: true },
-)
+    void cargarFotoDesdeStorage(val.foto_url)
+  } else {
+    form.value = {
+      nombre_completo: '',
+      nombre_usuario: '',
+      email: '',
+      titulo: '',
+      ni: '',
+      emitido_en: '',
+      activo: true,
+      disponible: true,
+      roles_ids: [],
+    }
+    liberarFotoActual()
+    fotoPathActual.value = null
+  }
+}
+
+watch(() => props.usuario, aplicarUsuarioAlFormulario, { immediate: true })
+
+watch(open, async (isOpen) => {
+  if (!isOpen) {
+    liberarPreviewLocal()
+    fotoPendiente.value = null
+    return
+  }
+
+  const val = props.usuario
+  if (!val?.id) {
+    return
+  }
+
+  try {
+    const res = await backendService.getById<Usuario>('usuarios', val.id)
+    const data = (res as { data?: Usuario })?.data ?? (res as Usuario)
+    if (data?.foto_url && data.foto_url !== fotoPathActual.value) {
+      await cargarFotoDesdeStorage(data.foto_url)
+    } else if (!fotoUrlActual.value && (data?.foto_url || val.foto_url)) {
+      await cargarFotoDesdeStorage(data?.foto_url || val.foto_url)
+    }
+  } catch {
+    if (!fotoUrlActual.value && val.foto_url) {
+      await cargarFotoDesdeStorage(val.foto_url)
+    }
+  }
+})
+
+onBeforeUnmount(() => {
+  liberarPreviewLocal()
+  liberarFotoActual()
+})
+
+const abrirSelectorFoto = () => {
+  fileInputRef.value?.click()
+}
+
+const onFotoSeleccionada = (event: Event) => {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+
+  if (!file) {
+    return
+  }
+
+  if (!TIPOS_FOTO.includes(file.type)) {
+    toast.add({
+      title: 'Archivo no válido',
+      description: 'Seleccione una imagen JPG, PNG, WEBP o GIF.',
+      color: 'warning',
+      icon: 'i-lucide-alert-triangle',
+    })
+    return
+  }
+
+  if (file.size > MAX_FOTO_MB * 1024 * 1024) {
+    toast.add({
+      title: 'Archivo muy grande',
+      description: `La foto no puede superar ${MAX_FOTO_MB} MB.`,
+      color: 'warning',
+      icon: 'i-lucide-alert-triangle',
+    })
+    return
+  }
+
+  liberarPreviewLocal()
+  fotoPendiente.value = file
+  fotoPreviewLocal.value = URL.createObjectURL(file)
+}
+
+const quitarFotoPendiente = () => {
+  liberarPreviewLocal()
+  fotoPendiente.value = null
+}
+
+const subirFotoUsuario = async (usuarioId: string) => {
+  if (!fotoPendiente.value) {
+    return
+  }
+
+  uploadingFoto.value = true
+  try {
+    const formData = new FormData()
+    formData.append('file', fotoPendiente.value)
+
+    const res = await backendService.patchMultipart<{ foto_url?: string }>(
+      `storage/${usuarioId}/foto`,
+      formData,
+    )
+
+    const fotoPath =
+      (res as { foto_url?: string })?.foto_url ||
+      (res as { data?: { foto_url?: string } })?.data?.foto_url
+
+    liberarPreviewLocal()
+    fotoPendiente.value = null
+
+    if (fotoPath) {
+      await cargarFotoDesdeStorage(fotoPath)
+    }
+  } catch (error: any) {
+    const errorMsg =
+      error?.data?.message ||
+      (Array.isArray(error?.data?.message) ? error.data.message.join(', ') : null) ||
+      error?.message ||
+      'No se pudo subir la foto de perfil'
+
+    toast.add({
+      title: 'Error al subir foto',
+      description: errorMsg,
+      color: 'error',
+      icon: 'i-lucide-alert-circle',
+    })
+    throw error
+  } finally {
+    uploadingFoto.value = false
+  }
+}
 
 onMounted(() => {
   cargarRoles()
@@ -137,23 +313,31 @@ const handleSave = async (event?: FormSubmitEvent<UsuarioSchemaType>) => {
       roles_ids: data.roles_ids || [],
     }
 
+    let usuarioId = props.usuario?.id
+
     if (isEditing.value && props.usuario?.id) {
       await backendService.patch<Usuario>('usuarios', props.usuario.id, payload as UpdateUsuarioPayload)
-      toast.add({
-        title: 'Usuario actualizado',
-        description: 'La información y roles del usuario fueron actualizados exitosamente.',
-        color: 'success',
-        icon: 'i-lucide-check-circle',
-      })
     } else {
-      await backendService.post<Usuario>('usuarios', payload)
-      toast.add({
-        title: 'Usuario registrado',
-        description: 'El nuevo usuario fue registrado con sus roles correspondientes.',
-        color: 'success',
-        icon: 'i-lucide-check-circle',
-      })
+      const creado = await backendService.post<Usuario>('usuarios', payload)
+      const data = (creado as { data?: Usuario })?.data ?? (creado as Usuario)
+      usuarioId = data?.id
     }
+
+    const teniaFotoPendiente = Boolean(fotoPendiente.value && usuarioId)
+    if (teniaFotoPendiente && usuarioId) {
+      await subirFotoUsuario(usuarioId)
+    }
+
+    toast.add({
+      title: isEditing.value ? 'Usuario actualizado' : 'Usuario registrado',
+      description: teniaFotoPendiente
+        ? 'Datos y foto de perfil guardados correctamente.'
+        : isEditing.value
+          ? 'La información y roles del usuario fueron actualizados exitosamente.'
+          : 'El nuevo usuario fue registrado con sus roles correspondientes.',
+      color: 'success',
+      icon: 'i-lucide-check-circle',
+    })
 
     open.value = false
     emit('guardado')
@@ -193,6 +377,55 @@ const handleSave = async (event?: FormSubmitEvent<UsuarioSchemaType>) => {
         class="space-y-4"
         @submit="handleSave"
       >
+        <div class="flex flex-col sm:flex-row sm:items-center gap-4 p-4 rounded-xl border border-default bg-elevated/40">
+          <UAvatar
+            :key="avatarSrc"
+            :src="avatarSrc"
+            :alt="form.nombre_completo || 'Foto de perfil'"
+            size="3xl"
+            class="ring-2 ring-primary/20 shrink-0"
+          />
+
+          <div class="flex-1 space-y-2 min-w-0">
+            <p class="text-sm font-semibold text-highlighted">Foto de perfil</p>
+            <p class="text-xs text-muted">
+              JPG, PNG, WEBP o GIF. Máximo {{ MAX_FOTO_MB }} MB. Se sube a almacenamiento institucional (MinIO).
+            </p>
+            <div class="flex flex-wrap items-center gap-2">
+              <input
+                ref="fileInputRef"
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                class="hidden"
+                @change="onFotoSeleccionada"
+              >
+              <UButton
+                type="button"
+                label="Seleccionar foto"
+                icon="i-lucide-upload"
+                color="primary"
+                variant="soft"
+                size="sm"
+                :loading="uploadingFoto || loadingFoto"
+                @click="abrirSelectorFoto"
+              />
+              <UButton
+                v-if="fotoPendiente"
+                type="button"
+                label="Quitar selección"
+                icon="i-lucide-x"
+                color="neutral"
+                variant="ghost"
+                size="sm"
+                @click="quitarFotoPendiente"
+              />
+            </div>
+            <p v-if="!isEditing && fotoPendiente" class="text-[11px] text-muted">
+              La imagen se subirá al guardar el nuevo usuario.
+            </p>
+          </div>
+        </div>
+
         <!-- Nombre Completo -->
         <UFormField
           label="Nombre Completo"
@@ -365,7 +598,7 @@ const handleSave = async (event?: FormSubmitEvent<UsuarioSchemaType>) => {
           :label="isEditing ? 'Guardar Cambios' : 'Registrar Usuario'"
           color="primary"
           icon="i-lucide-check"
-          :loading="saving"
+          :loading="saving || uploadingFoto"
           type="submit"
           form="usuario-form"
         />

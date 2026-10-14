@@ -19,28 +19,27 @@ import { DocumentEditor } from '@onlyoffice/document-editor-vue';
 import { ref, onMounted } from 'vue';
 import { useRuntimeConfig } from '#app';
 
-const props = defineProps({
-  documentKey: {
-    type: String,
-    required: true
+const props = withDefaults(
+  defineProps<{
+    documentKey: string
+    documentUrl: string
+    title?: string
+    fileType?: string
+    documentType?: string
+    userId?: string
+    userName?: string
+    /** Si viene del backend, tiene prioridad sobre apiPublicUrl */
+    callbackUrl?: string
+  }>(),
+  {
+    title: 'Documento.docx',
+    fileType: 'docx',
+    documentType: 'word',
+    userId: 'uid-1',
+    userName: 'Usuario',
+    callbackUrl: '',
   },
-  documentUrl: {
-    type: String,
-    required: true
-  },
-  title: {
-    type: String,
-    default: 'Nuevo Documento.docx'
-  },
-  fileType: {
-    type: String,
-    default: 'docx'
-  },
-  documentType: {
-    type: String,
-    default: 'word'
-  }
-});
+)
 
 const config = useRuntimeConfig();
 const { apiPublicUrl } = useApiUrls();
@@ -53,24 +52,38 @@ const editorConfig = ref<any>(null);
 
 onMounted(async () => {
   try {
+    const resolvedCallback =
+      props.callbackUrl?.trim() || `${apiPublicUrl}/documents/callback`
+
     const baseConfig: any = {
       document: {
         fileType: props.fileType,
         key: props.documentKey,
         title: props.title,
         url: props.documentUrl,
+        permissions: {
+          edit: true,
+          download: true,
+          print: true,
+        },
       },
       documentType: props.documentType,
       editorConfig: {
-        callbackUrl: `${apiPublicUrl}/documents/callback`,
+        callbackUrl: resolvedCallback,
         mode: 'edit',
         lang: 'es',
+        customization: {
+          forcesave: true,
+        },
         user: {
-          id: 'uid-1',
-          name: 'Usuario',
+          id: props.userId,
+          name: props.userName,
         },
       }
     };
+
+    console.info('[OnlyOffice] documentUrl=', props.documentUrl)
+    console.info('[OnlyOffice] callbackUrl=', resolvedCallback)
 
     // Fetch the JWT token signed with the secret on the backend
     const response = await $fetch<{ token: string }>('/api/onlyoffice/token', {

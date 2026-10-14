@@ -84,6 +84,21 @@ const defaultNavItems: NavItem[] = [
         icon: 'i-lucide-briefcase'
       },
       {
+        label: 'Procesos',
+        to: '/procesos',
+        icon: 'i-lucide-workflow'
+      },
+      {
+        label: 'Codificadores',
+        to: '/codificadores',
+        icon: 'i-lucide-tags'
+      },
+      {
+        label: 'Entidades',
+        to: '/entidades',
+        icon: 'i-lucide-landmark'
+      },
+      {
         label: 'Clientes',
         to: '/customers',
         icon: 'i-lucide-building-2'

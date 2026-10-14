@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, h } from 'vue'
+import { ref, computed, onMounted, h } from 'vue'
 import type { TableColumn } from '@nuxt/ui'
 import type { Correspondencia, FiltroCorrespondencia, RespuestaBusquedaCorrespondencia } from '~/types/correspondencia'
 import { backendService } from '~/services/backend.service'
@@ -27,6 +27,7 @@ const UIcon = resolveComponent('UIcon')
 
 const toast = useToast()
 const { profile, cargoActivo } = useProfile()
+const { apiBaseUrl, apiPublicUrl } = useApiUrls()
 
 // Estado de listado y paginación
 const loading = ref(false)
@@ -46,9 +47,19 @@ const correspToEdit = ref<Correspondencia | null>(null)
 const isDeleteOpen = ref(false)
 const correspToDelete = ref<Correspondencia | null>(null)
 const deleting = ref(false)
+const generandoId = ref<string | null>(null)
+const abriendoEditorId = ref<string | null>(null)
+
+// Editor OnlyOffice
+const showEditor = ref(false)
+const editorKey = ref('')
+const editorUrl = ref('')
+const editorCallbackUrl = ref('')
+const editorTitle = ref('Documento.docx')
+const editorCorresp = ref<Correspondencia | null>(null)
 
 // Configuración de columnas
-const columns: TableColumn<Correspondencia>[] = [
+const columns = computed<TableColumn<Correspondencia>[]>(() => [
   {
     accessorKey: 'nro',
     header: 'Nº / Correlativo',
@@ -125,7 +136,42 @@ const columns: TableColumn<Correspondencia>[] = [
     header: 'Acciones',
     cell: ({ row }) => {
       const c = row.original
-      return h('div', { class: 'flex items-center justify-end gap-1.5' }, [
+      const tienePlantilla = Boolean(c.proceso?.plantilla?.trim())
+      const acciones = []
+
+      if (props.modo === 'borrador') {
+        const tieneDocumento = Boolean(c.contenido?.trim())
+        acciones.push(
+          h(UButton, {
+            icon: 'i-lucide-file-output',
+            color: 'primary',
+            variant: 'ghost',
+            size: 'xs',
+            title: tienePlantilla
+              ? 'Generar documento y abrir en OnlyOffice'
+              : 'El proceso no tiene plantilla registrada',
+            disabled: !tienePlantilla || generandoId.value === c.id || abriendoEditorId.value === c.id,
+            loading: generandoId.value === c.id,
+            onClick: () => handleGenerarDocumento(c),
+          }),
+        )
+        if (tieneDocumento) {
+          acciones.push(
+            h(UButton, {
+              icon: 'i-lucide-file-pen-line',
+              color: 'info',
+              variant: 'ghost',
+              size: 'xs',
+              title: 'Editar documento en OnlyOffice',
+              disabled: abriendoEditorId.value === c.id || generandoId.value === c.id,
+              loading: abriendoEditorId.value === c.id,
+              onClick: () => handleEditarDocumentoOnlyOffice(c),
+            }),
+          )
+        }
+      }
+
+      acciones.push(
         h(UButton, {
           icon: 'i-lucide-pencil',
           color: 'neutral',
@@ -142,10 +188,12 @@ const columns: TableColumn<Correspondencia>[] = [
           title: 'Eliminar',
           onClick: () => handleConfirmarEliminar(c),
         }),
-      ])
+      )
+
+      return h('div', { class: 'flex items-center justify-end gap-1.5' }, acciones)
     },
   },
-]
+])
 
 // Cargar correspondencias
 const fetchCorrespondencias = async () => {
@@ -219,6 +267,131 @@ const handleEditar = (corresp: Correspondencia) => {
 const handleConfirmarEliminar = (corresp: Correspondencia) => {
   correspToDelete.value = corresp
   isDeleteOpen.value = true
+}
+
+const buildEditorKey = (correspId: string) =>
+  `c${correspId.replace(/-/g, '')}_${Date.now()}`
+
+const abrirEditorOnlyOffice = async (corresp: Correspondencia, storagePath: string) => {
+  abriendoEditorId.value = corresp.id
+  try {
+    const key = buildEditorKey(corresp.id)
+    const response = await $fetch<{
+      fileName: string
+      key: string
+      documentUrl?: string
+      callbackUrl?: string
+    }>(`${apiBaseUrl}/documents/open-storage`, {
+      method: 'POST',
+      body: {
+        key,
+        storagePath,
+        correspondenciaId: corresp.id,
+      },
+    })
+
+    editorKey.value = response.key || key
+    // Preferir URLs del backend (PUBLIC_DOCS_BASE_URL), accesibles desde OnlyOffice DS
+    editorUrl.value =
+      response.documentUrl ||
+      `${apiPublicUrl}/documents/file/${encodeURIComponent(response.fileName)}`
+    editorCallbackUrl.value =
+      response.callbackUrl || `${apiPublicUrl}/documents/callback`
+    editorTitle.value = `Oficio ${corresp.nro}-${corresp.gestion}.docx`
+    editorCorresp.value = corresp
+    showEditor.value = true
+  } finally {
+    abriendoEditorId.value = null
+  }
+}
+
+const handleGenerarDocumento = async (corresp: Correspondencia) => {
+  if (!corresp.id) {
+    return
+  }
+
+  if (!corresp.proceso?.plantilla?.trim()) {
+    toast.add({
+      title: 'Sin plantilla',
+      description: 'El proceso de esta correspondencia no tiene plantilla Word registrada.',
+      color: 'warning',
+      icon: 'i-lucide-alert-triangle',
+    })
+    return
+  }
+
+  generandoId.value = corresp.id
+  try {
+    const res = await backendService.post<{ path?: string; message?: string }>(
+      `correspondencia/${corresp.id}/generar-documento`,
+      {},
+    )
+    const data = (res as { data?: { path?: string }; path?: string })?.data ?? res
+    const path = data?.path
+
+    if (!path) {
+      throw new Error('El servidor no devolvió la ruta del documento generado.')
+    }
+
+    toast.add({
+      title: 'Documento generado',
+      description: 'Abriendo editor OnlyOffice...',
+      color: 'success',
+      icon: 'i-lucide-check-circle',
+    })
+
+    await fetchCorrespondencias()
+    await abrirEditorOnlyOffice({ ...corresp, contenido: path }, path)
+  } catch (error: any) {
+    toast.add({
+      title: 'No se pudo generar',
+      description:
+        error?.data?.message ||
+        (Array.isArray(error?.data?.message) ? error.data.message.join(', ') : null) ||
+        error?.message ||
+        'Error al generar el documento desde la plantilla.',
+      color: 'error',
+      icon: 'i-lucide-alert-circle',
+    })
+  } finally {
+    generandoId.value = null
+  }
+}
+
+const handleEditarDocumentoOnlyOffice = async (corresp: Correspondencia) => {
+  const path = corresp.contenido?.trim()
+  if (!path) {
+    toast.add({
+      title: 'Sin documento',
+      description: 'Primero genere el documento desde la plantilla del proceso.',
+      color: 'warning',
+      icon: 'i-lucide-alert-triangle',
+    })
+    return
+  }
+
+  try {
+    await abrirEditorOnlyOffice(corresp, path)
+  } catch (error: any) {
+    toast.add({
+      title: 'No se pudo abrir el editor',
+      description:
+        error?.data?.message ||
+        error?.message ||
+        'Error al preparar el documento para OnlyOffice.',
+      color: 'error',
+      icon: 'i-lucide-alert-circle',
+    })
+  }
+}
+
+const cerrarEditorOnlyOffice = () => {
+  showEditor.value = false
+  editorKey.value = ''
+  editorUrl.value = ''
+  editorCallbackUrl.value = ''
+  editorCorresp.value = null
+  fetchCorrespondencias()
 }
 
 const handleEliminar = async () => {
@@ -329,6 +502,48 @@ onMounted(() => {
       :correspondencia="correspToEdit"
       @guardado="fetchCorrespondencias"
     />
+
+    <!-- Editor OnlyOffice (documento generado) -->
+    <UModal
+      v-model:open="showEditor"
+      fullscreen
+      :ui="{ content: 'h-screen w-screen max-w-none rounded-none' }"
+      @update:open="(v: boolean) => { if (!v) cerrarEditorOnlyOffice() }"
+    >
+      <template #content>
+        <div class="flex flex-col h-full w-full bg-white dark:bg-gray-950">
+          <div class="flex items-center justify-between px-4 py-3 border-b border-default shrink-0">
+            <div class="min-w-0">
+              <h3 class="text-sm font-semibold text-highlighted truncate">
+                {{ editorTitle }}
+              </h3>
+              <p v-if="editorCorresp" class="text-xs text-muted truncate">
+                Nº {{ editorCorresp.nro }}/{{ editorCorresp.gestion }} — {{ editorCorresp.referencia }}
+              </p>
+            </div>
+            <UButton
+              color="neutral"
+              variant="ghost"
+              icon="i-lucide-x"
+              label="Cerrar"
+              @click="cerrarEditorOnlyOffice"
+            />
+          </div>
+          <div class="flex-1 w-full overflow-hidden min-h-0">
+            <OnlyOfficeEditor
+              v-if="showEditor && editorKey && editorUrl"
+              :key="editorKey"
+              :document-key="editorKey"
+              :document-url="editorUrl"
+              :callback-url="editorCallbackUrl"
+              :title="editorTitle"
+              :user-id="profile?.id || 'uid-1'"
+              :user-name="profile?.nombre_completo || 'Usuario'"
+            />
+          </div>
+        </div>
+      </template>
+    </UModal>
 
     <!-- Modal Confirmación de Eliminación -->
     <UModal

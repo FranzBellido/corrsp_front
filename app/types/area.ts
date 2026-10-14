@@ -4,7 +4,6 @@ export interface AreaProcesoItem {
     id: number;
     nombre: string;
     codigo: string;
-    tramite: boolean;
   };
 }
 

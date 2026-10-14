@@ -22,21 +22,23 @@ export const getApi = (): any => {
       "Content-Type": "application/json",
     },
     async onRequest({ options }) {
+      const headers = new Headers(options.headers || {});
+
+      if (options.body instanceof FormData) {
+        headers.delete("Content-Type");
+        headers.delete("content-type");
+      }
+
       if ($keycloak && ($keycloak as any).authenticated) {
         try {
-          //console.log("[DEBUG] Updating Keycloak token...");
           await ($keycloak as any).updateToken(30);
-          const headers = new Headers(options.headers || {});
           headers.set("Authorization", `Bearer ${($keycloak as any).token}`);
-          options.headers = headers;
-          // console.log('[DEBUG] Authorization header added.');
-        } catch (error) {
-          // console.error('[DEBUG] Keycloak token update failed:', error);
+        } catch {
           ($keycloak as any).logout();
         }
-      } else {
-        // console.warn('[DEBUG] Keycloak not authenticated or not available!');
       }
+
+      options.headers = headers;
     },
   });
 };
@@ -174,6 +176,30 @@ export async function descargarBlob(endpoint: string): Promise<Blob> {
 }
 
 /**
+ * Convierte una clave de storage (ej: avatars/xxx.jpg) en un blob URL
+ * listo para mostrar en <img> / UAvatar. Las URLs http(s)/blob se dejan igual.
+ */
+export async function obtenerUrlDesdeStorage(
+  fotoPath: string | null | undefined,
+): Promise<string | null> {
+  if (!fotoPath) {
+    return null;
+  }
+
+  if (
+    fotoPath.startsWith("blob:") ||
+    fotoPath.startsWith("http://") ||
+    fotoPath.startsWith("https://") ||
+    fotoPath.includes("ui-avatars.com")
+  ) {
+    return fotoPath;
+  }
+
+  const blob = await descargarBlob(`storage/download/${fotoPath}`);
+  return URL.createObjectURL(blob);
+}
+
+/**
  * POST multipart/form-data (subida de archivos)
  */
 export async function postMultipart<T>(
@@ -184,6 +210,19 @@ export async function postMultipart<T>(
   return await api(endpoint, {
     method: "POST",
     body,
+    headers: { Accept: "application/json" },
+  });
+}
+
+export async function patchMultipart<T>(
+  endpoint: string,
+  body: FormData,
+): Promise<RespuestaApi<T>> {
+  const api = getApi();
+  return await api(endpoint, {
+    method: "PATCH",
+    body,
+    headers: { Accept: "application/json" },
   });
 }
 
@@ -201,5 +240,7 @@ export const backendService = {
   buscar: buscarGenerico,
   crear: crearGenerico,
   descargarBlob,
+  obtenerUrlDesdeStorage,
   postMultipart,
+  patchMultipart,
 };

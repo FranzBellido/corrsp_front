@@ -3,6 +3,8 @@ export interface CodificadorDto {
   nombre: string;
   descripcion?: string | null;
   codigo?: string;
+  requiere_cooperativa?: boolean;
+  requiere_entidad?: boolean;
 }
 
 export interface ApiResponse<T> {

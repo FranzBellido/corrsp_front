@@ -24,6 +24,7 @@ export interface Usuario {
   ni?: string | null;
   emitido_en?: string | null;
   titulo?: string | null;
+  foto_url?: string | null;
   cargos?: UsuarioCargo[];
   roles?: Rol[];
 }

@@ -15,6 +15,10 @@ const props = withDefaults(defineProps<{
   variant: 'subtle'
 })
 
+const emit = defineEmits<{
+  itemSelected: [item: CodificadorDto | null]
+}>()
+
 // El padre espera un número o string (ID), no un objeto
 const modelValue = defineModel<number | string | null>()
 
@@ -70,12 +74,14 @@ watch([() => modelValue.value, options], ([newId, newOptions]) => {
   } else {
     selectedItem.value = null
   }
+  emit('itemSelected', selectedItem.value)
 }, { immediate: true })
 
 // Sincronizar de Objeto (dentro) a ID (fuera) para que Zod reciba un número
 const handleUpdate = (item: any) => {
   selectedItem.value = item
   modelValue.value = item ? item.id : null
+  emit('itemSelected', item ?? null)
 }
 
 // Auto-seleccionar si hay solo una opción disponible y no hay selección previa
