@@ -43,6 +43,11 @@ const defaultNavItems: NavItem[] = [
         icon: 'i-lucide-file-edit'
       },
       {
+        label: 'Compartidos',
+        to: '/bandejas/compartidos',
+        icon: 'i-lucide-share-2'
+      },
+      {
         label: 'Ingreso',
         to: '/bandejas/ingreso',
         icon: 'i-lucide-arrow-down-left'

@@ -13,6 +13,7 @@ export default defineNuxtPlugin(async (nuxtApp) => {
     const authenticated = await keycloak.init({
       onLoad: 'login-required',
       checkLoginIframe: false,
+      responseMode: 'query',
       redirectUri: window.location.origin + window.location.pathname
     })
 

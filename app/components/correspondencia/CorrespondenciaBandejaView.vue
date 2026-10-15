@@ -4,11 +4,12 @@ import type { TableColumn } from '@nuxt/ui'
 import type { Correspondencia, FiltroCorrespondencia, RespuestaBusquedaCorrespondencia } from '~/types/correspondencia'
 import { backendService } from '~/services/backend.service'
 import CorrespondenciaFormModal from '~/components/correspondencia/CorrespondenciaFormModal.vue'
+import CorrespondenciaCompartirModal from '~/components/correspondencia/CorrespondenciaCompartirModal.vue'
 import CorTable from '~/components/CorTable.vue'
 
 const props = withDefaults(
   defineProps<{
-    modo: 'borrador' | 'archivo'
+    modo: 'borrador' | 'archivo' | 'compartidos'
     titulo: string
     descripcion: string
     icono: string
@@ -43,6 +44,10 @@ const searchCriterio = ref('')
 const isModalOpen = ref(false)
 const correspToEdit = ref<Correspondencia | null>(null)
 
+// Modal de Compartir
+const isCompartirOpen = ref(false)
+const correspToCompartir = ref<Correspondencia | null>(null)
+
 // Modal de Eliminación
 const isDeleteOpen = ref(false)
 const correspToDelete = ref<Correspondencia | null>(null)
@@ -57,6 +62,7 @@ const editorUrl = ref('')
 const editorCallbackUrl = ref('')
 const editorTitle = ref('Documento.docx')
 const editorCorresp = ref<Correspondencia | null>(null)
+const editorReadOnly = ref(false)
 
 // Configuración de columnas
 const columns = computed<TableColumn<Correspondencia>[]>(() => [
@@ -122,12 +128,31 @@ const columns = computed<TableColumn<Correspondencia>[]>(() => [
   },
   {
     accessorKey: 'remitente_id',
-    header: 'Remitente / Área',
+    header: props.modo === 'compartidos' ? 'Propietario / Permiso' : 'Remitente / Área',
     cell: ({ row }) => {
       const c = row.original
-      return h('div', { class: 'flex flex-col text-xs' }, [
+      const esCompartidos = props.modo === 'compartidos'
+      const soloLectura = c.acceso_compartido?.solo_lectura
+
+      return h('div', { class: 'flex flex-col text-xs gap-0.5' }, [
         h('span', { class: 'font-medium text-gray-800 dark:text-gray-200 truncate' }, c.cargos?.nombre || 'Sin cargo'),
         h('span', { class: 'text-[11px] text-gray-400 truncate' }, c.areas?.nombre || 'Sin área'),
+        esCompartidos
+          ? h('div', { class: 'flex items-center gap-1 mt-0.5' }, [
+              h(
+                UBadge,
+                {
+                  color: soloLectura ? 'warning' : 'success',
+                  variant: 'subtle',
+                  size: 'xs',
+                },
+                () => (soloLectura ? 'Solo Lectura' : 'Puede Editar (OnlyOffice)'),
+              ),
+              c.acceso_compartido?.comentario
+                ? h('span', { class: 'text-[10px] text-gray-400 italic truncate max-w-[120px]', title: c.acceso_compartido.comentario }, `"${c.acceso_compartido.comentario}"`)
+                : null,
+            ])
+          : null,
       ])
     },
   },
@@ -169,26 +194,80 @@ const columns = computed<TableColumn<Correspondencia>[]>(() => [
             }),
           )
         }
-      }
 
-      acciones.push(
-        h(UButton, {
-          icon: 'i-lucide-pencil',
-          color: 'neutral',
-          variant: 'ghost',
-          size: 'xs',
-          title: 'Editar',
-          onClick: () => handleEditar(c),
-        }),
-        h(UButton, {
-          icon: 'i-lucide-trash-2',
-          color: 'error',
-          variant: 'ghost',
-          size: 'xs',
-          title: 'Eliminar',
-          onClick: () => handleConfirmarEliminar(c),
-        }),
-      )
+        // Botón Compartir documento (corresp_usuario)
+        acciones.push(
+          h(UButton, {
+            icon: 'i-lucide-share-2',
+            color: (c._count?.corresp_usuario || c.corresp_usuario?.length) ? 'primary' : 'neutral',
+            variant: (c._count?.corresp_usuario || c.corresp_usuario?.length) ? 'soft' : 'ghost',
+            size: 'xs',
+            title: (c._count?.corresp_usuario || c.corresp_usuario?.length)
+              ? `Compartido con ${c._count?.corresp_usuario || c.corresp_usuario?.length} usuario(s) - Gestionar acceso OnlyOffice`
+              : 'Compartir documento con otro usuario para editar en OnlyOffice',
+            onClick: () => handleCompartir(c),
+          }),
+        )
+
+        acciones.push(
+          h(UButton, {
+            icon: 'i-lucide-pencil',
+            color: 'neutral',
+            variant: 'ghost',
+            size: 'xs',
+            title: 'Editar metadatos',
+            onClick: () => handleEditar(c),
+          }),
+          h(UButton, {
+            icon: 'i-lucide-trash-2',
+            color: 'error',
+            variant: 'ghost',
+            size: 'xs',
+            title: 'Eliminar',
+            onClick: () => handleConfirmarEliminar(c),
+          }),
+        )
+      } else if (props.modo === 'compartidos') {
+        const tieneDocumento = Boolean(c.contenido?.trim())
+        const esSoloLectura = c.acceso_compartido?.solo_lectura ?? false
+
+        if (tieneDocumento) {
+          acciones.push(
+            h(UButton, {
+              icon: esSoloLectura ? 'i-lucide-file-text' : 'i-lucide-file-pen-line',
+              color: esSoloLectura ? 'neutral' : 'info',
+              variant: 'ghost',
+              size: 'xs',
+              title: esSoloLectura
+                ? 'Ver documento en OnlyOffice (Solo Lectura)'
+                : 'Editar documento en OnlyOffice',
+              disabled: abriendoEditorId.value === c.id,
+              loading: abriendoEditorId.value === c.id,
+              onClick: () => handleEditarDocumentoOnlyOffice(c, esSoloLectura),
+            }),
+          )
+        }
+      } else {
+        // modo archivo u otros
+        acciones.push(
+          h(UButton, {
+            icon: 'i-lucide-pencil',
+            color: 'neutral',
+            variant: 'ghost',
+            size: 'xs',
+            title: 'Editar',
+            onClick: () => handleEditar(c),
+          }),
+          h(UButton, {
+            icon: 'i-lucide-trash-2',
+            color: 'error',
+            variant: 'ghost',
+            size: 'xs',
+            title: 'Eliminar',
+            onClick: () => handleConfirmarEliminar(c),
+          }),
+        )
+      }
 
       return h('div', { class: 'flex items-center justify-end gap-1.5' }, acciones)
     },
@@ -212,6 +291,9 @@ const fetchCorrespondencias = async () => {
         filtro.remitente_id = cargoId
       }
       filtro.sin_derivaciones = true
+    } else if (props.modo === 'compartidos') {
+      // Compartidos conmigo: documentos compartidos vía corresp_usuario
+      filtro.solo_compartidos = true
     } else if (props.modo === 'archivo') {
       // Archivo: área_origen = área_activa_id de session storage (o profile)
       const areaId =
@@ -264,6 +346,11 @@ const handleEditar = (corresp: Correspondencia) => {
   isModalOpen.value = true
 }
 
+const handleCompartir = (corresp: Correspondencia) => {
+  correspToCompartir.value = corresp
+  isCompartirOpen.value = true
+}
+
 const handleConfirmarEliminar = (corresp: Correspondencia) => {
   correspToDelete.value = corresp
   isDeleteOpen.value = true
@@ -272,7 +359,11 @@ const handleConfirmarEliminar = (corresp: Correspondencia) => {
 const buildEditorKey = (correspId: string) =>
   `c${correspId.replace(/-/g, '')}_${Date.now()}`
 
-const abrirEditorOnlyOffice = async (corresp: Correspondencia, storagePath: string) => {
+const abrirEditorOnlyOffice = async (
+  corresp: Correspondencia,
+  storagePath: string,
+  readOnly: boolean = false,
+) => {
   abriendoEditorId.value = corresp.id
   try {
     const key = buildEditorKey(corresp.id)
@@ -299,6 +390,7 @@ const abrirEditorOnlyOffice = async (corresp: Correspondencia, storagePath: stri
       response.callbackUrl || `${apiPublicUrl}/documents/callback`
     editorTitle.value = `Oficio ${corresp.nro}-${corresp.gestion}.docx`
     editorCorresp.value = corresp
+    editorReadOnly.value = readOnly
     showEditor.value = true
   } finally {
     abriendoEditorId.value = null
@@ -341,7 +433,7 @@ const handleGenerarDocumento = async (corresp: Correspondencia) => {
     })
 
     await fetchCorrespondencias()
-    await abrirEditorOnlyOffice({ ...corresp, contenido: path }, path)
+    await abrirEditorOnlyOffice({ ...corresp, contenido: path }, path, false)
   } catch (error: any) {
     toast.add({
       title: 'No se pudo generar',
@@ -358,7 +450,10 @@ const handleGenerarDocumento = async (corresp: Correspondencia) => {
   }
 }
 
-const handleEditarDocumentoOnlyOffice = async (corresp: Correspondencia) => {
+const handleEditarDocumentoOnlyOffice = async (
+  corresp: Correspondencia,
+  readOnly: boolean = false,
+) => {
   const path = corresp.contenido?.trim()
   if (!path) {
     toast.add({
@@ -371,7 +466,7 @@ const handleEditarDocumentoOnlyOffice = async (corresp: Correspondencia) => {
   }
 
   try {
-    await abrirEditorOnlyOffice(corresp, path)
+    await abrirEditorOnlyOffice(corresp, path, readOnly)
   } catch (error: any) {
     toast.add({
       title: 'No se pudo abrir el editor',
@@ -442,7 +537,7 @@ onMounted(() => {
         </div>
       </div>
 
-      <div class="flex items-center gap-2">
+      <div v-if="props.modo !== 'compartidos'" class="flex items-center gap-2">
         <UButton
           label="Nueva Correspondencia"
           icon="i-lucide-plus"
@@ -503,6 +598,13 @@ onMounted(() => {
       @guardado="fetchCorrespondencias"
     />
 
+    <!-- Modal Compartir Correspondencia -->
+    <CorrespondenciaCompartirModal
+      v-model:open="isCompartirOpen"
+      :correspondencia="correspToCompartir"
+      @actualizado="fetchCorrespondencias"
+    />
+
     <!-- Editor OnlyOffice (documento generado) -->
     <UModal
       v-model:open="showEditor"
@@ -514,9 +616,19 @@ onMounted(() => {
         <div class="flex flex-col h-full w-full bg-white dark:bg-gray-950">
           <div class="flex items-center justify-between px-4 py-3 border-b border-default shrink-0">
             <div class="min-w-0">
-              <h3 class="text-sm font-semibold text-highlighted truncate">
-                {{ editorTitle }}
-              </h3>
+              <div class="flex items-center gap-2">
+                <h3 class="text-sm font-semibold text-highlighted truncate">
+                  {{ editorTitle }}
+                </h3>
+                <UBadge
+                  v-if="editorReadOnly"
+                  color="warning"
+                  variant="subtle"
+                  size="xs"
+                >
+                  Solo Lectura
+                </UBadge>
+              </div>
               <p v-if="editorCorresp" class="text-xs text-muted truncate">
                 Nº {{ editorCorresp.nro }}/{{ editorCorresp.gestion }} — {{ editorCorresp.referencia }}
               </p>
@@ -537,6 +649,7 @@ onMounted(() => {
               :document-url="editorUrl"
               :callback-url="editorCallbackUrl"
               :title="editorTitle"
+              :read-only="editorReadOnly"
               :user-id="profile?.id || 'uid-1'"
               :user-name="profile?.nombre_completo || 'Usuario'"
             />

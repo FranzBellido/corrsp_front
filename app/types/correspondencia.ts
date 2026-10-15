@@ -65,8 +65,27 @@ export interface Correspondencia {
     nombre: string;
     color?: number | null;
   } | null;
+  corresp_usuario?: CorrespUsuarioCompartido[];
+  acceso_compartido?: {
+    solo_lectura: boolean;
+    comentario?: string | null;
+  } | null;
   _count?: {
     derivaciones: number;
+    corresp_usuario?: number;
+  };
+}
+
+export interface CorrespUsuarioCompartido {
+  usuario_id: string;
+  corresp_id: string;
+  solo_lectura: boolean;
+  comentario?: string | null;
+  usuarios?: {
+    id: string;
+    nombre_completo: string;
+    nombre_usuario: string;
+    email?: string | null;
   };
 }
 
@@ -150,6 +169,7 @@ export interface FiltroCorrespondencia {
   proc_id?: number;
   gestion?: number;
   sin_derivaciones?: boolean;
+  solo_compartidos?: boolean;
   pagina?: number;
   limite?: number;
 }

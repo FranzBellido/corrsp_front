@@ -29,7 +29,8 @@ const props = withDefaults(
     userId?: string
     userName?: string
     /** Si viene del backend, tiene prioridad sobre apiPublicUrl */
-    callbackUrl?: string
+    /** Si es true, el documento se abre en modo visualización / solo lectura */
+    readOnly?: boolean
   }>(),
   {
     title: 'Documento.docx',
@@ -38,6 +39,7 @@ const props = withDefaults(
     userId: 'uid-1',
     userName: 'Usuario',
     callbackUrl: '',
+    readOnly: false,
   },
 )
 
@@ -55,6 +57,8 @@ onMounted(async () => {
     const resolvedCallback =
       props.callbackUrl?.trim() || `${apiPublicUrl}/documents/callback`
 
+    const isReadOnly = Boolean(props.readOnly)
+
     const baseConfig: any = {
       document: {
         fileType: props.fileType,
@@ -62,7 +66,7 @@ onMounted(async () => {
         title: props.title,
         url: props.documentUrl,
         permissions: {
-          edit: true,
+          edit: !isReadOnly,
           download: true,
           print: true,
         },
@@ -70,7 +74,7 @@ onMounted(async () => {
       documentType: props.documentType,
       editorConfig: {
         callbackUrl: resolvedCallback,
-        mode: 'edit',
+        mode: isReadOnly ? 'view' : 'edit',
         lang: 'es',
         customization: {
           forcesave: true,
