@@ -20,8 +20,13 @@ export interface Correspondencia {
   hr_id?: string | null;
   nro: number;
   area_origen_id: string;
+  cargo_origen_id?: string | null;
   remitente_id?: string | null;
+  destinatario_id?: string | null;
   referencia: string;
+  /** Ruta MinIO del .docx (OnlyOffice) */
+  url_documento?: string | null;
+  /** @deprecated usar url_documento */
   contenido?: string | null;
   fecha_emision?: string | null;
   created_at?: string;
@@ -34,7 +39,6 @@ export interface Correspondencia {
   gestion: number;
   cite_origen?: string | null;
   prioridad_id: number;
-  firmado_id?: string | null;
   hoja_ruta?: HojaRuta | null;
   proceso?: {
     id: number;
@@ -57,6 +61,14 @@ export interface Correspondencia {
     codigo: string;
   } | null;
   cargos?: {
+    id: string;
+    nombre: string;
+  } | null;
+  cargo_origen?: {
+    id: string;
+    nombre: string;
+  } | null;
+  cargo_destinatario?: {
     id: string;
     nombre: string;
   } | null;
@@ -140,8 +152,9 @@ export interface CreateCorrespondenciaPayload {
   prioridad_id: number;
   confidencial: boolean;
   area_origen_id: string;
+  cargo_origen_id: string;
   remitente_id?: string;
-  firmado_id?: string;
+  destinatario_id: string;
   es_nueva_hr?: boolean;
   nro_hr?: number;
   hr_id?: string;
@@ -156,7 +169,8 @@ export interface UpdateCorrespondenciaPayload {
   prioridad_id?: number;
   confidencial?: boolean;
   cite_origen?: string;
-  firmado_id?: string;
+  remitente_id?: string;
+  destinatario_id?: string;
   cooperativa?: CorrespCooperativaPayload;
   entidades?: CorrespEntidadPayload;
 }
@@ -164,6 +178,7 @@ export interface UpdateCorrespondenciaPayload {
 export interface FiltroCorrespondencia {
   criterio?: string;
   remitente_id?: string;
+  cargo_origen_id?: string;
   area_origen_id?: string;
   estado_id?: number;
   proc_id?: number;

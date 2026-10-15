@@ -20,7 +20,7 @@ const emit = defineEmits<{
 }>()
 
 const toast = useToast()
-const { profile, cargoActivo, areaActiva } = useProfile()
+const { profile, cargoActivo, cargoOrigen, cargoOrigenId, areaActiva, resolveCargoOrigenId } = useProfile()
 const saving = ref(false)
 
 // Estado para Hoja de Ruta: 'nueva' o 'existente'
@@ -85,7 +85,14 @@ const correspondenciaSchema = computed(() => {
     prioridad_id: z.number({ message: 'Debe seleccionar una prioridad' }),
     confidencial: z.boolean().default(false),
     cite_origen: z.string().optional(),
-    firmado_id: z.string().optional(),
+    remitente_id: z
+      .string({ message: 'Debe seleccionar el cargo remitente' })
+      .min(1, 'Debe seleccionar el cargo remitente')
+      .uuid('Debe seleccionar un cargo remitente válido'),
+    destinatario_id: z
+      .string({ message: 'Debe seleccionar el cargo destinatario' })
+      .min(1, 'Debe seleccionar el cargo destinatario')
+      .uuid('Debe seleccionar un cargo destinatario válido'),
   }
 
   if (!requiereCooperativa.value) {
@@ -107,7 +114,8 @@ type CorrespondenciaSchemaType = {
   prioridad_id: number
   confidencial: boolean
   cite_origen?: string
-  firmado_id?: string
+  remitente_id: string
+  destinatario_id: string
   cooperativa: CorrespCooperativaFormState
 }
 
@@ -117,9 +125,12 @@ const form = ref<CorrespondenciaSchemaType>({
   prioridad_id: undefined as any,
   confidencial: false,
   cite_origen: '',
-  firmado_id: '',
+  remitente_id: '',
+  destinatario_id: '',
   cooperativa: emptyCooperativa(),
 })
+
+const defaultRemitenteId = () => resolveCargoOrigenId() || cargoOrigenId.value || cargoActivo.value?.id || ''
 
 const onProcesoSeleccionado = (item: CodificadorDto | null) => {
   if (!item) {
@@ -230,6 +241,13 @@ const procesoParams = computed(() => {
   return {}
 })
 
+const remitenteParams = computed(() => {
+  if (areaActivaId.value) {
+    return { area_id: areaActivaId.value }
+  }
+  return {}
+})
+
 // Observar cambio de correspondencia a editar
 watch(
   () => props.correspondencia,
@@ -241,7 +259,8 @@ watch(
         prioridad_id: val.prioridad_id,
         confidencial: Boolean(val.confidencial),
         cite_origen: val.cite_origen || '',
-        firmado_id: val.firmado_id || '',
+        remitente_id: val.remitente_id || val.cargos?.id || defaultRemitenteId(),
+        destinatario_id: val.destinatario_id || val.cargo_destinatario?.id || '',
         cooperativa: mapCooperativaExistente(val),
       }
       requiereCooperativa.value = Boolean(
@@ -261,7 +280,8 @@ watch(
         prioridad_id: undefined as any,
         confidencial: false,
         cite_origen: '',
-        firmado_id: profile.value?.usuario?.id || (profile.value as any)?.id || '',
+        remitente_id: defaultRemitenteId(),
+        destinatario_id: '',
         cooperativa: emptyCooperativa(),
       }
       requiereCooperativa.value = false
@@ -330,6 +350,37 @@ const handleSave = async (event?: FormSubmitEvent<CorrespondenciaSchemaType>) =>
     return
   }
 
+  if (!data.destinatario_id?.trim()) {
+    toast.add({
+      title: 'Validación',
+      description: 'Debe seleccionar el cargo destinatario.',
+      color: 'warning',
+      icon: 'i-lucide-alert-triangle',
+    })
+    return
+  }
+
+  if (!data.remitente_id?.trim()) {
+    toast.add({
+      title: 'Validación',
+      description: 'Debe seleccionar el cargo remitente (misma área de origen).',
+      color: 'warning',
+      icon: 'i-lucide-alert-triangle',
+    })
+    return
+  }
+
+  const cargoOrigenId = resolveCargoOrigenId()
+  if (!cargoOrigenId) {
+    toast.add({
+      title: 'Error de configuración',
+      description: 'No se detectó el cargo de origen en su sesión. Vaya a Configuración y seleccione su cargo activo.',
+      color: 'error',
+      icon: 'i-lucide-alert-circle',
+    })
+    return
+  }
+
   if (requiereCooperativa.value) {
     const coop = data.cooperativa || form.value.cooperativa
     if (!coop?.cooperativa_id || !coop.solicitante?.trim() || !coop.nro_carnet?.trim()) {
@@ -353,9 +404,7 @@ const handleSave = async (event?: FormSubmitEvent<CorrespondenciaSchemaType>) =>
     return
   }
 
-  // Obtener área_activa_id y cargo_activo_id de localStorage / sessionStorage / composable
   const areaOrigenId = areaActivaId.value || profile.value?.area_activa_id || (import.meta.client ? sessionStorage.getItem('area_activa_id') : null)
-  const remitenteId = profile.value?.cargo_activo_id || cargoActivo.value?.id
 
   if (!areaOrigenId) {
     toast.add({
@@ -389,7 +438,8 @@ const handleSave = async (event?: FormSubmitEvent<CorrespondenciaSchemaType>) =>
         prioridad_id: Number(data.prioridad_id),
         confidencial: Boolean(data.confidencial),
         cite_origen: data.cite_origen?.trim() || undefined,
-        firmado_id: data.firmado_id || undefined,
+        remitente_id: data.remitente_id.trim(),
+        destinatario_id: data.destinatario_id.trim(),
         cooperativa: buildCooperativaPayload(),
         entidades: buildEntidadesPayload(),
       }
@@ -408,11 +458,12 @@ const handleSave = async (event?: FormSubmitEvent<CorrespondenciaSchemaType>) =>
         prioridad_id: Number(data.prioridad_id),
         confidencial: Boolean(data.confidencial),
         area_origen_id: areaOrigenId,
-        remitente_id: remitenteId || undefined,
-        firmado_id: data.firmado_id || undefined,
+        cargo_origen_id: cargoOrigenId,
+        remitente_id: data.remitente_id.trim(),
         es_nueva_hr: tipoHr.value === 'nueva',
         nro_hr: tipoHr.value === 'existente' ? Number(nroHrInput.value) : undefined,
         cite_origen: data.cite_origen?.trim() || undefined,
+        destinatario_id: data.destinatario_id.trim(),
         cooperativa: buildCooperativaPayload(),
         entidades: buildEntidadesPayload(),
       }
@@ -466,13 +517,13 @@ const handleSave = async (event?: FormSubmitEvent<CorrespondenciaSchemaType>) =>
         class="space-y-4"
         @submit="handleSave"
       >
-        <!-- Banner Informativo del Remitente / Área activa -->
-        <div class="p-3 rounded-xl bg-primary-50/60 dark:bg-primary-950/30 border border-primary-100 dark:border-primary-900/40 flex items-center justify-between text-xs">
+        <!-- Cargo de origen (registro) y área activa -->
+        <div class="p-3 rounded-xl bg-primary-50/60 dark:bg-primary-950/30 border border-primary-100 dark:border-primary-900/40 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs">
           <div class="flex items-center gap-2">
-            <UIcon name="i-lucide-user-check" class="size-4 text-primary-600 shrink-0" />
+            <UIcon name="i-lucide-clipboard-pen" class="size-4 text-primary-600 shrink-0" />
             <div>
-              <span class="font-bold text-gray-800 dark:text-gray-200">Remitente: </span>
-              <span class="text-gray-600 dark:text-gray-400">{{ cargoActivo?.nombre || 'Mi cargo activo' }}</span>
+              <span class="font-bold text-gray-800 dark:text-gray-200">Cargo de origen (registro): </span>
+              <span class="text-gray-600 dark:text-gray-400">{{ cargoOrigen?.nombre || cargoActivo?.nombre || 'Configure su cargo en Configuración' }}</span>
             </div>
           </div>
           <div class="flex items-center gap-2">
@@ -483,6 +534,21 @@ const handleSave = async (event?: FormSubmitEvent<CorrespondenciaSchemaType>) =>
             </div>
           </div>
         </div>
+
+        <UFormField
+          label="Cargo remitente"
+          name="remitente_id"
+          required
+          help="Cargo de su área que figura como remitente de la nota. Por defecto coincide con su cargo de origen."
+        >
+          <CodificadorSelect
+            v-model="form.remitente_id"
+            endpoint="comun/codificador/cargos"
+            :params="remitenteParams"
+            placeholder="Seleccione el cargo remitente..."
+            class="w-full"
+          />
+        </UFormField>
 
         <!-- Sección Hoja de Ruta (Solo en creación) -->
         <div v-if="!isEditing" class="p-4 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/30 space-y-3">
@@ -646,16 +712,17 @@ const handleSave = async (event?: FormSubmitEvent<CorrespondenciaSchemaType>) =>
           </UFormField>
         </div>
 
-        <!-- Usuario que Firma (firmado_id) -->
+        <!-- Cargo destinatario (plantilla / trámite) -->
         <UFormField
-          label="Usuario que Firma"
-          name="firmado_id"
-          help="Funcionario responsable de la firma del documento (por defecto el usuario actual)."
+          label="Cargo destinatario"
+          name="destinatario_id"
+          required
+          help="Cargo institucional al que va dirigida la correspondencia. Se usa en la plantilla del documento ({destinatario}, {cargo_destinatario})."
         >
           <CodificadorSelect
-            v-model="form.firmado_id"
-            endpoint="comun/codificador/usuarios"
-            placeholder="Seleccione el funcionario que firma..."
+            v-model="form.destinatario_id"
+            endpoint="comun/codificador/cargos"
+            placeholder="Seleccione el cargo destinatario..."
             class="w-full"
           />
         </UFormField>

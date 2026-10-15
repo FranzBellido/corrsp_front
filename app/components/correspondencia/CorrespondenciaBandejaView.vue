@@ -27,7 +27,7 @@ const UButton = resolveComponent('UButton')
 const UIcon = resolveComponent('UIcon')
 
 const toast = useToast()
-const { profile, cargoActivo } = useProfile()
+const { profile, cargoActivo, resolveCargoOrigenId } = useProfile()
 const { apiBaseUrl, apiPublicUrl } = useApiUrls()
 
 // Estado de listado y paginación
@@ -165,7 +165,7 @@ const columns = computed<TableColumn<Correspondencia>[]>(() => [
       const acciones = []
 
       if (props.modo === 'borrador') {
-        const tieneDocumento = Boolean(c.contenido?.trim())
+        const tieneDocumento = tieneDocumentoGenerado(c)
         acciones.push(
           h(UButton, {
             icon: 'i-lucide-file-output',
@@ -228,7 +228,7 @@ const columns = computed<TableColumn<Correspondencia>[]>(() => [
           }),
         )
       } else if (props.modo === 'compartidos') {
-        const tieneDocumento = Boolean(c.contenido?.trim())
+        const tieneDocumento = tieneDocumentoGenerado(c)
         const esSoloLectura = c.acceso_compartido?.solo_lectura ?? false
 
         if (tieneDocumento) {
@@ -285,10 +285,9 @@ const fetchCorrespondencias = async () => {
     }
 
     if (props.modo === 'borrador') {
-      // Borrador: remitente_id = cargo_activo_id y sin derivaciones
-      const cargoId = profile.value?.cargo_activo_id || cargoActivo.value?.id
-      if (cargoId) {
-        filtro.remitente_id = cargoId
+      const cargoOrigen = resolveCargoOrigenId() || profile.value?.cargo_activo_id || cargoActivo.value?.id
+      if (cargoOrigen) {
+        filtro.cargo_origen_id = cargoOrigen
       }
       filtro.sin_derivaciones = true
     } else if (props.modo === 'compartidos') {
@@ -355,6 +354,12 @@ const handleConfirmarEliminar = (corresp: Correspondencia) => {
   correspToDelete.value = corresp
   isDeleteOpen.value = true
 }
+
+const obtenerRutaDocumento = (c: Correspondencia): string =>
+  (c.url_documento || c.contenido)?.trim() || ''
+
+const tieneDocumentoGenerado = (c: Correspondencia): boolean =>
+  Boolean(obtenerRutaDocumento(c))
 
 const buildEditorKey = (correspId: string) =>
   `c${correspId.replace(/-/g, '')}_${Date.now()}`
@@ -433,7 +438,7 @@ const handleGenerarDocumento = async (corresp: Correspondencia) => {
     })
 
     await fetchCorrespondencias()
-    await abrirEditorOnlyOffice({ ...corresp, contenido: path }, path, false)
+    await abrirEditorOnlyOffice({ ...corresp, url_documento: path }, path, false)
   } catch (error: any) {
     toast.add({
       title: 'No se pudo generar',
@@ -454,7 +459,7 @@ const handleEditarDocumentoOnlyOffice = async (
   corresp: Correspondencia,
   readOnly: boolean = false,
 ) => {
-  const path = corresp.contenido?.trim()
+  const path = obtenerRutaDocumento(corresp)
   if (!path) {
     toast.add({
       title: 'Sin documento',

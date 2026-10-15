@@ -2,6 +2,7 @@ import type { ProfileDto } from '~/types/profile'
 import { backendService } from '~/services/backend.service'
 
 const PROFILE_STORAGE_KEY = 'user_profile_data'
+export const CARGO_ORIGEN_STORAGE_KEY = 'cargo_origen_id'
 
 export const useProfile = () => {
   const profile = useState<ProfileDto | null>('profile', () => null)
@@ -68,6 +69,7 @@ export const useProfile = () => {
       localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(updatedProfile))
       if (updatedProfile.cargo_activo_id) {
         localStorage.setItem('cargo_activo_id', updatedProfile.cargo_activo_id)
+        localStorage.setItem(CARGO_ORIGEN_STORAGE_KEY, updatedProfile.cargo_activo_id)
       }
       if (updatedProfile.area_activa_id) {
         localStorage.setItem('area_activa_id', updatedProfile.area_activa_id)
@@ -165,6 +167,22 @@ export const useProfile = () => {
   /**
    * Selecciona el cargo activo de trabajo y actualiza localStorage y sessionStorage
    */
+  const resolveCargoOrigenId = (): string | null => {
+    if (!import.meta.client) {
+      return profile.value?.cargo_activo_id ?? null
+    }
+    const fromOrigen = localStorage.getItem(CARGO_ORIGEN_STORAGE_KEY)
+    if (fromOrigen) return fromOrigen
+    const fromActivo = localStorage.getItem('cargo_activo_id')
+    if (fromActivo) return fromActivo
+    return profile.value?.cargo_activo_id ?? null
+  }
+
+  const setCargoOrigenId = (cargoId: string) => {
+    if (!import.meta.client) return
+    localStorage.setItem(CARGO_ORIGEN_STORAGE_KEY, cargoId)
+  }
+
   const setCargoActivo = (cargoId: string) => {
     if (!profile.value) return
 
@@ -185,6 +203,7 @@ export const useProfile = () => {
       area_activa_nombre: areaNombre
     }
     saveProfileToStorage(updated)
+    setCargoOrigenId(cargoId)
     needsCargoSelection.value = false
   }
 
@@ -197,6 +216,7 @@ export const useProfile = () => {
     if (import.meta.client) {
       localStorage.removeItem(PROFILE_STORAGE_KEY)
       localStorage.removeItem('cargo_activo_id')
+      localStorage.removeItem(CARGO_ORIGEN_STORAGE_KEY)
       localStorage.removeItem('area_activa_id')
       sessionStorage.removeItem('area_activa_id')
       sessionStorage.removeItem('area_activa_nombre')
@@ -207,6 +227,14 @@ export const useProfile = () => {
   /**
    * Retorna el cargo actualmente activo
    */
+  const cargoOrigenId = computed(() => resolveCargoOrigenId())
+
+  const cargoOrigen = computed(() => {
+    const id = cargoOrigenId.value
+    if (!id || !profile.value?.cargos?.length) return null
+    return profile.value.cargos.find((c) => c.id === id) ?? null
+  })
+
   const cargoActivo = computed(() => {
     if (!profile.value || !profile.value.cargos?.length) return null
     if (profile.value.cargo_activo_id) {
@@ -229,7 +257,11 @@ export const useProfile = () => {
   return {
     profile,
     cargoActivo,
+    cargoOrigenId,
+    cargoOrigen,
     areaActiva,
+    resolveCargoOrigenId,
+    setCargoOrigenId,
     loading,
     needsCargoSelection,
     fetchProfile,

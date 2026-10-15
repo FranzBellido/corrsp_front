@@ -26,6 +26,10 @@ const selectedActivo = ref<string | null>(null)
 const isModalOpen = ref(false)
 const usuarioToEdit = ref<Usuario | null>(null)
 
+// Modal de detalle (consulta)
+const isDetalleOpen = ref(false)
+const usuarioDetalleId = ref<string | null>(null)
+
 // Modal de Confirmación de Eliminación
 const isDeleteOpen = ref(false)
 const usuarioToDelete = ref<Usuario | null>(null)
@@ -174,6 +178,14 @@ const columns: TableColumn<Usuario>[] = [
       const usuario = row.original
       return h('div', { class: 'flex items-center justify-end gap-1.5' }, [
         h(UButton, {
+          icon: 'i-lucide-eye',
+          color: 'neutral',
+          variant: 'ghost',
+          size: 'xs',
+          title: 'Ver detalle del usuario',
+          onClick: () => handleVerDetalle(usuario),
+        }),
+        h(UButton, {
           icon: 'i-lucide-pencil',
           color: 'neutral',
           variant: 'ghost',
@@ -254,6 +266,11 @@ const handleCrear = () => {
 const handleEditar = (usuario: Usuario) => {
   usuarioToEdit.value = usuario
   isModalOpen.value = true
+}
+
+const handleVerDetalle = (usuario: Usuario) => {
+  usuarioDetalleId.value = usuario.id
+  isDetalleOpen.value = true
 }
 
 const handleConfirmarEliminar = (usuario: Usuario) => {
@@ -368,6 +385,11 @@ onMounted(() => {
       v-model:open="isModalOpen"
       :usuario="usuarioToEdit"
       @guardado="cargarUsuarios"
+    />
+
+    <UsuariosUsuarioDetalleModal
+      v-model:open="isDetalleOpen"
+      :usuario-id="usuarioDetalleId"
     />
 
     <!-- Modal de Confirmación de Eliminación -->

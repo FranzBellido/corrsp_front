@@ -151,36 +151,7 @@ const handleSave = async (event?: FormSubmitEvent<CargoSchemaType>) => {
           />
         </UFormField>
 
-        <!-- Código de Departamento y ID Anterior -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <UFormField
-            label="Código de Departamento"
-            name="cargos_cod_depto"
-            help="Opcional. Identificador departamental."
-          >
-            <UInput
-              v-model="form.cargos_cod_depto"
-              placeholder="Ej. LPZ-ADM-01"
-              icon="i-lucide-tag"
-              class="w-full"
-            />
-          </UFormField>
-
-          <UFormField
-            label="ID Anterior (Migración)"
-            name="id_anterior"
-            help="Opcional. Identificador del sistema previo."
-          >
-            <UInput
-              v-model.number="form.id_anterior"
-              type="number"
-              placeholder="Ej. 102"
-              icon="i-lucide-hash"
-              class="w-full"
-            />
-          </UFormField>
-        </div>
-
+     
         <!-- Área asignada (CodificadorSelect) -->
         <UFormField
           label="Área / Unidad Organizacional"

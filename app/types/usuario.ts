@@ -14,6 +14,29 @@ export interface UsuarioCargo {
   } | null;
 }
 
+/** Cargo en la ficha detallada (GET usuarios/:id/getinfo) */
+export interface UsuarioInfoCargo extends UsuarioCargo {
+  cargos_cod_depto?: string | null;
+  area_id?: string | null;
+}
+
+/** Ficha detallada del usuario para modal de consulta */
+export interface UsuarioInfo {
+  id: string;
+  nombre_completo: string;
+  nombre_usuario: string;
+  email: string;
+  activo: boolean;
+  disponible: boolean;
+  ni?: string | null;
+  emitido_en?: string | null;
+  titulo?: string | null;
+  foto_url?: string | null;
+  id_ref?: number | null;
+  roles: Rol[];
+  cargos: UsuarioInfoCargo[];
+}
+
 export interface Usuario {
   id: string;
   nombre_completo: string;
