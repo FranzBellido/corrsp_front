@@ -1,4 +1,5 @@
 import type { ProfileDto } from '~/types/profile'
+import type { RespuestaApi } from '~/types/respuestas'
 import { backendService } from '~/services/backend.service'
 
 const PROFILE_STORAGE_KEY = 'user_profile_data'
@@ -7,10 +8,8 @@ export const CARGO_ORIGEN_STORAGE_KEY = 'cargo_origen_id'
 export const useProfile = () => {
   const profile = useState<ProfileDto | null>('profile', () => null)
   const loading = useState<boolean>('profile-loading', () => false)
+  const needsCargoSelection = useState<boolean>('needs-cargo-selection', () => false)
 
-  /**
-   * Sincroniza área activa en sessionStorage
-   */
   const syncSessionArea = (areaId: string | null | undefined, areaNombre: string | null | undefined) => {
     if (!import.meta.client) return
     if (areaId) {
@@ -26,9 +25,64 @@ export const useProfile = () => {
     }
   }
 
-  /**
-   * Carga el perfil almacenado en localStorage si existe
-   */
+  const resolveAreaFromCargo = (p: ProfileDto, cargoId: string | null | undefined) => {
+    let areaId: string | null = null
+    let areaNombre: string | null = null
+    if (cargoId && p.cargos?.length) {
+      const cargoMatch = p.cargos.find((c) => c.id === cargoId)
+      if (cargoMatch?.area) {
+        areaId = cargoMatch.area.id
+        areaNombre = cargoMatch.area.nombre
+      } else if (cargoMatch?.area_id) {
+        areaId = cargoMatch.area_id
+      }
+    }
+    return { areaId, areaNombre }
+  }
+
+  const buildLocalProfile = (apiData: ProfileDto, cargoId: string | null): ProfileDto => {
+    const { areaId, areaNombre } = resolveAreaFromCargo(apiData, cargoId)
+    return {
+      ...apiData,
+      cargo_id: cargoId,
+      cargo_activo_id: cargoId,
+      area_activa_id: areaId,
+      area_activa_nombre: areaNombre,
+    }
+  }
+
+  const saveProfileToStorage = (updatedProfile: ProfileDto) => {
+    const cargoId = updatedProfile.cargo_activo_id || updatedProfile.cargo_id || null
+    const { areaId, areaNombre } = resolveAreaFromCargo(updatedProfile, cargoId)
+
+    const normalized: ProfileDto = {
+      ...updatedProfile,
+      cargo_id: cargoId,
+      cargo_activo_id: cargoId,
+      area_activa_id: areaId ?? updatedProfile.area_activa_id ?? null,
+      area_activa_nombre: areaNombre ?? updatedProfile.area_activa_nombre ?? null,
+    }
+
+    profile.value = normalized
+
+    if (import.meta.client) {
+      localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(normalized))
+      if (cargoId) {
+        localStorage.setItem('cargo_activo_id', cargoId)
+        localStorage.setItem(CARGO_ORIGEN_STORAGE_KEY, cargoId)
+      } else {
+        localStorage.removeItem('cargo_activo_id')
+        localStorage.removeItem(CARGO_ORIGEN_STORAGE_KEY)
+      }
+      if (normalized.area_activa_id) {
+        localStorage.setItem('area_activa_id', normalized.area_activa_id)
+      } else {
+        localStorage.removeItem('area_activa_id')
+      }
+      syncSessionArea(normalized.area_activa_id, normalized.area_activa_nombre)
+    }
+  }
+
   const loadProfileFromStorage = (): ProfileDto | null => {
     if (!import.meta.client) return null
     const stored = localStorage.getItem(PROFILE_STORAGE_KEY)
@@ -36,10 +90,7 @@ export const useProfile = () => {
       try {
         const parsed = JSON.parse(stored) as ProfileDto
         profile.value = parsed
-
-        // Sincronizar también sessionStorage por si se abre una nueva pestaña/sesión
         syncSessionArea(parsed.area_activa_id, parsed.area_activa_nombre)
-
         return parsed
       } catch (e) {
         console.error('Error parsing stored profile:', e)
@@ -48,168 +99,6 @@ export const useProfile = () => {
     return null
   }
 
-  /**
-   * Guarda el perfil completo en localStorage y el área activa en sessionStorage
-   */
-  const saveProfileToStorage = (updatedProfile: ProfileDto) => {
-    // Si tiene un cargo_activo_id, calcular su área correspondiente si no vino calculada
-    if (updatedProfile.cargo_activo_id && updatedProfile.cargos?.length) {
-      const cargoMatch = updatedProfile.cargos.find(c => c.id === updatedProfile.cargo_activo_id)
-      if (cargoMatch?.area) {
-        updatedProfile.area_activa_id = cargoMatch.area.id
-        updatedProfile.area_activa_nombre = cargoMatch.area.nombre
-      } else if (cargoMatch?.area_id) {
-        updatedProfile.area_activa_id = cargoMatch.area_id
-      }
-    }
-
-    profile.value = updatedProfile
-
-    if (import.meta.client) {
-      localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(updatedProfile))
-      if (updatedProfile.cargo_activo_id) {
-        localStorage.setItem('cargo_activo_id', updatedProfile.cargo_activo_id)
-        localStorage.setItem(CARGO_ORIGEN_STORAGE_KEY, updatedProfile.cargo_activo_id)
-      }
-      if (updatedProfile.area_activa_id) {
-        localStorage.setItem('area_activa_id', updatedProfile.area_activa_id)
-      }
-      syncSessionArea(updatedProfile.area_activa_id, updatedProfile.area_activa_nombre)
-    }
-  }
-
-  // Bandera para indicar si se requiere que el usuario escoja cargo entre múltiples opciones
-  const needsCargoSelection = useState<boolean>('needs-cargo-selection', () => false)
-
-  /**
-   * Obtiene el perfil desde la API del backend.
-   * Reglas de negocio:
-   * 1. Si no hay info en localStorage y solo tiene 1 cargo -> se almacena automáticamente y continúa.
-   * 2. Si no hay info en localStorage y tiene 2 o más cargos -> activa needsCargoSelection para mostrar el modal.
-   * 3. Si ya tiene cargo seleccionado en localStorage -> se preserva y continúa.
-   */
-  const fetchProfile = async (): Promise<ProfileDto | null> => {
-    if (!import.meta.client) return null
-
-    loading.value = true
-    try {
-      const resp = await backendService.get<ProfileDto>('profile')
-      if (resp && resp.data) {
-        const apiData = resp.data
-        const existingStored = loadProfileFromStorage()
-
-        const numCargos = apiData.cargos?.length || 0
-
-        // Verificar si el cargo previamente guardado aún existe en sus cargos actuales
-        let defaultCargoId = existingStored?.cargo_activo_id
-        const cargoExists = apiData.cargos?.some(c => c.id === defaultCargoId)
-
-        if (!cargoExists) {
-          defaultCargoId = null
-        }
-
-        // Si no hay cargo seleccionado previamente guardado
-        if (!defaultCargoId) {
-          if (numCargos === 1 && apiData.cargos?.[0]) {
-            // Caso 1: Solo tiene 1 cargo -> guardar directamente en localStorage
-            defaultCargoId = apiData.cargos[0].id
-            needsCargoSelection.value = false
-          } else if (numCargos > 1) {
-            // Caso 2: Tiene 2 o más cargos -> requerir selección mediante modal
-            needsCargoSelection.value = true
-          } else {
-            // No tiene cargos asignados
-            needsCargoSelection.value = false
-          }
-        } else {
-          // Ya tenía selección previa en localStorage
-          needsCargoSelection.value = false
-        }
-
-        let areaId: string | null = null
-        let areaNombre: string | null = null
-
-        if (defaultCargoId && apiData.cargos?.length) {
-          const cargoMatch = apiData.cargos.find(c => c.id === defaultCargoId)
-          if (cargoMatch?.area) {
-            areaId = cargoMatch.area.id
-            areaNombre = cargoMatch.area.nombre
-          } else if (cargoMatch?.area_id) {
-            areaId = cargoMatch.area_id
-          }
-        }
-
-        const fullProfile: ProfileDto = {
-          ...apiData,
-          cargo_activo_id: defaultCargoId,
-          area_activa_id: areaId,
-          area_activa_nombre: areaNombre
-        }
-
-        if (defaultCargoId || numCargos <= 1) {
-          saveProfileToStorage(fullProfile)
-        } else {
-          profile.value = fullProfile
-        }
-
-        return fullProfile
-      }
-    } catch (error) {
-      console.error('Error fetching profile from backend:', error)
-      return loadProfileFromStorage()
-    } finally {
-      loading.value = false
-    }
-
-    return null
-  }
-
-  /**
-   * Selecciona el cargo activo de trabajo y actualiza localStorage y sessionStorage
-   */
-  const resolveCargoOrigenId = (): string | null => {
-    if (!import.meta.client) {
-      return profile.value?.cargo_activo_id ?? null
-    }
-    const fromOrigen = localStorage.getItem(CARGO_ORIGEN_STORAGE_KEY)
-    if (fromOrigen) return fromOrigen
-    const fromActivo = localStorage.getItem('cargo_activo_id')
-    if (fromActivo) return fromActivo
-    return profile.value?.cargo_activo_id ?? null
-  }
-
-  const setCargoOrigenId = (cargoId: string) => {
-    if (!import.meta.client) return
-    localStorage.setItem(CARGO_ORIGEN_STORAGE_KEY, cargoId)
-  }
-
-  const setCargoActivo = (cargoId: string) => {
-    if (!profile.value) return
-
-    let areaId: string | null = null
-    let areaNombre: string | null = null
-    const cargoMatch = profile.value.cargos?.find(c => c.id === cargoId)
-    if (cargoMatch?.area) {
-      areaId = cargoMatch.area.id
-      areaNombre = cargoMatch.area.nombre
-    } else if (cargoMatch?.area_id) {
-      areaId = cargoMatch.area_id
-    }
-
-    const updated: ProfileDto = {
-      ...profile.value,
-      cargo_activo_id: cargoId,
-      area_activa_id: areaId,
-      area_activa_nombre: areaNombre
-    }
-    saveProfileToStorage(updated)
-    setCargoOrigenId(cargoId)
-    needsCargoSelection.value = false
-  }
-
-  /**
-   * Limpia toda la información del perfil de memoria, localStorage y sessionStorage
-   */
   const clearProfile = () => {
     profile.value = null
     needsCargoSelection.value = false
@@ -225,8 +114,100 @@ export const useProfile = () => {
   }
 
   /**
-   * Retorna el cargo actualmente activo
+   * Sincroniza perfil desde backend (usuarios.cargo_id es la fuente de verdad).
+   * - 1 cargo: backend lo persiste automáticamente
+   * - N cargos sin cargo_id: muestra modal de selección
    */
+  const isUsuarioNoRegistradoError = (error: unknown): boolean => {
+    const err = error as {
+      statusCode?: number
+      status?: number
+      response?: { status?: number }
+      data?: { statusCode?: number; message?: string | string[] }
+      message?: string
+    }
+    const status = err?.statusCode ?? err?.status ?? err?.response?.status ?? err?.data?.statusCode
+    if (status === 404) return true
+
+    const msg = Array.isArray(err?.data?.message)
+      ? err.data.message.join(' ')
+      : err?.data?.message || err?.message || ''
+    return /no encontrado|not found/i.test(String(msg))
+  }
+
+  const fetchProfile = async (): Promise<ProfileDto | null> => {
+    if (!import.meta.client) return null
+
+    loading.value = true
+    const accessDenied = useState<boolean>('access-denied', () => false)
+
+    try {
+      const resp = await backendService.get<ProfileDto>('profile')
+      if (!resp?.data) {
+        return loadProfileFromStorage()
+      }
+
+      accessDenied.value = false
+      const apiData = resp.data
+      const numCargos = apiData.cargos?.length || 0
+      const cargoId = apiData.cargo_id ?? null
+      const fullProfile = buildLocalProfile(apiData, cargoId)
+
+      if (numCargos > 1 && !cargoId) {
+        needsCargoSelection.value = true
+        profile.value = fullProfile
+        return fullProfile
+      }
+
+      needsCargoSelection.value = false
+      saveProfileToStorage(fullProfile)
+      return fullProfile
+    } catch (error) {
+      console.error('Error fetching profile from backend:', error)
+      if (isUsuarioNoRegistradoError(error)) {
+        accessDenied.value = true
+        clearProfile()
+        throw error
+      }
+      return loadProfileFromStorage()
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const resolveCargoOrigenId = (): string | null => {
+    if (!import.meta.client) {
+      return profile.value?.cargo_activo_id || profile.value?.cargo_id || null
+    }
+    const fromOrigen = localStorage.getItem(CARGO_ORIGEN_STORAGE_KEY)
+    if (fromOrigen) return fromOrigen
+    const fromActivo = localStorage.getItem('cargo_activo_id')
+    if (fromActivo) return fromActivo
+    return profile.value?.cargo_activo_id || profile.value?.cargo_id || null
+  }
+
+  const setCargoOrigenId = (cargoId: string) => {
+    if (!import.meta.client) return
+    localStorage.setItem(CARGO_ORIGEN_STORAGE_KEY, cargoId)
+  }
+
+  /**
+   * Persiste cargo activo en usuarios.cargo_id (PATCH profile/cargo-activo)
+   */
+  const setCargoActivo = async (cargoId: string) => {
+    const resp = await backendService.patch<ProfileDto>(
+      'profile',
+      'cargo-activo',
+      { cargo_id: cargoId },
+    )
+    const data = (resp as RespuestaApi<ProfileDto>)?.data ?? (resp as unknown as ProfileDto)
+    const fullProfile = buildLocalProfile(data, data.cargo_id ?? cargoId)
+    saveProfileToStorage(fullProfile)
+    setCargoOrigenId(cargoId)
+    needsCargoSelection.value = false
+    return fullProfile
+  }
+
   const cargoOrigenId = computed(() => resolveCargoOrigenId())
 
   const cargoOrigen = computed(() => {
@@ -237,22 +218,15 @@ export const useProfile = () => {
 
   const cargoActivo = computed(() => {
     if (!profile.value || !profile.value.cargos?.length) return null
-    if (profile.value.cargo_activo_id) {
-      const found = profile.value.cargos.find(c => c.id === profile.value?.cargo_activo_id)
+    const id = profile.value.cargo_activo_id || profile.value.cargo_id
+    if (id) {
+      const found = profile.value.cargos.find((c) => c.id === id)
       if (found) return found
     }
     return profile.value.cargos[0] || null
   })
 
-  /**
-   * Retorna el área actualmente activa
-   */
-  const areaActiva = computed(() => {
-    if (cargoActivo.value?.area) {
-      return cargoActivo.value.area
-    }
-    return null
-  })
+  const areaActiva = computed(() => cargoActivo.value?.area ?? null)
 
   return {
     profile,
@@ -268,6 +242,6 @@ export const useProfile = () => {
     loadProfileFromStorage,
     saveProfileToStorage,
     setCargoActivo,
-    clearProfile
+    clearProfile,
   }
 }

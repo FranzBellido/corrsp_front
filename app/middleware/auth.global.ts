@@ -1,39 +1,53 @@
 import { useProfile } from '~/composables/useProfile'
 
+const RUTA_ACCESO_DENEGADO = '/acceso-denegado'
+
 export default defineNuxtRouteMiddleware(async (to) => {
   if (import.meta.server) return
 
   const nuxtApp = useNuxtApp() as any
   const $keycloak = nuxtApp.$keycloak
+  const accessDenied = useState<boolean>('access-denied', () => false)
 
-  // 1. Si no está autenticado en Keycloak, redirigir al login
   if ($keycloak && !$keycloak.authenticated) {
     return $keycloak.login({
-      redirectUri: window.location.origin + to.fullPath
+      redirectUri: window.location.origin + to.fullPath,
     })
   }
 
-  // 2. Si ya está autenticado, validar si tiene el perfil guardado en localStorage
   if ($keycloak && $keycloak.authenticated) {
-    const { profile, loadProfileFromStorage, fetchProfile } = useProfile()
-
-    let userProfile = loadProfileFromStorage()
-
-    // Si aún no está en localStorage ni cargado, obtenerlo del backend
-    if (!userProfile && !profile.value) {
-      userProfile = await fetchProfile()
-    } else if (!userProfile && profile.value) {
-      userProfile = profile.value
+    // Página pública para usuarios autenticados sin registro en BD
+    if (to.path === RUTA_ACCESO_DENEGADO) {
+      return
     }
 
-    // Verificar si el perfil está completo en localStorage (especialmente si tiene cargos múltiples y requiere seleccionar cargo)
-    const storedData = localStorage.getItem('user_profile_data')
-    const needsCargoSelection = userProfile && userProfile.cargos && userProfile.cargos.length > 1 && !userProfile.cargo_activo_id
+    if (accessDenied.value) {
+      return navigateTo(RUTA_ACCESO_DENEGADO)
+    }
 
-    // Si no está almacenado en localStorage o requiere seleccionar el cargo por defecto, redirigir a /settings
-    if (!storedData || needsCargoSelection) {
-      if (to.path !== '/settings') {
-        return navigateTo('/settings')
+    const { fetchProfile, clearProfile } = useProfile()
+    const profileSynced = useState<boolean>('profile-session-synced', () => false)
+
+    if (!profileSynced.value) {
+      try {
+        await fetchProfile()
+        profileSynced.value = true
+        accessDenied.value = false
+      } catch (error) {
+        clearProfile()
+        profileSynced.value = false
+
+        const err = error as {
+          statusCode?: number
+          status?: number
+          response?: { status?: number }
+          data?: { statusCode?: number }
+        }
+        const status = err?.statusCode ?? err?.status ?? err?.response?.status ?? err?.data?.statusCode
+        if (status === 404 || accessDenied.value) {
+          accessDenied.value = true
+          return navigateTo(RUTA_ACCESO_DENEGADO)
+        }
       }
     }
   }

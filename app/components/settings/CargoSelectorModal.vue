@@ -1,13 +1,10 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useProfile } from '~/composables/useProfile'
 
-const props = defineProps<{
-  open: boolean
-}>()
+const open = defineModel<boolean>('open', { default: false })
 
 const emit = defineEmits<{
-  (e: 'update:open', value: boolean): void
   (e: 'selected', cargoId: string): void
 }>()
 
@@ -18,32 +15,49 @@ const toast = useToast()
 
 const cargos = computed(() => profile.value?.cargos || [])
 
+watch(
+  () => open.value,
+  (isOpen) => {
+    if (isOpen) {
+      selectedCargoId.value = profile.value?.cargo_id || profile.value?.cargo_activo_id || ''
+    }
+  },
+)
+
 const handleSelect = (id: string) => {
   selectedCargoId.value = id
 }
 
-const handleConfirmar = () => {
+const handleConfirmar = async () => {
   if (!selectedCargoId.value) {
     toast.add({
       title: 'Selección requerida',
       description: 'Por favor seleccione el cargo con el que desea operar.',
       color: 'warning',
-      icon: 'i-lucide-alert-triangle'
+      icon: 'i-lucide-alert-triangle',
     })
     return
   }
 
   saving.value = true
   try {
-    setCargoActivo(selectedCargoId.value)
+    await setCargoActivo(selectedCargoId.value)
     toast.add({
       title: 'Cargo configurado',
       description: 'Se ha establecido su cargo de trabajo por defecto.',
       color: 'success',
-      icon: 'i-lucide-check-circle'
+      icon: 'i-lucide-check-circle',
     })
     emit('selected', selectedCargoId.value)
-    emit('update:open', false)
+    open.value = false
+  } catch (error: unknown) {
+    const err = error as { data?: { message?: string }; message?: string }
+    toast.add({
+      title: 'No se pudo guardar el cargo',
+      description: err?.data?.message || err?.message || 'Error al actualizar el cargo activo.',
+      color: 'error',
+      icon: 'i-lucide-alert-circle',
+    })
   } finally {
     saving.value = false
   }
@@ -52,17 +66,17 @@ const handleConfirmar = () => {
 
 <template>
   <UModal
-    :open="open"
+    v-model:open="open"
     title="Seleccionar Cargo de Trabajo"
-    description="Se detectaron múltiples cargos asociados a su usuario. Por favor seleccione con cuál desea iniciar sesión."
+    description="Se detectaron múltiples cargos asociados a su usuario. Seleccione con cuál desea operar."
     :ui="{ content: 'sm:max-w-md' }"
-    :close="{ onClick: () => {} }"
-    :prevent-close="true"
+    :dismissible="false"
   >
     <template #body>
       <div class="space-y-3">
         <p class="text-xs text-neutral-500 dark:text-neutral-400">
-          Podrá cambiar de cargo en cualquier momento desde el menú de <strong>Configuración</strong> o en su perfil.
+          El cargo elegido se guardará en su perfil y se usará en las transacciones de correspondencia.
+          Podrá cambiarlo después desde <strong>Configuración</strong>.
         </p>
 
         <div class="space-y-2 max-h-60 overflow-y-auto pr-1">
@@ -92,7 +106,10 @@ const handleConfirmar = () => {
               <div v-if="cargo.area" class="text-xs text-neutral-500 dark:text-neutral-400 mt-1 flex items-center gap-1.5">
                 <UIcon name="i-lucide-building-2" class="size-3.5 text-primary-500 shrink-0" />
                 <span class="truncate">{{ cargo.area.nombre }}</span>
-                <span v-if="cargo.area.codigo" class="text-[10px] font-mono px-1 py-0.5 rounded bg-neutral-100 dark:bg-neutral-800">
+                <span
+                  v-if="cargo.area.codigo"
+                  class="text-[10px] font-mono px-1 py-0.5 rounded bg-neutral-100 dark:bg-neutral-800"
+                >
                   {{ cargo.area.codigo }}
                 </span>
               </div>

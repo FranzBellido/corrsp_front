@@ -6,9 +6,10 @@ export function useAuth() {
     if (import.meta.client && $keycloak) {
       // Limpiar solo datos de la sesión actual, preservando las preferencias en localStorage
       sessionStorage.clear()
-      const { profile, needsCargoSelection } = useProfile()
-      profile.value = null
-      needsCargoSelection.value = false
+      const { clearProfile } = useProfile()
+      clearProfile()
+      useState<boolean>('profile-session-synced', () => false).value = false
+      useState<boolean>('access-denied', () => false).value = false
 
       $keycloak.logout({
         redirectUri: window.location.origin

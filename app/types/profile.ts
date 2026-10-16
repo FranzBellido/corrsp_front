@@ -10,6 +10,7 @@ export interface CargoProfileDto {
   nombre: string
   cargos_cod_depto?: string | null
   area_id?: string | null
+  activa_transferencia?: boolean | null
   area?: AreaProfileDto | null
 }
 
@@ -30,8 +31,11 @@ export interface ProfileDto {
   emitido_en?: string | null
   titulo?: string | null
   foto_url?: string | null
+  /** Persistido en usuarios.cargo_id (backend) */
+  cargo_id?: string | null
   cargos: CargoProfileDto[]
   roles: RolProfileDto[]
+  /** Alias local sincronizado con cargo_id */
   cargo_activo_id?: string | null
   area_activa_id?: string | null
   area_activa_nombre?: string | null

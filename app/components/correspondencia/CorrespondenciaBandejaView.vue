@@ -1,10 +1,13 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, h } from 'vue'
+import { ref, computed, onMounted, watch, h } from 'vue'
 import type { TableColumn } from '@nuxt/ui'
 import type { Correspondencia, FiltroCorrespondencia, RespuestaBusquedaCorrespondencia } from '~/types/correspondencia'
 import { backendService } from '~/services/backend.service'
 import CorrespondenciaFormModal from '~/components/correspondencia/CorrespondenciaFormModal.vue'
 import CorrespondenciaCompartirModal from '~/components/correspondencia/CorrespondenciaCompartirModal.vue'
+import DerivacionFormModal from '~/components/correspondencia/DerivacionFormModal.vue'
+import CorrespondenciaDetalleModal from '~/components/correspondencia/CorrespondenciaDetalleModal.vue'
+import CorrespondenciaAdjuntosModal from '~/components/correspondencia/CorrespondenciaAdjuntosModal.vue'
 import CorTable from '~/components/CorTable.vue'
 
 const props = withDefaults(
@@ -48,6 +51,14 @@ const correspToEdit = ref<Correspondencia | null>(null)
 const isCompartirOpen = ref(false)
 const correspToCompartir = ref<Correspondencia | null>(null)
 
+// Modal de Derivación
+const isDerivacionOpen = ref(false)
+const correspToDerivar = ref<Correspondencia | null>(null)
+
+// Modal de Detalle
+const isDetalleOpen = ref(false)
+const detalleDocumentoId = ref<string | null>(null)
+
 // Modal de Eliminación
 const isDeleteOpen = ref(false)
 const correspToDelete = ref<Correspondencia | null>(null)
@@ -63,6 +74,10 @@ const editorCallbackUrl = ref('')
 const editorTitle = ref('Documento.docx')
 const editorCorresp = ref<Correspondencia | null>(null)
 const editorReadOnly = ref(false)
+
+const isAdjuntosOpen = ref(false)
+const correspAdjuntos = ref<Correspondencia | null>(null)
+const adjuntosSoloLectura = ref(true)
 
 // Configuración de columnas
 const columns = computed<TableColumn<Correspondencia>[]>(() => [
@@ -195,6 +210,39 @@ const columns = computed<TableColumn<Correspondencia>[]>(() => [
           )
         }
 
+        acciones.push(
+          h(UButton, {
+            icon: 'i-lucide-eye',
+            color: 'neutral',
+            variant: 'ghost',
+            size: 'xs',
+            title: 'Ver detalle',
+            onClick: () => handleVerDetalle(c),
+          }),
+        )
+
+        acciones.push(
+          h(UButton, {
+            icon: 'i-lucide-paperclip',
+            color: 'neutral',
+            variant: 'ghost',
+            size: 'xs',
+            title: 'Adjuntos',
+            onClick: () => handleAdjuntos(c, false),
+          }),
+        )
+
+        acciones.push(
+          h(UButton, {
+            icon: 'i-lucide-send',
+            color: 'primary',
+            variant: 'ghost',
+            size: 'xs',
+            title: 'Derivar correspondencia',
+            onClick: () => handleDerivar(c),
+          }),
+        )
+
         // Botón Compartir documento (corresp_usuario)
         acciones.push(
           h(UButton, {
@@ -231,6 +279,28 @@ const columns = computed<TableColumn<Correspondencia>[]>(() => [
         const tieneDocumento = tieneDocumentoGenerado(c)
         const esSoloLectura = c.acceso_compartido?.solo_lectura ?? false
 
+        acciones.push(
+          h(UButton, {
+            icon: 'i-lucide-eye',
+            color: 'neutral',
+            variant: 'ghost',
+            size: 'xs',
+            title: 'Ver detalle',
+            onClick: () => handleVerDetalle(c),
+          }),
+        )
+
+        acciones.push(
+          h(UButton, {
+            icon: 'i-lucide-paperclip',
+            color: 'neutral',
+            variant: 'ghost',
+            size: 'xs',
+            title: 'Ver adjuntos',
+            onClick: () => handleAdjuntos(c, true),
+          }),
+        )
+
         if (tieneDocumento) {
           acciones.push(
             h(UButton, {
@@ -250,6 +320,22 @@ const columns = computed<TableColumn<Correspondencia>[]>(() => [
       } else {
         // modo archivo u otros
         acciones.push(
+          h(UButton, {
+            icon: 'i-lucide-eye',
+            color: 'neutral',
+            variant: 'ghost',
+            size: 'xs',
+            title: 'Ver detalle',
+            onClick: () => handleVerDetalle(c),
+          }),
+          h(UButton, {
+            icon: 'i-lucide-paperclip',
+            color: 'neutral',
+            variant: 'ghost',
+            size: 'xs',
+            title: 'Ver adjuntos',
+            onClick: () => handleAdjuntos(c, true),
+          }),
           h(UButton, {
             icon: 'i-lucide-pencil',
             color: 'neutral',
@@ -340,6 +426,12 @@ const handleNuevo = () => {
   isModalOpen.value = true
 }
 
+watch(isModalOpen, (isOpen) => {
+  if (!isOpen) {
+    correspToEdit.value = null
+  }
+})
+
 const handleEditar = (corresp: Correspondencia) => {
   correspToEdit.value = corresp
   isModalOpen.value = true
@@ -348,6 +440,22 @@ const handleEditar = (corresp: Correspondencia) => {
 const handleCompartir = (corresp: Correspondencia) => {
   correspToCompartir.value = corresp
   isCompartirOpen.value = true
+}
+
+const handleDerivar = (corresp: Correspondencia) => {
+  correspToDerivar.value = corresp
+  isDerivacionOpen.value = true
+}
+
+const handleVerDetalle = (corresp: Correspondencia) => {
+  detalleDocumentoId.value = corresp.id
+  isDetalleOpen.value = true
+}
+
+const handleAdjuntos = (corresp: Correspondencia, soloLectura: boolean) => {
+  correspAdjuntos.value = corresp
+  adjuntosSoloLectura.value = soloLectura
+  isAdjuntosOpen.value = true
 }
 
 const handleConfirmarEliminar = (corresp: Correspondencia) => {
@@ -608,6 +716,24 @@ onMounted(() => {
       v-model:open="isCompartirOpen"
       :correspondencia="correspToCompartir"
       @actualizado="fetchCorrespondencias"
+    />
+
+    <DerivacionFormModal
+      v-model:open="isDerivacionOpen"
+      :correspondencia="correspToDerivar"
+      @derivado="fetchCorrespondencias"
+    />
+
+    <CorrespondenciaDetalleModal
+      v-model:open="isDetalleOpen"
+      :correspondencia-id="detalleDocumentoId"
+      @leido="fetchCorrespondencias"
+    />
+
+    <CorrespondenciaAdjuntosModal
+      v-model:open="isAdjuntosOpen"
+      :correspondencia="correspAdjuntos"
+      :solo-lectura="adjuntosSoloLectura"
     />
 
     <!-- Editor OnlyOffice (documento generado) -->

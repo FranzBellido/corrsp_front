@@ -5,7 +5,7 @@ import { useProfile } from '~/composables/useProfile'
 import { backendService } from '~/services/backend.service'
 
 const toast = useToast()
-const { profile, loading, fetchProfile, loadProfileFromStorage, saveProfileToStorage } = useProfile()
+const { profile, loading, fetchProfile, loadProfileFromStorage, saveProfileToStorage, setCargoActivo } = useProfile()
 
 const uploadingFoto = ref(false)
 const loadingFoto = ref(false)
@@ -206,9 +206,9 @@ function syncFormFromProfile() {
     state.emitido_en = profile.value.emitido_en || ''
     state.titulo = profile.value.titulo || ''
     
-    // Si tiene un cargo ya seleccionado, lo usamos; si tiene solo 1, preseleccionarlo
-    if (profile.value.cargo_activo_id) {
-      state.cargo_activo_id = profile.value.cargo_activo_id
+    const cargoId = profile.value.cargo_id || profile.value.cargo_activo_id
+    if (cargoId) {
+      state.cargo_activo_id = cargoId
     } else if (profile.value.cargos && profile.value.cargos.length === 1 && profile.value.cargos[0]) {
       state.cargo_activo_id = profile.value.cargos[0].id
     } else {
@@ -238,52 +238,42 @@ const primerCargo = computed(() => {
   return profile.value?.cargos?.[0] || null
 })
 
-// Guardar configuración en localStorage y estado global
+// Persiste cargo activo en BD (usuarios.cargo_id) y sincroniza sesión
 async function onSubmit(event: FormSubmitEvent<ProfileFormSchema>) {
   if (!profile.value) return
 
-  // Si tiene al menos un cargo y no seleccionó ninguno, advertir
   if (profile.value.cargos && profile.value.cargos.length > 0 && !event.data.cargo_activo_id) {
     toast.add({
       title: 'Selección de cargo requerida',
       description: 'Debe seleccionar el cargo por defecto con el que trabajará.',
       icon: 'i-lucide-alert-triangle',
-      color: 'warning'
+      color: 'warning',
     })
     return
   }
 
-  // Buscar el cargo seleccionado para obtener los datos de su área
-  let areaActivaId: string | null = null
-  let areaActivaNombre: string | null = null
-  if (event.data.cargo_activo_id && profile.value.cargos?.length) {
-    const cargoMatch = profile.value.cargos.find(c => c.id === event.data.cargo_activo_id)
-    if (cargoMatch?.area) {
-      areaActivaId = cargoMatch.area.id
-      areaActivaNombre = cargoMatch.area.nombre
-    } else if (cargoMatch?.area_id) {
-      areaActivaId = cargoMatch.area_id
+  try {
+    if (event.data.cargo_activo_id) {
+      await setCargoActivo(event.data.cargo_activo_id)
     }
+
+    toast.add({
+      title: 'Configuración guardada',
+      description: 'El cargo de trabajo se actualizó correctamente en su perfil.',
+      icon: 'i-lucide-check-circle',
+      color: 'success',
+    })
+
+    navigateTo('/')
+  } catch (error: unknown) {
+    const err = error as { data?: { message?: string }; message?: string }
+    toast.add({
+      title: 'No se pudo guardar',
+      description: err?.data?.message || err?.message || 'Error al actualizar el cargo activo.',
+      color: 'error',
+      icon: 'i-lucide-alert-circle',
+    })
   }
-
-  const updatedProfile = {
-    ...profile.value,
-    cargo_activo_id: event.data.cargo_activo_id || null,
-    area_activa_id: areaActivaId,
-    area_activa_nombre: areaActivaNombre
-  }
-
-  saveProfileToStorage(updatedProfile)
-
-  toast.add({
-    title: 'Configuración guardada',
-    description: 'La información del perfil, cargo y área activa se guardaron correctamente en la sesión.',
-    icon: 'i-lucide-check-circle',
-    color: 'success'
-  })
-
-  // Redirigir a inicio una vez configurado
-  navigateTo('/')
 }
 </script>
 

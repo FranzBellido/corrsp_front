@@ -5,6 +5,8 @@ export interface Cargo {
   cargos_cod_depto?: string | null;
   area_id?: string | null;
   usuario_id?: string | null;
+  tipo_id?: number | null;
+  activa_transferencia?: boolean | null;
   areas?: {
     id: string;
     nombre: string;
@@ -16,6 +18,10 @@ export interface Cargo {
     email: string;
     nombre_usuario: string;
   } | null;
+  codificador?: {
+    codificadorId: number;
+    nombre?: string | null;
+  } | null;
 }
 
 export interface CreateCargoPayload {
@@ -24,6 +30,8 @@ export interface CreateCargoPayload {
   cargos_cod_depto?: string;
   area_id?: string;
   usuario_id?: string;
+  tipo_id?: number;
+  activa_transferencia?: boolean;
 }
 
 export interface UpdateCargoPayload extends Partial<CreateCargoPayload> {}

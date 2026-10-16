@@ -248,53 +248,67 @@ const remitenteParams = computed(() => {
   return {}
 })
 
-// Observar cambio de correspondencia a editar
-watch(
-  () => props.correspondencia,
-  (val) => {
-    if (val) {
-      form.value = {
-        referencia: val.referencia || '',
-        proc_id: val.proc_id,
-        prioridad_id: val.prioridad_id,
-        confidencial: Boolean(val.confidencial),
-        cite_origen: val.cite_origen || '',
-        remitente_id: val.remitente_id || val.cargos?.id || defaultRemitenteId(),
-        destinatario_id: val.destinatario_id || val.cargo_destinatario?.id || '',
-        cooperativa: mapCooperativaExistente(val),
-      }
-      requiereCooperativa.value = Boolean(
-        val.proceso?.requiere_cooperativa || val.corresp_cooperativa?.length,
-      )
-      requiereEntidad.value = Boolean(
-        val.proceso?.requiere_entidad || val.corresp_entidad?.length,
-      )
-      entidadId.value = val.corresp_entidad?.[0]?.entidad_id
-      tipoHr.value = 'existente'
-      nroHrInput.value = val.hoja_ruta?.numero
-      hrEncontrada.value = val.hoja_ruta || null
-    } else {
-      form.value = {
-        referencia: '',
-        proc_id: undefined as any,
-        prioridad_id: undefined as any,
-        confidencial: false,
-        cite_origen: '',
-        remitente_id: defaultRemitenteId(),
-        destinatario_id: '',
-        cooperativa: emptyCooperativa(),
-      }
-      requiereCooperativa.value = false
-      requiereEntidad.value = false
-      entidadId.value = undefined
-      tipoHr.value = 'nueva'
-      nroHrInput.value = undefined
-      hrEncontrada.value = null
-      errorHr.value = null
-    }
-  },
-  { immediate: true },
-)
+const resetFormularioNueva = () => {
+  form.value = {
+    referencia: '',
+    proc_id: undefined as any,
+    prioridad_id: undefined as any,
+    confidencial: false,
+    cite_origen: '',
+    remitente_id: defaultRemitenteId(),
+    destinatario_id: '',
+    cooperativa: emptyCooperativa(),
+  }
+  requiereCooperativa.value = false
+  requiereEntidad.value = false
+  entidadId.value = undefined
+  tipoHr.value = 'nueva'
+  nroHrInput.value = undefined
+  hrEncontrada.value = null
+  errorHr.value = null
+}
+
+const cargarFormularioEdicion = (val: Correspondencia) => {
+  form.value = {
+    referencia: val.referencia || '',
+    proc_id: val.proc_id,
+    prioridad_id: val.prioridad_id,
+    confidencial: Boolean(val.confidencial),
+    cite_origen: val.cite_origen || '',
+    remitente_id: val.remitente_id || val.cargos?.id || defaultRemitenteId(),
+    destinatario_id: val.destinatario_id || val.cargo_destinatario?.id || '',
+    cooperativa: mapCooperativaExistente(val),
+  }
+  requiereCooperativa.value = Boolean(
+    val.proceso?.requiere_cooperativa || val.corresp_cooperativa?.length,
+  )
+  requiereEntidad.value = Boolean(
+    val.proceso?.requiere_entidad || val.corresp_entidad?.length,
+  )
+  entidadId.value = val.corresp_entidad?.[0]?.entidad_id
+  tipoHr.value = 'existente'
+  nroHrInput.value = val.hoja_ruta?.numero
+  hrEncontrada.value = val.hoja_ruta || null
+  errorHr.value = null
+}
+
+const sincronizarFormularioConProps = () => {
+  const val = props.correspondencia
+  if (val?.id) {
+    cargarFormularioEdicion(val)
+  } else {
+    resetFormularioNueva()
+  }
+}
+
+watch(() => props.correspondencia, sincronizarFormularioConProps, { immediate: true })
+
+// Al abrir el modal, reiniciar siempre (evita datos previos cuando correspondencia sigue null)
+watch(open, (isOpen) => {
+  if (isOpen) {
+    sincronizarFormularioConProps()
+  }
+})
 
 // Buscar HR existente si el usuario ingresa un número
 const buscarHojaRutaExistente = async () => {

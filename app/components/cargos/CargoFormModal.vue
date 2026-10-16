@@ -3,7 +3,9 @@ import { ref, watch, computed } from 'vue'
 import { z } from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
 import type { Cargo, CreateCargoPayload, UpdateCargoPayload } from '~/types/cargo'
+import { TipoCodificadorEnum } from '~/types/correspondencia'
 import { backendService } from '~/services/backend.service'
+import CodificadorSelect from '~/components/codificador/CodificadorSelect.vue'
 
 const props = defineProps<{
   cargo?: Cargo | null
@@ -17,7 +19,6 @@ const emit = defineEmits<{
 const toast = useToast()
 const saving = ref(false)
 
-// Esquema de validación con Zod
 const cargoSchema = z.object({
   nombre: z
     .string()
@@ -28,17 +29,23 @@ const cargoSchema = z.object({
   cargos_cod_depto: z.string().max(255, 'No puede exceder 255 caracteres').optional(),
   area_id: z.string().optional(),
   usuario_id: z.string().optional(),
+  tipo_id: z.number({ message: 'Debe seleccionar el tipo de cargo' }).optional(),
+  activa_transferencia: z.boolean().default(false),
 })
 
 type CargoSchemaType = z.infer<typeof cargoSchema>
 
-const form = ref<CargoSchemaType>({
+const emptyForm = (): CargoSchemaType => ({
   nombre: '',
   id_anterior: undefined,
   cargos_cod_depto: '',
   area_id: '',
   usuario_id: '',
+  tipo_id: undefined as unknown as number,
+  activa_transferencia: false,
 })
+
+const form = ref<CargoSchemaType>(emptyForm())
 
 const isEditing = computed(() => !!props.cargo?.id)
 
@@ -52,15 +59,11 @@ watch(
         cargos_cod_depto: val.cargos_cod_depto || '',
         area_id: val.area_id || '',
         usuario_id: val.usuario_id || '',
+        tipo_id: val.tipo_id ?? (val.codificador?.codificadorId as number | undefined),
+        activa_transferencia: Boolean(val.activa_transferencia),
       }
     } else {
-      form.value = {
-        nombre: '',
-        id_anterior: undefined,
-        cargos_cod_depto: '',
-        area_id: '',
-        usuario_id: '',
-      }
+      form.value = emptyForm()
     }
   },
   { immediate: true },
@@ -77,6 +80,8 @@ const handleSave = async (event?: FormSubmitEvent<CargoSchemaType>) => {
       cargos_cod_depto: data.cargos_cod_depto?.trim() || undefined,
       area_id: data.area_id || undefined,
       usuario_id: data.usuario_id || undefined,
+      tipo_id: data.tipo_id != null ? Number(data.tipo_id) : undefined,
+      activa_transferencia: Boolean(data.activa_transferencia),
     }
 
     if (isEditing.value && props.cargo?.id) {
@@ -99,11 +104,11 @@ const handleSave = async (event?: FormSubmitEvent<CargoSchemaType>) => {
 
     open.value = false
     emit('guardado')
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const err = error as { data?: { message?: string | string[] }; message?: string }
     const errorMsg =
-      error?.data?.message ||
-      (Array.isArray(error?.data?.message) ? error.data.message.join(', ') : null) ||
-      error?.message ||
+      (Array.isArray(err?.data?.message) ? err.data.message.join(', ') : err?.data?.message) ||
+      err?.message ||
       'Ocurrió un error al procesar el cargo'
 
     toast.add({
@@ -135,7 +140,6 @@ const handleSave = async (event?: FormSubmitEvent<CargoSchemaType>) => {
         class="space-y-4"
         @submit="handleSave"
       >
-        <!-- Nombre del Cargo -->
         <UFormField
           label="Nombre del Cargo"
           name="nombre"
@@ -151,8 +155,20 @@ const handleSave = async (event?: FormSubmitEvent<CargoSchemaType>) => {
           />
         </UFormField>
 
-     
-        <!-- Área asignada (CodificadorSelect) -->
+        <UFormField
+          label="Tipo de cargo"
+          name="tipo_id"
+          help="Clasificación del cargo según el catálogo institucional (codificador tipo 3)."
+        >
+          <CodificadorSelect
+            v-model="form.tipo_id"
+            endpoint="comun/codificador"
+            :params="{ tipo_id: TipoCodificadorEnum.TIPO_CARGO }"
+            placeholder="Seleccione el tipo de cargo..."
+            class="w-full"
+          />
+        </UFormField>
+
         <UFormField
           label="Área / Unidad Organizacional"
           name="area_id"
@@ -166,7 +182,6 @@ const handleSave = async (event?: FormSubmitEvent<CargoSchemaType>) => {
           />
         </UFormField>
 
-        <!-- Usuario asignado (CodificadorSelect) -->
         <UFormField
           label="Usuario Asignado (Opcional)"
           name="usuario_id"
@@ -177,6 +192,18 @@ const handleSave = async (event?: FormSubmitEvent<CargoSchemaType>) => {
             endpoint="comun/codificador/usuarios"
             placeholder="Buscar y asignar funcionario..."
             class="w-full"
+          />
+        </UFormField>
+
+        <UFormField
+          label="Transferencia entre usuarios"
+          name="activa_transferencia"
+          help="Permite transferir correspondencia entre usuarios vinculados a este cargo."
+        >
+          <UCheckbox
+            v-model="form.activa_transferencia"
+            label="Activar transferencia"
+            description="Habilita la transferencia de trámites entre usuarios del mismo cargo."
           />
         </UFormField>
       </UForm>

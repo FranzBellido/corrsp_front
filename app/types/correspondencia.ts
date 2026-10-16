@@ -1,5 +1,7 @@
 export enum TipoCodificadorEnum {
   PRIORIDAD = 1,
+  TIPO_INSTRUCCION = 2,
+  TIPO_CARGO = 3,
 }
 
 export interface HojaRuta {

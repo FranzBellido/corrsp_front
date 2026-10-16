@@ -58,6 +58,11 @@ const defaultNavItems: NavItem[] = [
         icon: 'i-lucide-arrow-up-right'
       },
       {
+        label: 'Con copia',
+        to: '/bandejas/con-copia',
+        icon: 'i-lucide-copy'
+      },
+      {
         label: 'Archivo',
         to: '/bandejas/archivo',
         icon: 'i-lucide-archive'
