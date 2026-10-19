@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, h } from 'vue'
-import type { NavigationMenuItem, TableColumn } from '@nuxt/ui'
+import type { DropdownMenuItem, TableColumn } from '@nuxt/ui'
 import type { Correspondencia } from '~/types/correspondencia'
 import type {
   Derivacion,
@@ -14,12 +14,17 @@ import CorrespondenciaDetalleModal from '~/components/correspondencia/Correspond
 import DerivacionFormModal from '~/components/correspondencia/DerivacionFormModal.vue'
 import CambioEstadoDerivacionModal from '~/components/correspondencia/CambioEstadoDerivacionModal.vue'
 import EstadoLogTimelineModal from '~/components/correspondencia/EstadoLogTimelineModal.vue'
-import CorrespondenciaAdjuntosModal from '~/components/correspondencia/CorrespondenciaAdjuntosModal.vue'
 import CorTable from '~/components/CorTable.vue'
 import {
   correspondenciaPuedeDerivar,
-  MENSAJE_SIN_NUMERACION_HR,
+  mensajeNoDerivarCorrespondencia,
 } from '~/utils/correspondencia'
+import {
+  enriquecerItemMenuAcciones,
+  CLASE_CONTENEDOR_ACCIONES_CELDA,
+  hMenuAccionesTabla,
+  META_COLUMNA_ACCIONES_TABLA,
+} from '~/utils/acciones-menu'
 
 const props = defineProps<{
   modo: 'salida' | 'ingreso' | 'con_copia'
@@ -31,7 +36,7 @@ const props = defineProps<{
 const UBadge = resolveComponent('UBadge')
 const UButton = resolveComponent('UButton')
 const UIcon = resolveComponent('UIcon')
-const UNavigationMenu = resolveComponent('UNavigationMenu')
+const UDropdownMenu = resolveComponent('UDropdownMenu')
 
 const toast = useToast()
 const { profile, cargoOrigen, resolveCargoOrigenId } = useProfile()
@@ -62,9 +67,6 @@ const cambioConfirmColor = ref<'primary' | 'success' | 'warning' | 'error' | 'ne
 const isEstadoLogOpen = ref(false)
 const estadoLogDocumentoId = ref<string | null>(null)
 
-const isAdjuntosOpen = ref(false)
-const correspAdjuntos = ref<Correspondencia | null>(null)
-
 const showEditor = ref(false)
 const editorKey = ref('')
 const editorUrl = ref('')
@@ -86,11 +88,57 @@ const formatFecha = (valor?: string | null) => {
   }
 }
 
+const formatFechaSolo = (valor?: string | null) => {
+  if (!valor) return '—'
+  try {
+    return new Date(valor).toLocaleDateString('es-BO', { dateStyle: 'short' })
+  } catch {
+    return valor
+  }
+}
+
+/** Días calendario hasta fecha_plazo (0 = vence hoy; negativo = vencido). */
+const diasRestantesPlazo = (fechaPlazo?: string | null): number | null => {
+  if (!fechaPlazo?.trim()) return null
+  const limite = new Date(fechaPlazo)
+  if (Number.isNaN(limite.getTime())) return null
+  const hoy = new Date()
+  hoy.setHours(0, 0, 0, 0)
+  limite.setHours(0, 0, 0, 0)
+  const diffMs = limite.getTime() - hoy.getTime()
+  return Math.round(diffMs / (1000 * 60 * 60 * 24))
+}
+
+const etiquetaDiasPlazo = (dias: number): { texto: string; color: 'error' | 'warning' | 'primary' | 'neutral' } => {
+  if (dias < 0) {
+    const abs = Math.abs(dias)
+    return {
+      texto: abs === 1 ? 'Vencido hace 1 día' : `Vencido hace ${abs} días`,
+      color: 'error',
+    }
+  }
+  if (dias === 0) {
+    return { texto: 'Vence hoy', color: 'warning' }
+  }
+  if (dias === 1) {
+    return { texto: 'Falta 1 día', color: 'warning' }
+  }
+  return { texto: `Faltan ${dias} días`, color: 'primary' }
+}
+
+const fechaPlazoDeFila = (row: Derivacion | DestinatarioCopiaConDerivacion): string | null => {
+  const d = derivacionDeFila(row)
+  const fecha = d?.fecha_plazo ?? correspondenciaDeFila(row)?.fecha_plazo
+  return fecha?.trim() || null
+}
+
 const esConCopia = computed(() => props.modo === 'con_copia')
 const esIngreso = computed(() => props.modo === 'ingreso')
 const esSalida = computed(() => props.modo === 'salida')
-/** Salida e ingreso: sin columna Instrucción y tabla compacta */
-const tablaCompacta = computed(() => esSalida.value || esIngreso.value)
+/** Salida: tabla compacta sin columna Instrucción */
+const tablaCompacta = computed(() => esSalida.value)
+/** Ingreso: celdas de fecha/lectura compactas para evitar scroll horizontal */
+const celdasAuxiliaresCompactas = computed(() => tablaCompacta.value || esIngreso.value)
 /** Transferencia por baja: solo parámetro del cargo (no flags permite_* del estado). */
 const puedeTransferirPorBaja = computed(
   () => cargoOrigen.value?.activa_transferencia === true,
@@ -208,7 +256,7 @@ const abrirDerivar = (row: Derivacion | DestinatarioCopiaConDerivacion) => {
   if (!correspondenciaPuedeDerivar(corresp)) {
     toast.add({
       title: 'No se puede derivar',
-      description: MENSAJE_SIN_NUMERACION_HR,
+      description: mensajeNoDerivarCorrespondencia(corresp),
       color: 'warning',
       icon: 'i-lucide-alert-triangle',
     })
@@ -278,147 +326,106 @@ const abrirEstadoLog = (row: Derivacion | DestinatarioCopiaConDerivacion) => {
   isEstadoLogOpen.value = true
 }
 
-const abrirAdjuntos = (row: Derivacion | DestinatarioCopiaConDerivacion) => {
-  const corresp = correspondenciaDeFila(row)
-  if (!corresp?.id) return
-  correspAdjuntos.value = corresp
-  isAdjuntosOpen.value = true
-}
-
-const wrapAccionesMenu = (children: NavigationMenuItem[]): NavigationMenuItem[][] => [
-  [{
-    label: 'Acciones',
-    icon: 'i-lucide-ellipsis-vertical',
-    tooltip: { text: 'Acciones' },
-    children,
-  }],
-]
-
-const hAccionesNavigationMenu = (items: NavigationMenuItem[][]) =>
-  h(UNavigationMenu, {
-    items,
-    orientation: 'vertical',
-    collapsed: true,
-    popover: {
-      mode: 'click',
-      content: { side: 'bottom', align: 'end', collisionPadding: 8 },
-    },
-    tooltip: false,
-    class: 'inline-flex w-auto shrink-0',
-    ui: {
-      root: 'w-auto',
-      list: 'w-auto',
-      link: 'px-1.5 py-1 justify-center',
-      linkLeadingIcon: 'size-4',
-    },
-  })
-
 const buildDerivacionAccionesMenu = (
   original: Derivacion | DestinatarioCopiaConDerivacion,
-): NavigationMenuItem[][] => {
+): DropdownMenuItem[] => {
   const docId = documentoIdDeFila(original)
   const d = derivacionDeFila(original)
   const corresp = correspondenciaDeFila(original)
   const estado = d?.estado
 
-  const children: NavigationMenuItem[] = [
-    {
-      label: 'Historial de estados',
-      icon: 'i-lucide-history',
-      disabled: !docId,
-      onSelect: (e) => {
-        e.preventDefault()
-        abrirEstadoLog(original)
+  const children: DropdownMenuItem[] = [
+    enriquecerItemMenuAcciones(
+      {
+        label: 'Historial de estados',
+        icon: 'i-lucide-history',
+        disabled: !docId,
+        onSelect: () => {
+          abrirEstadoLog(original)
+        },
       },
-    },
-    {
-      label: 'Adjuntos',
-      icon: 'i-lucide-paperclip',
-      disabled: !docId,
-      onSelect: (e) => {
-        e.preventDefault()
-        abrirAdjuntos(original)
-      },
-    },
+      !docId ? 'No hay documento asociado a esta fila.' : undefined,
+    ),
   ]
 
   if (esIngreso.value) {
-    if (estadoPermite(estado, 'permite_editar') && tieneDocumento(corresp)) {
-      children.push({
-        label: abriendoEditorId.value === corresp?.id
-          ? 'Abriendo documento…'
-          : 'Ver documento (solo lectura)',
-        icon: 'i-lucide-file-text',
-        disabled: abriendoEditorId.value === corresp?.id,
-        onSelect: (e) => {
-          e.preventDefault()
-          void handleVerDocumento(original)
-        },
-      })
-    }
+    
 
     if (estadoPermite(estado, 'permite_recepcionar')) {
-      children.push({
-        label: 'Recepcionar',
-        icon: 'i-lucide-inbox',
-        onSelect: (e) => {
-          e.preventDefault()
-          abrirRecepcionar(original)
-        },
-      })
+      children.push(
+        enriquecerItemMenuAcciones({
+          label: 'Recepcionar',
+          icon: 'i-lucide-inbox',
+          onSelect: () => {
+            abrirRecepcionar(original)
+          },
+        }),
+      )
     }
 
     if (estadoPermite(estado, 'permite_derivar')) {
       const correspDerivar = correspondenciaDeFila(original)
-      const puedeDerivar = correspDerivar && correspondenciaPuedeDerivar(correspDerivar)
-      children.push({
-        label: 'Derivar',
-        icon: 'i-lucide-share-2',
-        disabled: !puedeDerivar,
-        onSelect: (e) => {
-          e.preventDefault()
-          abrirDerivar(original)
-        },
-      })
+      const puedeDerivar = Boolean(correspDerivar && correspondenciaPuedeDerivar(correspDerivar))
+      children.push(
+        enriquecerItemMenuAcciones(
+          {
+            label: 'Derivar',
+            icon: 'i-lucide-share-2',
+            disabled: !puedeDerivar,
+            onSelect: () => {
+              abrirDerivar(original)
+            },
+          },
+          !puedeDerivar && correspDerivar
+            ? mensajeNoDerivarCorrespondencia(correspDerivar)
+            : !puedeDerivar
+              ? 'No se puede derivar esta correspondencia.'
+              : undefined,
+        ),
+      )
     }
 
     if (estadoPermite(estado, 'permite_archivar')) {
-      children.push({
-        label: 'Archivar',
-        icon: 'i-lucide-archive',
-        onSelect: (e) => {
-          e.preventDefault()
-          abrirArchivar(original)
-        },
-      })
+      children.push(
+        enriquecerItemMenuAcciones({
+          label: 'Archivar',
+          icon: 'i-lucide-archive',
+          onSelect: () => {
+            abrirArchivar(original)
+          },
+        }),
+      )
     }
 
     if (
       puedeTransferirPorBaja.value &&
       d?.estado_id !== EstadoDerivacionEnum.TRANSFERIDO_BAJA
     ) {
-      children.push({
-        label: 'Transferir por baja',
-        icon: 'i-lucide-user-minus',
-        class: 'text-error',
-        onSelect: (e) => {
-          e.preventDefault()
-          abrirTransferirBaja(original)
-        },
-      })
+      children.push(
+        enriquecerItemMenuAcciones({
+          label: 'Transferir por baja',
+          icon: 'i-lucide-user-minus',
+          class: 'text-error',
+          onSelect: () => {
+            abrirTransferirBaja(original)
+          },
+        }),
+      )
     }
   }
 
-  return wrapAccionesMenu(children)
+  return children
 }
 
 const columns = computed<TableColumn<Derivacion | DestinatarioCopiaConDerivacion>[]>(() => {
   const compacto = tablaCompacta.value
+  const ingreso = esIngreso.value
+  const auxCompacto = celdasAuxiliaresCompactas.value
 
   const cols: TableColumn<Derivacion | DestinatarioCopiaConDerivacion>[] = [
     {
       id: 'documento',
-      header: compacto ? 'Documento' : 'Documento / Referencia',
+      header: compacto || ingreso ? 'Documento' : 'Documento / Referencia',
       cell: ({ row }) => {
         const leido = leidoDeFila(row.original)
         const corresp = correspondenciaDeFila(row.original)
@@ -444,7 +451,7 @@ const columns = computed<TableColumn<Derivacion | DestinatarioCopiaConDerivacion
               {
                 class: textoNoLeido(
                   leido,
-                  compacto
+                  compacto || ingreso
                     ? 'text-[11px] truncate block'
                     : 'text-sm truncate max-w-md',
                 ),
@@ -452,7 +459,7 @@ const columns = computed<TableColumn<Derivacion | DestinatarioCopiaConDerivacion
               },
               corresp.referencia || 'Sin referencia',
             ),
-            !compacto && corresp.proceso
+            !compacto && !ingreso && corresp.proceso
               ? h('span', { class: 'text-[11px] text-muted truncate' }, corresp.proceso.nombre)
               : null,
           ],
@@ -464,7 +471,7 @@ const columns = computed<TableColumn<Derivacion | DestinatarioCopiaConDerivacion
       header: props.modo === 'salida'
         ? 'Destinatario'
         : props.modo === 'ingreso'
-          ? (compacto ? 'Origen / Dest.' : 'Remitente / Destino')
+          ? 'Origen'
           : 'Copia a mí',
       cell: ({ row }) => {
         const leido = leidoDeFila(row.original)
@@ -509,10 +516,39 @@ const columns = computed<TableColumn<Derivacion | DestinatarioCopiaConDerivacion
         return h(
           'span',
           {
-            class: textoNoLeido(leido, 'text-xs line-clamp-2 max-w-xs'),
+            class: textoNoLeido(leido, 'text-[11px] line-clamp-2 min-w-0'),
             title: texto || '',
           },
           texto || '—',
+        )
+      },
+    })
+  }
+
+  if (ingreso) {
+    cols.push({
+      id: 'plazo',
+      header: 'Plazo',
+      cell: ({ row }) => {
+        const fecha = fechaPlazoDeFila(row.original)
+        if (!fecha) {
+          return h('span', { class: 'text-[10px] text-muted' }, '—')
+        }
+        const dias = diasRestantesPlazo(fecha)
+        if (dias === null) {
+          return h('span', { class: 'text-[10px] text-muted' }, '—')
+        }
+        const { texto, color } = etiquetaDiasPlazo(dias)
+        return h(
+          UBadge,
+          {
+            color,
+            variant: 'subtle',
+            size: 'xs',
+            class: 'max-w-full truncate font-normal',
+            title: `${texto} · Límite ${formatFechaSolo(fecha)}`,
+          },
+          () => texto,
         )
       },
     })
@@ -537,27 +573,37 @@ const columns = computed<TableColumn<Derivacion | DestinatarioCopiaConDerivacion
                 : 'warning'
         return h(
           UBadge,
-          { color, variant: 'subtle', size: 'xs' },
+          {
+            color,
+            variant: 'subtle',
+            size: 'xs',
+            class: ingreso ? 'max-w-full truncate' : undefined,
+            title: estado.nombre,
+          },
           () => estado.nombre,
         )
       },
     },
     {
       id: 'fecha',
-      header: compacto ? 'Fecha' : 'Fecha envío',
+      header: auxCompacto ? 'Envío' : 'Fecha envío',
       cell: ({ row }) => {
         const leido = leidoDeFila(row.original)
         const fecha = derivacionDeFila(row.original)?.fecha_envio
+        const texto = ingreso ? formatFechaSolo(fecha) : formatFecha(fecha)
         return h(
           'span',
-          { class: textoNoLeido(leido, 'text-[10px] font-mono whitespace-nowrap') },
-          formatFecha(fecha),
+          {
+            class: textoNoLeido(leido, 'text-[10px] font-mono'),
+            title: formatFecha(fecha),
+          },
+          texto,
         )
       },
     },
     {
       id: 'leido',
-      header: compacto ? 'Lect.' : 'Lectura',
+      header: auxCompacto ? 'Lect.' : 'Lectura',
       cell: ({ row }) => {
         const leido = leidoDeFila(row.original)
         return h(
@@ -567,23 +613,25 @@ const columns = computed<TableColumn<Derivacion | DestinatarioCopiaConDerivacion
             variant: leido ? 'subtle' : 'solid',
             size: 'xs',
           },
-          () => (compacto ? (leido ? 'Sí' : 'No') : (leido ? 'Leído' : 'No leído')),
+          () => (auxCompacto ? (leido ? 'Sí' : 'No') : (leido ? 'Leído' : 'No leído')),
         )
       },
     },
     {
       id: 'acciones',
-      header: compacto ? '' : 'Acciones',
+      header: '',
+      meta: META_COLUMNA_ACCIONES_TABLA,
       cell: ({ row }) => {
         const original = row.original
         const docId = documentoIdDeFila(original)
 
-        return h('div', { class: 'flex items-center justify-end gap-1 shrink-0' }, [
+        return h('div', { class: CLASE_CONTENEDOR_ACCIONES_CELDA }, [
           h(UButton, {
             icon: 'i-lucide-eye',
             color: 'neutral',
             variant: 'ghost',
             size: 'xs',
+            class: 'shrink-0',
             title: 'Ver detalle',
             disabled: !docId,
             onClick: () => {
@@ -592,7 +640,7 @@ const columns = computed<TableColumn<Derivacion | DestinatarioCopiaConDerivacion
               isDetalleOpen.value = true
             },
           }),
-          hAccionesNavigationMenu(buildDerivacionAccionesMenu(original)),
+          hMenuAccionesTabla(UDropdownMenu, UButton, buildDerivacionAccionesMenu(original)),
         ])
       },
     },
@@ -669,7 +717,10 @@ onMounted(() => {
 
     <div
       class="derivacion-bandeja-tabla min-w-0"
-      :class="{ 'derivacion-bandeja-tabla--compacta': tablaCompacta }"
+      :class="{
+        'derivacion-bandeja-tabla--compacta': tablaCompacta,
+        'derivacion-bandeja-tabla--ingreso': esIngreso,
+      }"
     >
       <CorTable
         :columns="columns"
@@ -710,12 +761,6 @@ onMounted(() => {
     <EstadoLogTimelineModal
       v-model:open="isEstadoLogOpen"
       :documento-id="estadoLogDocumentoId"
-    />
-
-    <CorrespondenciaAdjuntosModal
-      v-model:open="isAdjuntosOpen"
-      :correspondencia="correspAdjuntos"
-      :solo-lectura="true"
     />
 
     <UModal
@@ -768,7 +813,7 @@ onMounted(() => {
 </template>
 
 <style scoped>
-/* Salida e ingreso: tabla fija, sin Instrucción */
+/* Salida: tabla fija y compacta */
 .derivacion-bandeja-tabla--compacta :deep(table) {
   table-layout: fixed;
   width: 100%;
@@ -786,7 +831,7 @@ onMounted(() => {
 
 .derivacion-bandeja-tabla--compacta :deep(thead th:nth-child(3)),
 .derivacion-bandeja-tabla--compacta :deep(tbody td:nth-child(3)) {
-  width: 13%;
+  width: 20%;
 }
 
 .derivacion-bandeja-tabla--compacta :deep(thead th:nth-child(4)),
@@ -801,12 +846,90 @@ onMounted(() => {
 
 .derivacion-bandeja-tabla--compacta :deep(thead th:nth-child(6)),
 .derivacion-bandeja-tabla--compacta :deep(tbody td:nth-child(6)) {
-  width: 15%;
+  width: 8%;
+}
+
+/* Ancho fijo: la meta de acciones usa w-0 y no debe colapsar la columna */
+.derivacion-bandeja-tabla :deep(thead th:last-child),
+.derivacion-bandeja-tabla :deep(tbody td:last-child) {
+  width: 5.5rem !important;
+  min-width: 5.5rem !important;
+  max-width: 5.5rem !important;
+  overflow: visible;
 }
 
 .derivacion-bandeja-tabla--compacta :deep(th),
 .derivacion-bandeja-tabla--compacta :deep(td) {
   padding-left: 0.5rem;
   padding-right: 0.5rem;
+}
+
+/* Ingreso: columnas proporcionales, sin barra horizontal */
+.derivacion-bandeja-tabla--ingreso :deep(table) {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.derivacion-bandeja-tabla--ingreso :deep(thead th:nth-child(1)),
+.derivacion-bandeja-tabla--ingreso :deep(tbody td:nth-child(1)) {
+  width: 19%;
+}
+
+.derivacion-bandeja-tabla--ingreso :deep(thead th:nth-child(2)),
+.derivacion-bandeja-tabla--ingreso :deep(tbody td:nth-child(2)) {
+  width: 14%;
+}
+
+.derivacion-bandeja-tabla--ingreso :deep(thead th:nth-child(3)),
+.derivacion-bandeja-tabla--ingreso :deep(tbody td:nth-child(3)) {
+  width: 24%;
+}
+
+.derivacion-bandeja-tabla--ingreso :deep(thead th:nth-child(4)),
+.derivacion-bandeja-tabla--ingreso :deep(tbody td:nth-child(4)) {
+  width: 12%;
+}
+
+.derivacion-bandeja-tabla--ingreso :deep(thead th:nth-child(5)),
+.derivacion-bandeja-tabla--ingreso :deep(tbody td:nth-child(5)) {
+  width: 9%;
+}
+
+.derivacion-bandeja-tabla--ingreso :deep(thead th:nth-child(6)),
+.derivacion-bandeja-tabla--ingreso :deep(tbody td:nth-child(6)) {
+  width: 9%;
+}
+
+.derivacion-bandeja-tabla--ingreso :deep(thead th:nth-child(7)),
+.derivacion-bandeja-tabla--ingreso :deep(tbody td:nth-child(7)) {
+  width: 5%;
+}
+
+.derivacion-bandeja-tabla--ingreso :deep(th),
+.derivacion-bandeja-tabla--ingreso :deep(td) {
+  padding-left: 0.375rem !important;
+  padding-right: 0.375rem !important;
+  vertical-align: middle;
+}
+
+.derivacion-bandeja-tabla--ingreso :deep(thead th:not(:last-child)),
+.derivacion-bandeja-tabla--ingreso :deep(tbody td:not(:last-child)) {
+  overflow: hidden;
+}
+
+.derivacion-bandeja-tabla--ingreso :deep(thead th:last-child),
+.derivacion-bandeja-tabla--ingreso :deep(tbody td:last-child) {
+  width: 5.5rem !important;
+  min-width: 5.5rem !important;
+  max-width: 5.5rem !important;
+  overflow: visible;
+  padding-left: 0.25rem !important;
+  padding-right: 0.25rem !important;
+}
+
+.derivacion-bandeja-tabla--ingreso :deep(thead th) {
+  white-space: nowrap;
+  font-size: 0.5625rem;
+  letter-spacing: 0.04em;
 }
 </style>

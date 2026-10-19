@@ -31,6 +31,7 @@ export interface Correspondencia {
   /** @deprecated usar url_documento */
   contenido?: string | null;
   fecha_emision?: string | null;
+  fecha_plazo?: string | null;
   created_at?: string;
   updated_at?: string;
   created_by: string;

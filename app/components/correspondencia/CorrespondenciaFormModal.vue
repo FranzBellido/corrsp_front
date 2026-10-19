@@ -748,7 +748,7 @@ const handleAsignarCiteHr = async () => {
           label="Cargo destinatario"
           name="destinatario_id"
           required
-          help="Cargo institucional al que va dirigida la correspondencia. Se usa en la plantilla del documento ({destinatario}, {cargo_destinatario})."
+          help="Cargo institucional al que va dirigida la correspondencia."
         >
           <CodificadorSelect
             v-model="form.destinatario_id"

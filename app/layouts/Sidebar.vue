@@ -245,7 +245,7 @@ const isItemActive = (item: NavItem) => {
       <UTooltip text="Documentación y Ayuda" :disabled="!collapsed" side="right">
         <UButton
           to="/documents"
-          :label="collapsed ? undefined : 'Documentos'"
+          :label="collapsed ? undefined : 'Ayuda'"
           icon="i-lucide-book-open"
           variant="ghost"
           color="neutral"

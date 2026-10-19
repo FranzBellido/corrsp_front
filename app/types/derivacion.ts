@@ -36,6 +36,7 @@ export interface Derivacion {
   nombre?: string | null
   estado_id?: number | null
   estado?: EstadoDerivacion | null
+  fecha_plazo?: string | null
   correspondencia?: Correspondencia | null
   codificador?: {
     codificadorId: number
@@ -53,6 +54,8 @@ export interface CreateDerivacionPayload {
   copias?: string[]
   /** Cargo desde el cual se deriva (bandeja / selector de cargo). */
   cargo_origen_id?: string
+  /** Límite para derivar, responder o archivar (ISO o YYYY-MM-DD). */
+  fecha_plazo?: string
 }
 
 export interface FiltroDerivacion {

@@ -11,7 +11,7 @@ import CodificadorSelect from '~/components/codificador/CodificadorSelect.vue'
 import {
   correspondenciaPuedeDerivar,
   etiquetaNumeroCorrespondencia,
-  MENSAJE_SIN_NUMERACION_HR,
+  mensajeNoDerivarCorrespondencia,
 } from '~/utils/correspondencia'
 
 const props = defineProps<{
@@ -43,6 +43,26 @@ const cargosWhitelistParams = computed(() =>
   areaOrigenId.value ? { area_origen_id: areaOrigenId.value } : {},
 )
 
+const fechaPlazoHoy = () => {
+  const d = new Date()
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+const fechaPlazoMinima = computed(() => fechaPlazoHoy())
+
+const isoAFechaInput = (iso?: string | null): string => {
+  if (!iso?.trim()) return ''
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
 const schema = z.object({
   cargo_destino_id: z
     .string({ message: 'Debe seleccionar el cargo destino' })
@@ -54,6 +74,13 @@ const schema = z.object({
     .trim()
     .min(3, 'La instrucción debe tener al menos 3 caracteres')
     .max(500, 'No puede exceder 500 caracteres'),
+  fecha_plazo: z
+    .string()
+    .optional()
+    .refine(
+      (val) => !val?.trim() || /^\d{4}-\d{2}-\d{2}$/.test(val.trim()),
+      'Use una fecha válida (YYYY-MM-DD)',
+    ),
   copias: z.array(z.string().uuid()).optional(),
 })
 
@@ -63,6 +90,7 @@ const form = ref<FormState>({
   cargo_destino_id: '',
   tipo_instruccion_id: undefined as unknown as number,
   instruccion: '',
+  fecha_plazo: '',
   copias: [],
 })
 
@@ -79,6 +107,7 @@ const resetForm = () => {
     cargo_destino_id: '',
     tipo_instruccion_id: undefined as unknown as number,
     instruccion: '',
+    fecha_plazo: '',
     copias: [],
   }
   copiasSeleccionadas.value = []
@@ -91,7 +120,7 @@ watch(open, (isOpen) => {
   if (c && !correspondenciaPuedeDerivar(c)) {
     toast.add({
       title: 'No se puede derivar',
-      description: MENSAJE_SIN_NUMERACION_HR,
+      description: mensajeNoDerivarCorrespondencia(c),
       color: 'warning',
       icon: 'i-lucide-alert-triangle',
     })
@@ -99,6 +128,7 @@ watch(open, (isOpen) => {
     return
   }
   resetForm()
+  form.value.fecha_plazo = isoAFechaInput(c.fecha_plazo)
 })
 
 watch(conCopia, (activo) => {
@@ -151,7 +181,7 @@ const handleSave = async (event?: FormSubmitEvent<FormState>) => {
   if (!correspondenciaPuedeDerivar(props.correspondencia)) {
     toast.add({
       title: 'No se puede derivar',
-      description: MENSAJE_SIN_NUMERACION_HR,
+      description: mensajeNoDerivarCorrespondencia(props.correspondencia),
       color: 'warning',
       icon: 'i-lucide-alert-triangle',
     })
@@ -191,6 +221,17 @@ const handleSave = async (event?: FormSubmitEvent<FormState>) => {
 
   saving.value = true
   try {
+    const fechaPlazo = data.fecha_plazo?.trim()
+    if (fechaPlazo && fechaPlazo < fechaPlazoMinima.value) {
+      toast.add({
+        title: 'Validación',
+        description: 'La fecha de plazo no puede ser anterior a hoy.',
+        color: 'warning',
+        icon: 'i-lucide-alert-triangle',
+      })
+      return
+    }
+
     const payload: CreateDerivacionPayload = {
       documento_id: props.correspondencia.id,
       cargo_destino_id: data.cargo_destino_id.trim(),
@@ -198,6 +239,7 @@ const handleSave = async (event?: FormSubmitEvent<FormState>) => {
       tipo_instruccion_id: Number(data.tipo_instruccion_id),
       copias: conCopia.value ? copiasSeleccionadas.value.map((c) => c.id) : undefined,
       cargo_origen_id: cargoOrigen,
+      ...(fechaPlazo ? { fecha_plazo: fechaPlazo } : {}),
     }
 
     await backendService.post<Derivacion>('derivaciones', payload)
@@ -298,6 +340,20 @@ const handleSave = async (event?: FormSubmitEvent<FormState>) => {
             v-model="form.instruccion"
             :rows="3"
             placeholder="Ej. Para su conocimiento y atención correspondiente..."
+            class="w-full"
+          />
+        </UFormField>
+
+        <UFormField
+          label="Fecha de plazo"
+          name="fecha_plazo"
+          help="Fecha máxima para que el destinatario derive, responda o archive esta correspondencia."
+        >
+          <UInput
+            v-model="form.fecha_plazo"
+            type="date"
+            :min="fechaPlazoMinima"
+            icon="i-lucide-calendar-clock"
             class="w-full"
           />
         </UFormField>

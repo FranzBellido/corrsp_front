@@ -1,5 +1,5 @@
 <template>
-  <UCard :ui="{ body: 'p-0', root: 'overflow-hidden shadow-sm border border-gray-100 dark:border-gray-800' }">
+  <UCard :ui="{ body: 'p-0 min-w-0', root: 'min-w-0 overflow-hidden shadow-sm border border-gray-100 dark:border-gray-800' }">
     <UTable
       :columns="columns"
       :data="data"

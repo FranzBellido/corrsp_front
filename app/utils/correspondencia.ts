@@ -21,12 +21,73 @@ export function correspondenciaTieneHojaRuta(
   return Boolean(c.hr_id?.trim() || c.hoja_ruta?.id)
 }
 
-/** Requiere correlativo y HR asociada antes de derivar. */
-export function correspondenciaPuedeDerivar(
-  c: Pick<Correspondencia, 'nro' | 'hr_id' | 'hoja_ruta'>,
+export function correspondenciaTieneDocumentoOficial(
+  c: Pick<Correspondencia, 'url_documento' | 'contenido'>,
 ): boolean {
-  return !correspondenciaSinNumerar(c) && correspondenciaTieneHojaRuta(c)
+  return Boolean((c.url_documento || c.contenido)?.trim())
+}
+
+/** Requiere correlativo, HR y documento generado en OnlyOffice antes de derivar. */
+export function correspondenciaPuedeDerivar(
+  c: Pick<Correspondencia, 'nro' | 'hr_id' | 'hoja_ruta' | 'url_documento' | 'contenido'>,
+): boolean {
+  return (
+    !correspondenciaSinNumerar(c) &&
+    correspondenciaTieneHojaRuta(c) &&
+    correspondenciaTieneDocumentoOficial(c)
+  )
 }
 
 export const MENSAJE_SIN_NUMERACION_HR =
   'Debe asignar numeración y Hoja de Ruta (CITE) antes de derivar esta correspondencia.'
+
+export const MENSAJE_SIN_DOCUMENTO_OFICIAL =
+  'Debe generar el documento  antes de derivar esta correspondencia.'
+
+/** Mensaje de validación al bloquear derivación (borrador / modal). */
+export function mensajeNoDerivarCorrespondencia(
+  c: Pick<Correspondencia, 'nro' | 'hr_id' | 'hoja_ruta' | 'url_documento' | 'contenido'>,
+): string {
+  if (correspondenciaSinNumerar(c) || !correspondenciaTieneHojaRuta(c)) {
+    return MENSAJE_SIN_NUMERACION_HR
+  }
+  if (!correspondenciaTieneDocumentoOficial(c)) {
+    return MENSAJE_SIN_DOCUMENTO_OFICIAL
+  }
+  return MENSAJE_SIN_NUMERACION_HR
+}
+
+type CorrespondenciaObservaciones = Pick<
+  Correspondencia,
+  'nro' | 'hr_id' | 'hoja_ruta' |'url_documento' | 'contenido' | 'proceso'
+>
+
+/** Avisos visibles en bandeja (tooltip junto al detalle). */
+export function observacionesPendientesCorrespondencia(c: CorrespondenciaObservaciones): string[] {
+  const items: string[] = []
+
+  if (correspondenciaSinNumerar(c)) {
+    items.push('Falta asignar numeración correlativa.')
+  }
+  if (!correspondenciaTieneHojaRuta(c)) {
+    items.push('Falta asociar Hoja de Ruta (CITE).')
+  }
+  if (!correspondenciaTieneCite(c)) {
+    items.push('Falta asignar CITE de origen.')
+  }
+
+  const tienePlantilla = Boolean(c.proceso?.plantilla?.trim())
+  if (!correspondenciaTieneDocumentoOficial(c)) {
+    if (!tienePlantilla) {
+      items.push('El proceso no tiene plantilla Word; no se puede generar el documento.')
+    } else {
+      items.push('Falta generar el documento.')
+    }
+  }
+
+  return items
+}
+
+export function textoTooltipObservacionesCorrespondencia(observaciones: string[]): string {
+  return observaciones.map((o) => `• ${o}`).join('\n')
+}

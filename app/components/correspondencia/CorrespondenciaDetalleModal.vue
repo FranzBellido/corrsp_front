@@ -4,7 +4,10 @@ import type { TabsItem } from '@nuxt/ui'
 import type { CorrespondenciaDetalle, Derivacion } from '~/types/derivacion'
 import type { RespuestaApi } from '~/types/respuestas'
 import { backendService } from '~/services/backend.service'
-import { etiquetaNumeroCorrespondencia } from '~/utils/correspondencia'
+import {
+  correspondenciaTieneDocumentoOficial,
+  etiquetaNumeroCorrespondencia,
+} from '~/utils/correspondencia'
 
 const props = defineProps<{
   correspondenciaId?: string | null
@@ -16,9 +19,20 @@ const emit = defineEmits<{
 }>()
 
 const toast = useToast()
+const { profile } = useProfile()
+const { apiBaseUrl, apiPublicUrl } = useApiUrls()
+
 const loading = ref(false)
 const detalle = ref<CorrespondenciaDetalle | null>(null)
 const activeTab = ref('info')
+
+const showEditor = ref(false)
+const editorKey = ref('')
+const editorUrl = ref('')
+const editorCallbackUrl = ref('')
+const editorTitle = ref('')
+const abriendoDocumento = ref(false)
+const descargandoDocumento = ref(false)
 
 const formatFecha = (valor?: string | null) => {
   if (!valor) return '—'
@@ -66,6 +80,7 @@ watch(
     if (!isOpen) {
       detalle.value = null
       activeTab.value = 'info'
+      cerrarEditorOnlyOffice()
     }
   },
 )
@@ -74,6 +89,113 @@ const etiquetaDerivacion = (d: Derivacion) =>
   d.nombre || d.codificador?.nombre || 'Derivación'
 
 const totalDerivaciones = computed(() => detalle.value?.derivaciones?.length ?? 0)
+
+const tieneDocumentoOficial = computed(() =>
+  detalle.value ? correspondenciaTieneDocumentoOficial(detalle.value) : false,
+)
+
+const obtenerRutaDocumento = (): string => {
+  if (!detalle.value) return ''
+  return (detalle.value.url_documento || detalle.value.contenido)?.trim() || ''
+}
+
+const buildEditorKey = (correspId: string) =>
+  `c${correspId.replace(/-/g, '')}_${Date.now()}`
+
+const cerrarEditorOnlyOffice = () => {
+  showEditor.value = false
+  editorKey.value = ''
+  editorUrl.value = ''
+  editorCallbackUrl.value = ''
+}
+
+const verDocumentoOnlyOffice = async () => {
+  const d = detalle.value
+  const path = obtenerRutaDocumento()
+  if (!d?.id || !path) {
+    toast.add({
+      title: 'Sin documento',
+      description: 'Esta correspondencia no tiene documento generado en OnlyOffice.',
+      color: 'warning',
+      icon: 'i-lucide-alert-triangle',
+    })
+    return
+  }
+
+  abriendoDocumento.value = true
+  try {
+    const key = buildEditorKey(d.id)
+    const response = await $fetch<{
+      fileName: string
+      key: string
+      documentUrl?: string
+      callbackUrl?: string
+    }>(`${apiBaseUrl}/documents/open-storage`, {
+      method: 'POST',
+      body: {
+        key,
+        storagePath: path,
+        correspondenciaId: d.id,
+      },
+    })
+
+    editorKey.value = response.key || key
+    editorUrl.value =
+      response.documentUrl ||
+      `${apiPublicUrl}/documents/file/${encodeURIComponent(response.fileName)}`
+    editorCallbackUrl.value =
+      response.callbackUrl || `${apiPublicUrl}/documents/callback`
+    editorTitle.value = `Oficio ${d.nro}-${d.gestion}.docx`
+    showEditor.value = true
+  } catch (error: unknown) {
+    const err = error as { data?: { message?: string }; message?: string }
+    toast.add({
+      title: 'No se pudo abrir el documento',
+      description: err?.data?.message || err?.message || 'Error al preparar OnlyOffice.',
+      color: 'error',
+      icon: 'i-lucide-alert-circle',
+    })
+  } finally {
+    abriendoDocumento.value = false
+  }
+}
+
+const descargarDocumentoOficial = async () => {
+  const d = detalle.value
+  const path = obtenerRutaDocumento()
+  if (!d?.id || !path) {
+    toast.add({
+      title: 'Sin documento',
+      description: 'No hay archivo para descargar.',
+      color: 'warning',
+      icon: 'i-lucide-alert-triangle',
+    })
+    return
+  }
+
+  descargandoDocumento.value = true
+  try {
+    const blob = await backendService.descargarBlob(`storage/download/${path}`)
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    const nombre = `Oficio_${d.nro}-${d.gestion}.docx`
+    a.href = url
+    a.download = nombre
+    a.rel = 'noopener'
+    a.click()
+    setTimeout(() => URL.revokeObjectURL(url), 60_000)
+  } catch (error: unknown) {
+    const err = error as { data?: { message?: string }; message?: string }
+    toast.add({
+      title: 'No se pudo descargar',
+      description: err?.data?.message || err?.message || 'Error al obtener el documento.',
+      color: 'error',
+      icon: 'i-lucide-alert-circle',
+    })
+  } finally {
+    descargandoDocumento.value = false
+  }
+}
 
 const tabItems = computed<TabsItem[]>(() => [
   {
@@ -261,8 +383,73 @@ const tabItems = computed<TabsItem[]>(() => [
     </template>
 
     <template #footer>
-      <div class="flex justify-end w-full">
+      <div class="flex flex-wrap items-center justify-end gap-2 w-full">
+        <UButton
+          v-if="tieneDocumentoOficial"
+          label="Ver documento"
+          icon="i-lucide-file-text"
+          color="primary"
+          variant="soft"
+          :loading="abriendoDocumento"
+          @click="verDocumentoOnlyOffice"
+        />
+        <UButton
+          v-if="tieneDocumentoOficial"
+          label="Descargar"
+          icon="i-lucide-download"
+          color="neutral"
+          variant="outline"
+          :loading="descargandoDocumento"
+          @click="descargarDocumentoOficial"
+        />
         <UButton label="Cerrar" color="neutral" variant="outline" @click="open = false" />
+      </div>
+    </template>
+  </UModal>
+
+  <UModal
+    v-model:open="showEditor"
+    fullscreen
+    :ui="{ content: 'h-screen w-screen max-w-none rounded-none' }"
+    @update:open="(v: boolean) => { if (!v) cerrarEditorOnlyOffice() }"
+  >
+    <template #content>
+      <div class="flex flex-col h-full w-full bg-default">
+        <div class="flex items-center justify-between px-4 py-3 border-b border-default shrink-0">
+          <div class="min-w-0">
+            <div class="flex items-center gap-2">
+              <h3 class="text-sm font-semibold text-highlighted truncate">
+                {{ editorTitle }}
+              </h3>
+              <UBadge color="warning" variant="subtle" size="xs">
+                Solo lectura
+              </UBadge>
+            </div>
+            <p v-if="detalle" class="text-xs text-muted truncate">
+              {{ etiquetaNumeroCorrespondencia(detalle) }} — {{ detalle.referencia }}
+            </p>
+          </div>
+          <UButton
+            color="neutral"
+            variant="ghost"
+            icon="i-lucide-x"
+            label="Cerrar"
+            @click="cerrarEditorOnlyOffice"
+          />
+        </div>
+        <div class="flex-1 w-full overflow-hidden min-h-0">
+          <OnlyOfficeEditor
+            v-if="showEditor && editorKey && editorUrl"
+            :key="editorKey"
+            :document-key="editorKey"
+            :document-url="editorUrl"
+            :callback-url="editorCallbackUrl"
+            :title="editorTitle"
+            :read-only="true"
+            :user-id="profile?.id || 'uid-1'"
+            :user-name="profile?.nombre_completo || 'Usuario'"
+          />
+        </div>
       </div>
     </template>
   </UModal>

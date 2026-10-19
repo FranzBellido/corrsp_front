@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, h } from 'vue'
-import type { NavigationMenuItem, TableColumn } from '@nuxt/ui'
+import type { DropdownMenuItem, TableColumn } from '@nuxt/ui'
 import type { Correspondencia, FiltroCorrespondencia, RespuestaBusquedaCorrespondencia } from '~/types/correspondencia'
 import { backendService } from '~/services/backend.service'
 import CorrespondenciaFormModal from '~/components/correspondencia/CorrespondenciaFormModal.vue'
@@ -14,8 +14,16 @@ import {
   correspondenciaSinNumerar,
   correspondenciaTieneCite,
   etiquetaNumeroCorrespondencia,
-  MENSAJE_SIN_NUMERACION_HR,
+  mensajeNoDerivarCorrespondencia,
+  observacionesPendientesCorrespondencia,
+  textoTooltipObservacionesCorrespondencia,
 } from '~/utils/correspondencia'
+import {
+  enriquecerItemMenuAcciones,
+  CLASE_CONTENEDOR_ACCIONES_CELDA,
+  hMenuAccionesTabla,
+  META_COLUMNA_ACCIONES_TABLA,
+} from '~/utils/acciones-menu'
 
 const props = withDefaults(
   defineProps<{
@@ -35,7 +43,8 @@ const props = withDefaults(
 const UBadge = resolveComponent('UBadge')
 const UButton = resolveComponent('UButton')
 const UIcon = resolveComponent('UIcon')
-const UNavigationMenu = resolveComponent('UNavigationMenu')
+const UDropdownMenu = resolveComponent('UDropdownMenu')
+const UTooltip = resolveComponent('UTooltip')
 
 const toast = useToast()
 const { profile, cargoActivo, resolveCargoOrigenId } = useProfile()
@@ -123,7 +132,7 @@ const columns = computed<TableColumn<Correspondencia>[]>(() => [
     header: 'Referencia',
     cell: ({ row }) => {
       const c = row.original
-      return h('div', { class: 'flex flex-col gap-1 max-w-md' }, [
+      return h('div', { class: 'flex flex-col gap-1 min-w-0 max-w-xs' }, [
         h('span', { class: 'font-medium text-xs text-gray-900 dark:text-white line-clamp-2' }, c.referencia),
         h('div', { class: 'flex items-center gap-2' }, [
           c.confidencial
@@ -186,7 +195,8 @@ const columns = computed<TableColumn<Correspondencia>[]>(() => [
   },
   {
     id: 'acciones',
-    header: 'Acciones',
+    header: '',
+    meta: META_COLUMNA_ACCIONES_TABLA,
     cell: ({ row }) => {
       const c = row.original
       const tienePlantilla = Boolean(c.proceso?.plantilla?.trim())
@@ -199,19 +209,23 @@ const columns = computed<TableColumn<Correspondencia>[]>(() => [
             ? buildCompartidosAccionesMenu(c)
             : buildArchivoAccionesMenu(c)
 
+      const alertaPendientes = hIconoAlertaPendientes(c)
+
       acciones.push(
         h(UButton, {
           icon: 'i-lucide-eye',
           color: 'neutral',
           variant: 'ghost',
           size: 'xs',
+          class: 'shrink-0',
           title: 'Ver detalle',
           onClick: () => handleVerDetalle(c),
         }),
-        hAccionesNavigationMenu(menuItems),
+        ...(alertaPendientes ? [alertaPendientes] : []),
+        hMenuAccionesTabla(UDropdownMenu, UButton, menuItems),
       )
 
-      return h('div', { class: 'flex items-center justify-end gap-1.5' }, acciones)
+      return h('div', { class: CLASE_CONTENEDOR_ACCIONES_CELDA }, acciones)
     },
   },
 ])
@@ -302,7 +316,7 @@ const handleDerivar = (corresp: Correspondencia) => {
   if (!correspondenciaPuedeDerivar(corresp)) {
     toast.add({
       title: 'No se puede derivar',
-      description: MENSAJE_SIN_NUMERACION_HR,
+      description: mensajeNoDerivarCorrespondencia(corresp),
       color: 'warning',
       icon: 'i-lucide-alert-triangle',
     })
@@ -405,7 +419,7 @@ const handleGenerarDocumento = async (corresp: Correspondencia) => {
 
     toast.add({
       title: 'Documento generado',
-      description: 'Abriendo editor OnlyOffice...',
+      description: 'Abriendo editor del Documento...',
       color: 'success',
       icon: 'i-lucide-check-circle',
     })
@@ -425,6 +439,15 @@ const handleGenerarDocumento = async (corresp: Correspondencia) => {
     })
   } finally {
     generandoId.value = null
+  }
+}
+
+/** Borrador: genera desde plantilla si no hay doc; si ya existe, abre OnlyOffice para editar. */
+const handleDocumentoOnlyOffice = async (corresp: Correspondencia) => {
+  if (tieneDocumentoGenerado(corresp)) {
+    await handleEditarDocumentoOnlyOffice(corresp, false)
+  } else {
+    await handleGenerarDocumento(corresp)
   }
 }
 
@@ -451,195 +474,187 @@ const handleEditarDocumentoOnlyOffice = async (
       description:
         error?.data?.message ||
         error?.message ||
-        'Error al preparar el documento para OnlyOffice.',
+        'Error al preparar el documento.',
       color: 'error',
       icon: 'i-lucide-alert-circle',
     })
   }
 }
 
-const wrapAccionesMenu = (children: NavigationMenuItem[]): NavigationMenuItem[][] => [
-  [{
-    label: 'Acciones',
-    icon: 'i-lucide-ellipsis-vertical',
-    tooltip: { text: 'Acciones' },
-    children,
-  }],
-]
+const hIconoAlertaPendientes = (c: Correspondencia) => {
+  if (props.modo !== 'borrador') return null
+  const observaciones = observacionesPendientesCorrespondencia(c)
+  if (!observaciones.length) return null
 
-const hAccionesNavigationMenu = (items: NavigationMenuItem[][]) =>
-  h(UNavigationMenu, {
-    items,
-    orientation: 'vertical',
-    collapsed: true,
-    popover: {
-      mode: 'click',
-      content: { side: 'bottom', align: 'end', collisionPadding: 8 },
+  return h(
+    UTooltip,
+    {
+      text: textoTooltipObservacionesCorrespondencia(observaciones),
+      content: { side: 'left', align: 'center' },
     },
-    tooltip: false,
-    class: 'inline-flex w-auto shrink-0',
-    ui: {
-      root: 'w-auto',
-      list: 'w-auto',
-      link: 'px-1.5 py-1 justify-center',
-      linkLeadingIcon: 'size-4',
+    {
+      default: () =>
+        h(
+          'span',
+          {
+            class: 'inline-flex size-7 items-center justify-center shrink-0',
+            'aria-label': 'Pendientes antes de derivar',
+          },
+          [
+            h(UIcon, {
+              name: 'i-lucide-triangle-alert',
+              class: 'size-4 text-warning',
+            }),
+          ],
+        ),
     },
-  })
+  )
+}
 
-const buildCompartidosAccionesMenu = (c: Correspondencia): NavigationMenuItem[][] => {
+const buildCompartidosAccionesMenu = (c: Correspondencia): DropdownMenuItem[] => {
   const tieneDocumento = tieneDocumentoGenerado(c)
   const esSoloLectura = c.acceso_compartido?.solo_lectura ?? false
   const busyEditor = abriendoEditorId.value === c.id
 
-  const children: NavigationMenuItem[] = [
-    {
-      label: 'Adjuntos',
-      icon: 'i-lucide-paperclip',
-      onSelect: (e) => {
-        e.preventDefault()
-        handleAdjuntos(c, true)
-      },
-    },
-  ]
+  const children: DropdownMenuItem[] = []
 
   if (tieneDocumento) {
-    children.push({
-      label: busyEditor
-        ? 'Abriendo documento…'
-        : esSoloLectura
-          ? 'Ver contenido del documento (solo lectura)'
-          : 'Editar contenido del documento',
-      icon: esSoloLectura ? 'i-lucide-file-text' : 'i-lucide-file-pen-line',
-      disabled: busyEditor,
-      onSelect: (e) => {
-        e.preventDefault()
-        void handleEditarDocumentoOnlyOffice(c, esSoloLectura)
-      },
-    })
+    children.push(
+      enriquecerItemMenuAcciones(
+        {
+          label: busyEditor
+            ? 'Abriendo documento…'
+            : esSoloLectura
+              ? 'Ver contenido del documento (solo lectura)'
+              : 'Editar contenido del documento',
+          icon: esSoloLectura ? 'i-lucide-file-text' : 'i-lucide-file-pen-line',
+          disabled: busyEditor,
+          onSelect: () => {
+            void handleEditarDocumentoOnlyOffice(c, esSoloLectura)
+          },
+        },
+        busyEditor ? 'Espere a que termine de abrirse el documento.' : undefined,
+      ),
+    )
   }
 
-  return wrapAccionesMenu(children)
+  return children
 }
 
-const buildArchivoAccionesMenu = (c: Correspondencia): NavigationMenuItem[][] => {
-  const children: NavigationMenuItem[] = [
-    {
-      label: 'Adjuntos',
-      icon: 'i-lucide-paperclip',
-      onSelect: (e) => {
-        e.preventDefault()
-        handleAdjuntos(c, true)
-      },
-    },
-    {
+const buildArchivoAccionesMenu = (c: Correspondencia): DropdownMenuItem[] => {
+  const children: DropdownMenuItem[] = [
+    enriquecerItemMenuAcciones({
       label: 'Editar',
       icon: 'i-lucide-pencil',
-      onSelect: (e) => {
-        e.preventDefault()
+      onSelect: () => {
         handleEditar(c)
       },
-    },
+    }),
   ]
 
   if (!correspondenciaTieneCite(c)) {
-    children.push({
-      label: 'Eliminar',
-      icon: 'i-lucide-trash-2',
-      class: 'text-error',
-      onSelect: (e) => {
-        e.preventDefault()
-        handleConfirmarEliminar(c)
-      },
-    })
+    children.push(
+      enriquecerItemMenuAcciones({
+        label: 'Eliminar',
+        icon: 'i-lucide-trash-2',
+        class: 'text-error',
+        onSelect: () => {
+          handleConfirmarEliminar(c)
+        },
+      }),
+    )
   }
 
-  return wrapAccionesMenu(children)
+  return children
 }
 
 const buildBorradorAccionesMenu = (
   c: Correspondencia,
   tienePlantilla: boolean,
-): NavigationMenuItem[][] => {
+): DropdownMenuItem[] => {
   const tieneDocumento = tieneDocumentoGenerado(c)
   const compartidos = c._count?.corresp_usuario || c.corresp_usuario?.length || 0
   const busyGenerar = generandoId.value === c.id
   const busyEditor = abriendoEditorId.value === c.id
 
-  const children: NavigationMenuItem[] = [
-    {
-      label: busyGenerar ? 'Generando documento…' : 'Generar documento',
-      icon: 'i-lucide-file-output',
-      disabled: !tienePlantilla || busyGenerar || busyEditor,
-      onSelect: (e) => {
-        e.preventDefault()
-        void handleGenerarDocumento(c)
-      },
-    },
-  ]
-
-  if (tieneDocumento) {
-    children.push({
-      label: busyEditor ? 'Abriendo editor…' : 'Editar contenido del documento',
-      icon: 'i-lucide-file-pen-line',
-      disabled: busyEditor || busyGenerar,
-      onSelect: (e) => {
-        e.preventDefault()
-        void handleEditarDocumentoOnlyOffice(c)
-      },
-    })
+  const docDeshabilitado =
+    (!tieneDocumento && !tienePlantilla) || busyGenerar || busyEditor
+  let motivoDocumento: string | undefined
+  if (docDeshabilitado) {
+    if (busyGenerar || busyEditor) {
+      motivoDocumento = 'Espere a que finalice la operación con el documento.'
+    } else if (!tienePlantilla) {
+      motivoDocumento = 'El proceso no tiene plantilla Word para generar el documento.'
+    }
   }
 
+  const children: DropdownMenuItem[] = [
+    enriquecerItemMenuAcciones(
+      {
+        label: busyGenerar
+          ? 'Generando documento…'
+          : busyEditor
+            ? 'Abriendo editor…'
+            : tieneDocumento
+              ? 'Editar contenido del documento'
+              : 'Generar documento',
+        icon: tieneDocumento ? 'i-lucide-file-pen-line' : 'i-lucide-file-output',
+        disabled: docDeshabilitado,
+        onSelect: () => {
+          void handleDocumentoOnlyOffice(c)
+        },
+      },
+      motivoDocumento,
+    ),
+  ]
+
   children.push(
-    {
+    enriquecerItemMenuAcciones({
       label: 'Adjuntos',
       icon: 'i-lucide-paperclip',
-      onSelect: (e) => {
-        e.preventDefault()
+      onSelect: () => {
         handleAdjuntos(c, false)
       },
-    },
-    {
+    }),
+    enriquecerItemMenuAcciones({
       label: 'Derivar correspondencia',
       icon: 'i-lucide-send',
-      disabled: !correspondenciaPuedeDerivar(c),
-      onSelect: (e) => {
-        e.preventDefault()
+      onSelect: () => {
         handleDerivar(c)
       },
-    },
-    {
+    }),
+    enriquecerItemMenuAcciones({
       label: compartidos
         ? `Compartir (${compartidos} usuario${compartidos === 1 ? '' : 's'})`
         : 'Compartir documento',
       icon: 'i-lucide-share-2',
-      onSelect: (e) => {
-        e.preventDefault()
+      onSelect: () => {
         handleCompartir(c)
       },
-    },
-    {
+    }),
+    enriquecerItemMenuAcciones({
       label: 'Editar',
       icon: 'i-lucide-pencil',
-      onSelect: (e) => {
-        e.preventDefault()
+      onSelect: () => {
         handleEditar(c)
       },
-    },
+    }),
   )
 
   if (!correspondenciaTieneCite(c)) {
-    children.push({
-      label: 'Eliminar',
-      icon: 'i-lucide-trash-2',
-      class: 'text-error',
-      onSelect: (e) => {
-        e.preventDefault()
-        handleConfirmarEliminar(c)
-      },
-    })
+    children.push(
+      enriquecerItemMenuAcciones({
+        label: 'Eliminar',
+        icon: 'i-lucide-trash-2',
+        class: 'text-error',
+        onSelect: () => {
+          handleConfirmarEliminar(c)
+        },
+      }),
+    )
   }
 
-  return wrapAccionesMenu(children)
+  return children
 }
 
 const cerrarEditorOnlyOffice = () => {
@@ -742,16 +757,21 @@ onMounted(() => {
     </div>
 
     <!-- Tabla de Registros -->
-    <CorTable
-      :columns="columns"
-      :data="items"
-      :loading="loading"
-      :total="total"
-      v-model:page="page"
-      v-model:page-size="pageSize"
-      @update:page="fetchCorrespondencias"
-      @update:page-size="fetchCorrespondencias"
-    />
+    <div
+      class="corresp-bandeja-tabla min-w-0"
+      :class="{ 'corresp-bandeja-tabla--borrador': modo === 'borrador' }"
+    >
+      <CorTable
+        :columns="columns"
+        :data="items"
+        :loading="loading"
+        :total="total"
+        v-model:page="page"
+        v-model:page-size="pageSize"
+        @update:page="fetchCorrespondencias"
+        @update:page-size="fetchCorrespondencias"
+      />
+    </div>
 
     <!-- Modal Formulario de Creación / Edición -->
     <CorrespondenciaFormModal
@@ -873,3 +893,21 @@ onMounted(() => {
     </UModal>
   </div>
 </template>
+
+<style scoped>
+.corresp-bandeja-tabla :deep(table) {
+  table-layout: auto;
+  width: 100%;
+}
+
+.corresp-bandeja-tabla :deep(thead th:last-child),
+.corresp-bandeja-tabla :deep(tbody td:last-child) {
+  width: 1%;
+  max-width: 4.75rem;
+}
+
+.corresp-bandeja-tabla--borrador :deep(thead th:last-child),
+.corresp-bandeja-tabla--borrador :deep(tbody td:last-child) {
+  max-width: 6.5rem;
+}
+</style>
