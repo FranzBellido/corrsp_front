@@ -89,6 +89,8 @@ const formatFecha = (valor?: string | null) => {
 const esConCopia = computed(() => props.modo === 'con_copia')
 const esIngreso = computed(() => props.modo === 'ingreso')
 const esSalida = computed(() => props.modo === 'salida')
+/** Salida e ingreso: sin columna Instrucción y tabla compacta */
+const tablaCompacta = computed(() => esSalida.value || esIngreso.value)
 /** Transferencia por baja: solo parámetro del cargo (no flags permite_* del estado). */
 const puedeTransferirPorBaja = computed(
   () => cargoOrigen.value?.activa_transferencia === true,
@@ -411,7 +413,7 @@ const buildDerivacionAccionesMenu = (
 }
 
 const columns = computed<TableColumn<Derivacion | DestinatarioCopiaConDerivacion>[]>(() => {
-  const compacto = esSalida.value
+  const compacto = tablaCompacta.value
 
   const cols: TableColumn<Derivacion | DestinatarioCopiaConDerivacion>[] = [
     {
@@ -462,7 +464,7 @@ const columns = computed<TableColumn<Derivacion | DestinatarioCopiaConDerivacion
       header: props.modo === 'salida'
         ? 'Destinatario'
         : props.modo === 'ingreso'
-          ? 'Remitente / Destino'
+          ? (compacto ? 'Origen / Dest.' : 'Remitente / Destino')
           : 'Copia a mí',
       cell: ({ row }) => {
         const leido = leidoDeFila(row.original)
@@ -667,7 +669,7 @@ onMounted(() => {
 
     <div
       class="derivacion-bandeja-tabla min-w-0"
-      :class="{ 'derivacion-bandeja-tabla--salida': esSalida }"
+      :class="{ 'derivacion-bandeja-tabla--compacta': tablaCompacta }"
     >
       <CorTable
         :columns="columns"
@@ -766,44 +768,44 @@ onMounted(() => {
 </template>
 
 <style scoped>
-/* Bandeja de salida: tabla fija y columnas más angostas (sin Instrucción) */
-.derivacion-bandeja-tabla--salida :deep(table) {
+/* Salida e ingreso: tabla fija, sin Instrucción */
+.derivacion-bandeja-tabla--compacta :deep(table) {
   table-layout: fixed;
   width: 100%;
 }
 
-.derivacion-bandeja-tabla--salida :deep(thead th:nth-child(1)),
-.derivacion-bandeja-tabla--salida :deep(tbody td:nth-child(1)) {
-  width: 26%;
+.derivacion-bandeja-tabla--compacta :deep(thead th:nth-child(1)),
+.derivacion-bandeja-tabla--compacta :deep(tbody td:nth-child(1)) {
+  width: 24%;
 }
 
-.derivacion-bandeja-tabla--salida :deep(thead th:nth-child(2)),
-.derivacion-bandeja-tabla--salida :deep(tbody td:nth-child(2)) {
-  width: 22%;
+.derivacion-bandeja-tabla--compacta :deep(thead th:nth-child(2)),
+.derivacion-bandeja-tabla--compacta :deep(tbody td:nth-child(2)) {
+  width: 24%;
 }
 
-.derivacion-bandeja-tabla--salida :deep(thead th:nth-child(3)),
-.derivacion-bandeja-tabla--salida :deep(tbody td:nth-child(3)) {
-  width: 14%;
+.derivacion-bandeja-tabla--compacta :deep(thead th:nth-child(3)),
+.derivacion-bandeja-tabla--compacta :deep(tbody td:nth-child(3)) {
+  width: 13%;
 }
 
-.derivacion-bandeja-tabla--salida :deep(thead th:nth-child(4)),
-.derivacion-bandeja-tabla--salida :deep(tbody td:nth-child(4)) {
-  width: 16%;
+.derivacion-bandeja-tabla--compacta :deep(thead th:nth-child(4)),
+.derivacion-bandeja-tabla--compacta :deep(tbody td:nth-child(4)) {
+  width: 15%;
 }
 
-.derivacion-bandeja-tabla--salida :deep(thead th:nth-child(5)),
-.derivacion-bandeja-tabla--salida :deep(tbody td:nth-child(5)) {
-  width: 10%;
+.derivacion-bandeja-tabla--compacta :deep(thead th:nth-child(5)),
+.derivacion-bandeja-tabla--compacta :deep(tbody td:nth-child(5)) {
+  width: 9%;
 }
 
-.derivacion-bandeja-tabla--salida :deep(thead th:nth-child(6)),
-.derivacion-bandeja-tabla--salida :deep(tbody td:nth-child(6)) {
-  width: 12%;
+.derivacion-bandeja-tabla--compacta :deep(thead th:nth-child(6)),
+.derivacion-bandeja-tabla--compacta :deep(tbody td:nth-child(6)) {
+  width: 15%;
 }
 
-.derivacion-bandeja-tabla--salida :deep(th),
-.derivacion-bandeja-tabla--salida :deep(td) {
+.derivacion-bandeja-tabla--compacta :deep(th),
+.derivacion-bandeja-tabla--compacta :deep(td) {
   padding-left: 0.5rem;
   padding-right: 0.5rem;
 }
