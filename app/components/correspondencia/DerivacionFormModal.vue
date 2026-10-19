@@ -8,6 +8,11 @@ import type { CreateDerivacionPayload, Derivacion } from '~/types/derivacion'
 import type { CodificadorDto } from '~/types/codificador'
 import { backendService } from '~/services/backend.service'
 import CodificadorSelect from '~/components/codificador/CodificadorSelect.vue'
+import {
+  correspondenciaPuedeDerivar,
+  etiquetaNumeroCorrespondencia,
+  MENSAJE_SIN_NUMERACION_HR,
+} from '~/utils/correspondencia'
 
 const props = defineProps<{
   correspondencia?: Correspondencia | null
@@ -19,9 +24,24 @@ const emit = defineEmits<{
 }>()
 
 const toast = useToast()
-const { cargoActivo, resolveCargoOrigenId } = useProfile()
+const { cargoActivo, cargoOrigen, areaActiva, resolveCargoOrigenId } = useProfile()
 const saving = ref(false)
 const conCopia = ref(false)
+
+/** Área origen para restringir cargos a la lista blanca (area_routing_rules). */
+const areaOrigenId = computed(
+  () =>
+    cargoOrigen.value?.area_id
+    || cargoOrigen.value?.area?.id
+    || cargoActivo.value?.area_id
+    || cargoActivo.value?.area?.id
+    || areaActiva.value?.id
+    || null,
+)
+
+const cargosWhitelistParams = computed(() =>
+  areaOrigenId.value ? { area_origen_id: areaOrigenId.value } : {},
+)
 
 const schema = z.object({
   cargo_destino_id: z
@@ -51,7 +71,7 @@ const copiasSeleccionadas = ref<{ id: string; nombre: string }[]>([])
 const tituloDoc = computed(() => {
   const c = props.correspondencia
   if (!c) return ''
-  return `Nº ${c.nro}/${c.gestion} — ${c.referencia?.slice(0, 80) || 'Sin referencia'}`
+  return `${etiquetaNumeroCorrespondencia(c)} — ${c.referencia?.slice(0, 80) || 'Sin referencia'}`
 })
 
 const resetForm = () => {
@@ -66,7 +86,19 @@ const resetForm = () => {
 }
 
 watch(open, (isOpen) => {
-  if (isOpen) resetForm()
+  if (!isOpen) return
+  const c = props.correspondencia
+  if (c && !correspondenciaPuedeDerivar(c)) {
+    toast.add({
+      title: 'No se puede derivar',
+      description: MENSAJE_SIN_NUMERACION_HR,
+      color: 'warning',
+      icon: 'i-lucide-alert-triangle',
+    })
+    open.value = false
+    return
+  }
+  resetForm()
 })
 
 watch(conCopia, (activo) => {
@@ -115,6 +147,16 @@ const copiaTempId = ref<string | null>(null)
 const handleSave = async (event?: FormSubmitEvent<FormState>) => {
   const data = event?.data || form.value
   if (!props.correspondencia?.id) return
+
+  if (!correspondenciaPuedeDerivar(props.correspondencia)) {
+    toast.add({
+      title: 'No se puede derivar',
+      description: MENSAJE_SIN_NUMERACION_HR,
+      color: 'warning',
+      icon: 'i-lucide-alert-triangle',
+    })
+    return
+  }
 
   if (!data.cargo_destino_id?.trim()) {
     toast.add({
@@ -215,13 +257,19 @@ const handleSave = async (event?: FormSubmitEvent<FormState>) => {
           label="Cargo destinatario"
           name="cargo_destino_id"
           required
-          help="Cargo institucional que recibirá la derivación."
+          :help="
+            areaOrigenId
+              ? 'Solo cargos de su área y de las áreas permitidas en la configuración del sistema.'
+              : 'Configure su cargo/área activa para filtrar destinatarios permitidos.'
+          "
         >
           <CodificadorSelect
             v-model="form.cargo_destino_id"
             endpoint="comun/codificador/cargos"
+            :params="cargosWhitelistParams"
             placeholder="Seleccione cargo destino..."
             class="w-full"
+            :disabled="!areaOrigenId"
           />
         </UFormField>
 
@@ -229,7 +277,7 @@ const handleSave = async (event?: FormSubmitEvent<FormState>) => {
           label="Tipo de instrucción"
           name="tipo_instruccion_id"
           required
-          help="Clasificación del previsto / instrucción (codificador tipo 2)."
+          help="Clasificador del proveído / instrucción a enviar."
         >
           <CodificadorSelect
             v-model="form.tipo_instruccion_id"
@@ -262,12 +310,18 @@ const handleSave = async (event?: FormSubmitEvent<FormState>) => {
           />
 
           <div v-if="conCopia" class="space-y-2 p-3 rounded-xl border border-gray-200 dark:border-gray-800">
-            <UFormField label="Agregar cargo en copia" name="copia_temp">
+            <UFormField
+              label="Agregar cargo en copia"
+              name="copia_temp"
+              help="Mismas restricciones de lista blanca que el destinatario principal."
+            >
               <CodificadorSelect
                 v-model="copiaTempId"
                 endpoint="comun/codificador/cargos"
+                :params="cargosWhitelistParams"
                 placeholder="Seleccione cargo para copia..."
                 class="w-full"
+                :disabled="!areaOrigenId"
                 @item-selected="agregarCopiaDesdeItem"
               />
             </UFormField>
@@ -309,7 +363,7 @@ const handleSave = async (event?: FormSubmitEvent<FormState>) => {
         <UButton
           type="submit"
           form="derivacion-form"
-          label="Enviar derivación"
+          label="Derivar"
           icon="i-lucide-send"
           color="primary"
           :loading="saving"

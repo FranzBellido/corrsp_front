@@ -7,6 +7,17 @@ export interface AreaProcesoItem {
   };
 }
 
+export interface AreaRoutingDestino {
+  id: string;
+  area_destino_id: string;
+  area_destino: {
+    id: string;
+    codigo: string;
+    nombre: string;
+    activo?: boolean;
+  };
+}
+
 export interface Area {
   id: string;
   codigo: string;
@@ -20,17 +31,15 @@ export interface Area {
     nombre: string;
     codigo: string;
   } | null;
-  areas_areas_area_comunicacion_idToareas?: {
-    id: string;
-    nombre: string;
-    codigo: string;
-  } | null;
+ 
   area_proceso?: AreaProcesoItem[];
+  routing_destinos?: AreaRoutingDestino[];
   _count?: {
     cargos?: number;
     correspondencia?: number;
     derivaciones?: number;
     other_areas_areas_area_padre_idToareas?: number;
+    area_routing_rules_area_routing_rules_area_origen_idToareas?: number;
   };
 }
 
@@ -42,6 +51,8 @@ export interface CreateAreaPayload {
   area_padre_id?: string;
   area_comunicacion_id?: string;
   procesos_ids?: number[];
+  /** Lista blanca: áreas con las que puede comunicarse el área origen. */
+  areas_destino_ids?: string[];
 }
 
 export interface UpdateAreaPayload extends Partial<CreateAreaPayload> {}

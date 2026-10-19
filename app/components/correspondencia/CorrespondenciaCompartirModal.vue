@@ -157,7 +157,8 @@ const handleEliminar = async (usuarioId: string) => {
   eliminandoId.value = usuarioId
   try {
     await backendService.delete(
-      `correspondencia/${props.correspondencia.id}/compartir/${usuarioId}`
+      'correspondencia',
+      `${props.correspondencia.id}/compartir/${usuarioId}`
     )
     toast.add({
       title: 'Acceso revocado',

@@ -42,7 +42,7 @@ defineEmits<{
       
       <!-- Desktop breadcrumb / system title -->
       <div class="hidden lg:flex items-center gap-2 text-xs font-semibold text-neutral-500 uppercase tracking-wider">
-        <span>Sistema de Correspondencia</span>
+        <span>Sistema de Gestión de Procesos</span>
         <span class="text-neutral-300 dark:text-neutral-700">/</span>
         <span class="text-primary-600 dark:text-primary-400 font-bold">AFCOOP</span>
       </div>

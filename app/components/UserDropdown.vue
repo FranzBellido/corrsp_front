@@ -64,22 +64,6 @@ const items = computed(() => {
     }
   ]
 
-  if (displayCargo.value) {
-    infoSection.push({
-      label: `Cargo: ${displayCargo.value}`,
-      icon: 'i-lucide-briefcase',
-      disabled: true
-    })
-  }
-
-  if (displayArea.value) {
-    infoSection.push({
-      label: `Área: ${displayArea.value}`,
-      icon: 'i-lucide-building-2',
-      disabled: true
-    })
-  }
-
   if (profile.value?.roles && profile.value.roles.length > 0) {
     const rolesStr = profile.value.roles.map(r => r.nombre).join(', ')
     infoSection.push({

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, h } from 'vue'
-import type { TableColumn } from '@nuxt/ui'
+import type { NavigationMenuItem, TableColumn } from '@nuxt/ui'
 import type { Correspondencia, FiltroCorrespondencia, RespuestaBusquedaCorrespondencia } from '~/types/correspondencia'
 import { backendService } from '~/services/backend.service'
 import CorrespondenciaFormModal from '~/components/correspondencia/CorrespondenciaFormModal.vue'
@@ -9,6 +9,13 @@ import DerivacionFormModal from '~/components/correspondencia/DerivacionFormModa
 import CorrespondenciaDetalleModal from '~/components/correspondencia/CorrespondenciaDetalleModal.vue'
 import CorrespondenciaAdjuntosModal from '~/components/correspondencia/CorrespondenciaAdjuntosModal.vue'
 import CorTable from '~/components/CorTable.vue'
+import {
+  correspondenciaPuedeDerivar,
+  correspondenciaSinNumerar,
+  correspondenciaTieneCite,
+  etiquetaNumeroCorrespondencia,
+  MENSAJE_SIN_NUMERACION_HR,
+} from '~/utils/correspondencia'
 
 const props = withDefaults(
   defineProps<{
@@ -28,6 +35,7 @@ const props = withDefaults(
 const UBadge = resolveComponent('UBadge')
 const UButton = resolveComponent('UButton')
 const UIcon = resolveComponent('UIcon')
+const UNavigationMenu = resolveComponent('UNavigationMenu')
 
 const toast = useToast()
 const { profile, cargoActivo, resolveCargoOrigenId } = useProfile()
@@ -87,7 +95,12 @@ const columns = computed<TableColumn<Correspondencia>[]>(() => [
     cell: ({ row }) => {
       const c = row.original
       return h('div', { class: 'flex flex-col' }, [
-        h('span', { class: 'font-bold text-primary-600 dark:text-primary-400' }, `Nº ${c.nro}/${c.gestion}`),
+        h('span', {
+          class: [
+            'font-bold',
+            correspondenciaSinNumerar(c) ? 'text-muted italic' : 'text-primary-600 dark:text-primary-400',
+          ],
+        }, etiquetaNumeroCorrespondencia(c)),
         c.cite_origen ? h('span', { class: 'text-[11px] text-gray-400 font-mono' }, c.cite_origen) : null,
       ])
     },
@@ -161,7 +174,7 @@ const columns = computed<TableColumn<Correspondencia>[]>(() => [
                   variant: 'subtle',
                   size: 'xs',
                 },
-                () => (soloLectura ? 'Solo Lectura' : 'Puede Editar (OnlyOffice)'),
+                () => (soloLectura ? 'Solo Lectura' : 'Puede Editar contenido del documento'),
               ),
               c.acceso_compartido?.comentario
                 ? h('span', { class: 'text-[10px] text-gray-400 italic truncate max-w-[120px]', title: c.acceso_compartido.comentario }, `"${c.acceso_compartido.comentario}"`)
@@ -179,181 +192,24 @@ const columns = computed<TableColumn<Correspondencia>[]>(() => [
       const tienePlantilla = Boolean(c.proceso?.plantilla?.trim())
       const acciones = []
 
-      if (props.modo === 'borrador') {
-        const tieneDocumento = tieneDocumentoGenerado(c)
-        acciones.push(
-          h(UButton, {
-            icon: 'i-lucide-file-output',
-            color: 'primary',
-            variant: 'ghost',
-            size: 'xs',
-            title: tienePlantilla
-              ? 'Generar documento y abrir en OnlyOffice'
-              : 'El proceso no tiene plantilla registrada',
-            disabled: !tienePlantilla || generandoId.value === c.id || abriendoEditorId.value === c.id,
-            loading: generandoId.value === c.id,
-            onClick: () => handleGenerarDocumento(c),
-          }),
-        )
-        if (tieneDocumento) {
-          acciones.push(
-            h(UButton, {
-              icon: 'i-lucide-file-pen-line',
-              color: 'info',
-              variant: 'ghost',
-              size: 'xs',
-              title: 'Editar documento en OnlyOffice',
-              disabled: abriendoEditorId.value === c.id || generandoId.value === c.id,
-              loading: abriendoEditorId.value === c.id,
-              onClick: () => handleEditarDocumentoOnlyOffice(c),
-            }),
-          )
-        }
+      const menuItems =
+        props.modo === 'borrador'
+          ? buildBorradorAccionesMenu(c, tienePlantilla)
+          : props.modo === 'compartidos'
+            ? buildCompartidosAccionesMenu(c)
+            : buildArchivoAccionesMenu(c)
 
-        acciones.push(
-          h(UButton, {
-            icon: 'i-lucide-eye',
-            color: 'neutral',
-            variant: 'ghost',
-            size: 'xs',
-            title: 'Ver detalle',
-            onClick: () => handleVerDetalle(c),
-          }),
-        )
-
-        acciones.push(
-          h(UButton, {
-            icon: 'i-lucide-paperclip',
-            color: 'neutral',
-            variant: 'ghost',
-            size: 'xs',
-            title: 'Adjuntos',
-            onClick: () => handleAdjuntos(c, false),
-          }),
-        )
-
-        acciones.push(
-          h(UButton, {
-            icon: 'i-lucide-send',
-            color: 'primary',
-            variant: 'ghost',
-            size: 'xs',
-            title: 'Derivar correspondencia',
-            onClick: () => handleDerivar(c),
-          }),
-        )
-
-        // Botón Compartir documento (corresp_usuario)
-        acciones.push(
-          h(UButton, {
-            icon: 'i-lucide-share-2',
-            color: (c._count?.corresp_usuario || c.corresp_usuario?.length) ? 'primary' : 'neutral',
-            variant: (c._count?.corresp_usuario || c.corresp_usuario?.length) ? 'soft' : 'ghost',
-            size: 'xs',
-            title: (c._count?.corresp_usuario || c.corresp_usuario?.length)
-              ? `Compartido con ${c._count?.corresp_usuario || c.corresp_usuario?.length} usuario(s) - Gestionar acceso OnlyOffice`
-              : 'Compartir documento con otro usuario para editar en OnlyOffice',
-            onClick: () => handleCompartir(c),
-          }),
-        )
-
-        acciones.push(
-          h(UButton, {
-            icon: 'i-lucide-pencil',
-            color: 'neutral',
-            variant: 'ghost',
-            size: 'xs',
-            title: 'Editar metadatos',
-            onClick: () => handleEditar(c),
-          }),
-          h(UButton, {
-            icon: 'i-lucide-trash-2',
-            color: 'error',
-            variant: 'ghost',
-            size: 'xs',
-            title: 'Eliminar',
-            onClick: () => handleConfirmarEliminar(c),
-          }),
-        )
-      } else if (props.modo === 'compartidos') {
-        const tieneDocumento = tieneDocumentoGenerado(c)
-        const esSoloLectura = c.acceso_compartido?.solo_lectura ?? false
-
-        acciones.push(
-          h(UButton, {
-            icon: 'i-lucide-eye',
-            color: 'neutral',
-            variant: 'ghost',
-            size: 'xs',
-            title: 'Ver detalle',
-            onClick: () => handleVerDetalle(c),
-          }),
-        )
-
-        acciones.push(
-          h(UButton, {
-            icon: 'i-lucide-paperclip',
-            color: 'neutral',
-            variant: 'ghost',
-            size: 'xs',
-            title: 'Ver adjuntos',
-            onClick: () => handleAdjuntos(c, true),
-          }),
-        )
-
-        if (tieneDocumento) {
-          acciones.push(
-            h(UButton, {
-              icon: esSoloLectura ? 'i-lucide-file-text' : 'i-lucide-file-pen-line',
-              color: esSoloLectura ? 'neutral' : 'info',
-              variant: 'ghost',
-              size: 'xs',
-              title: esSoloLectura
-                ? 'Ver documento en OnlyOffice (Solo Lectura)'
-                : 'Editar documento en OnlyOffice',
-              disabled: abriendoEditorId.value === c.id,
-              loading: abriendoEditorId.value === c.id,
-              onClick: () => handleEditarDocumentoOnlyOffice(c, esSoloLectura),
-            }),
-          )
-        }
-      } else {
-        // modo archivo u otros
-        acciones.push(
-          h(UButton, {
-            icon: 'i-lucide-eye',
-            color: 'neutral',
-            variant: 'ghost',
-            size: 'xs',
-            title: 'Ver detalle',
-            onClick: () => handleVerDetalle(c),
-          }),
-          h(UButton, {
-            icon: 'i-lucide-paperclip',
-            color: 'neutral',
-            variant: 'ghost',
-            size: 'xs',
-            title: 'Ver adjuntos',
-            onClick: () => handleAdjuntos(c, true),
-          }),
-          h(UButton, {
-            icon: 'i-lucide-pencil',
-            color: 'neutral',
-            variant: 'ghost',
-            size: 'xs',
-            title: 'Editar',
-            onClick: () => handleEditar(c),
-          }),
-          h(UButton, {
-            icon: 'i-lucide-trash-2',
-            color: 'error',
-            variant: 'ghost',
-            size: 'xs',
-            title: 'Eliminar',
-            onClick: () => handleConfirmarEliminar(c),
-          }),
-        )
-      }
+      acciones.push(
+        h(UButton, {
+          icon: 'i-lucide-eye',
+          color: 'neutral',
+          variant: 'ghost',
+          size: 'xs',
+          title: 'Ver detalle',
+          onClick: () => handleVerDetalle(c),
+        }),
+        hAccionesNavigationMenu(menuItems),
+      )
 
       return h('div', { class: 'flex items-center justify-end gap-1.5' }, acciones)
     },
@@ -443,6 +299,15 @@ const handleCompartir = (corresp: Correspondencia) => {
 }
 
 const handleDerivar = (corresp: Correspondencia) => {
+  if (!correspondenciaPuedeDerivar(corresp)) {
+    toast.add({
+      title: 'No se puede derivar',
+      description: MENSAJE_SIN_NUMERACION_HR,
+      color: 'warning',
+      icon: 'i-lucide-alert-triangle',
+    })
+    return
+  }
   correspToDerivar.value = corresp
   isDerivacionOpen.value = true
 }
@@ -591,6 +456,190 @@ const handleEditarDocumentoOnlyOffice = async (
       icon: 'i-lucide-alert-circle',
     })
   }
+}
+
+const wrapAccionesMenu = (children: NavigationMenuItem[]): NavigationMenuItem[][] => [
+  [{
+    label: 'Acciones',
+    icon: 'i-lucide-ellipsis-vertical',
+    tooltip: { text: 'Acciones' },
+    children,
+  }],
+]
+
+const hAccionesNavigationMenu = (items: NavigationMenuItem[][]) =>
+  h(UNavigationMenu, {
+    items,
+    orientation: 'vertical',
+    collapsed: true,
+    popover: {
+      mode: 'click',
+      content: { side: 'bottom', align: 'end', collisionPadding: 8 },
+    },
+    tooltip: false,
+    class: 'inline-flex w-auto shrink-0',
+    ui: {
+      root: 'w-auto',
+      list: 'w-auto',
+      link: 'px-1.5 py-1 justify-center',
+      linkLeadingIcon: 'size-4',
+    },
+  })
+
+const buildCompartidosAccionesMenu = (c: Correspondencia): NavigationMenuItem[][] => {
+  const tieneDocumento = tieneDocumentoGenerado(c)
+  const esSoloLectura = c.acceso_compartido?.solo_lectura ?? false
+  const busyEditor = abriendoEditorId.value === c.id
+
+  const children: NavigationMenuItem[] = [
+    {
+      label: 'Adjuntos',
+      icon: 'i-lucide-paperclip',
+      onSelect: (e) => {
+        e.preventDefault()
+        handleAdjuntos(c, true)
+      },
+    },
+  ]
+
+  if (tieneDocumento) {
+    children.push({
+      label: busyEditor
+        ? 'Abriendo documento…'
+        : esSoloLectura
+          ? 'Ver contenido del documento (solo lectura)'
+          : 'Editar contenido del documento',
+      icon: esSoloLectura ? 'i-lucide-file-text' : 'i-lucide-file-pen-line',
+      disabled: busyEditor,
+      onSelect: (e) => {
+        e.preventDefault()
+        void handleEditarDocumentoOnlyOffice(c, esSoloLectura)
+      },
+    })
+  }
+
+  return wrapAccionesMenu(children)
+}
+
+const buildArchivoAccionesMenu = (c: Correspondencia): NavigationMenuItem[][] => {
+  const children: NavigationMenuItem[] = [
+    {
+      label: 'Adjuntos',
+      icon: 'i-lucide-paperclip',
+      onSelect: (e) => {
+        e.preventDefault()
+        handleAdjuntos(c, true)
+      },
+    },
+    {
+      label: 'Editar',
+      icon: 'i-lucide-pencil',
+      onSelect: (e) => {
+        e.preventDefault()
+        handleEditar(c)
+      },
+    },
+  ]
+
+  if (!correspondenciaTieneCite(c)) {
+    children.push({
+      label: 'Eliminar',
+      icon: 'i-lucide-trash-2',
+      class: 'text-error',
+      onSelect: (e) => {
+        e.preventDefault()
+        handleConfirmarEliminar(c)
+      },
+    })
+  }
+
+  return wrapAccionesMenu(children)
+}
+
+const buildBorradorAccionesMenu = (
+  c: Correspondencia,
+  tienePlantilla: boolean,
+): NavigationMenuItem[][] => {
+  const tieneDocumento = tieneDocumentoGenerado(c)
+  const compartidos = c._count?.corresp_usuario || c.corresp_usuario?.length || 0
+  const busyGenerar = generandoId.value === c.id
+  const busyEditor = abriendoEditorId.value === c.id
+
+  const children: NavigationMenuItem[] = [
+    {
+      label: busyGenerar ? 'Generando documento…' : 'Generar documento',
+      icon: 'i-lucide-file-output',
+      disabled: !tienePlantilla || busyGenerar || busyEditor,
+      onSelect: (e) => {
+        e.preventDefault()
+        void handleGenerarDocumento(c)
+      },
+    },
+  ]
+
+  if (tieneDocumento) {
+    children.push({
+      label: busyEditor ? 'Abriendo editor…' : 'Editar contenido del documento',
+      icon: 'i-lucide-file-pen-line',
+      disabled: busyEditor || busyGenerar,
+      onSelect: (e) => {
+        e.preventDefault()
+        void handleEditarDocumentoOnlyOffice(c)
+      },
+    })
+  }
+
+  children.push(
+    {
+      label: 'Adjuntos',
+      icon: 'i-lucide-paperclip',
+      onSelect: (e) => {
+        e.preventDefault()
+        handleAdjuntos(c, false)
+      },
+    },
+    {
+      label: 'Derivar correspondencia',
+      icon: 'i-lucide-send',
+      disabled: !correspondenciaPuedeDerivar(c),
+      onSelect: (e) => {
+        e.preventDefault()
+        handleDerivar(c)
+      },
+    },
+    {
+      label: compartidos
+        ? `Compartir (${compartidos} usuario${compartidos === 1 ? '' : 's'})`
+        : 'Compartir documento',
+      icon: 'i-lucide-share-2',
+      onSelect: (e) => {
+        e.preventDefault()
+        handleCompartir(c)
+      },
+    },
+    {
+      label: 'Editar',
+      icon: 'i-lucide-pencil',
+      onSelect: (e) => {
+        e.preventDefault()
+        handleEditar(c)
+      },
+    },
+  )
+
+  if (!correspondenciaTieneCite(c)) {
+    children.push({
+      label: 'Eliminar',
+      icon: 'i-lucide-trash-2',
+      class: 'text-error',
+      onSelect: (e) => {
+        e.preventDefault()
+        handleConfirmarEliminar(c)
+      },
+    })
+  }
+
+  return wrapAccionesMenu(children)
 }
 
 const cerrarEditorOnlyOffice = () => {

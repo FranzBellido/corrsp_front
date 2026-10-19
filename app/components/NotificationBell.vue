@@ -1,5 +1,9 @@
 <script setup lang="ts">
-const { isNotificationsSlideoverOpen } = useDashboard()
+const { isNotificationsSlideoverOpen, unreadCount, ensureSubscribed } = useNotifications()
+
+onMounted(() => {
+  ensureSubscribed()
+})
 </script>
 
 <template>
@@ -7,10 +11,16 @@ const { isNotificationsSlideoverOpen } = useDashboard()
     <UButton
       color="neutral"
       variant="ghost"
-      class="relative hover:text-neutral-900 dark:hover:text-white"
+      class="relative hover:text-highlighted"
       @click="isNotificationsSlideoverOpen = true"
     >
-      <UChip color="error" inset size="sm">
+      <UChip
+        color="error"
+        inset
+        size="sm"
+        :show="unreadCount > 0"
+        :text="unreadCount > 9 ? '9+' : String(unreadCount)"
+      >
         <UIcon name="i-lucide-bell" class="size-5 shrink-0" />
       </UChip>
     </UButton>

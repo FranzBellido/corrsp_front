@@ -9,6 +9,7 @@ import { backendService } from '~/services/backend.service'
 import CodificadorSelect from '~/components/codificador/CodificadorSelect.vue'
 import CorrespCooperativaFields, { type CorrespCooperativaFormState } from '~/components/correspondencia/CorrespCooperativaFields.vue'
 import EntidadSelect from '~/components/correspondencia/EntidadSelect.vue'
+import { correspondenciaSinNumerar, correspondenciaTieneCite } from '~/utils/correspondencia'
 
 const props = defineProps<{
   correspondencia?: Correspondencia | null
@@ -22,6 +23,9 @@ const emit = defineEmits<{
 const toast = useToast()
 const { profile, cargoActivo, cargoOrigen, cargoOrigenId, areaActiva, resolveCargoOrigenId } = useProfile()
 const saving = ref(false)
+const assigningNumeracion = ref(false)
+/** Al crear: si es true, genera HR, correlativo y CITE en el backend. */
+const asignarCiteHr = ref(true)
 
 // Estado para Hoja de Ruta: 'nueva' o 'existente'
 const tipoHr = ref<'nueva' | 'existente'>('nueva')
@@ -211,6 +215,14 @@ const buildEntidadesPayload = (): CorrespEntidadPayload | undefined => {
 
 const isEditing = computed(() => !!props.correspondencia?.id)
 
+const pendienteNumeracion = computed(() => {
+  const c = props.correspondencia
+  if (!c?.id) return false
+  return correspondenciaSinNumerar(c) && !correspondenciaTieneCite(c)
+})
+
+const mostrarHrAlCrear = computed(() => !isEditing.value && asignarCiteHr.value)
+
 // Obtener area_activa_id priorizando localStorage, sessionStorage y useProfile
 const areaActivaId = computed(() => {
   if (import.meta.client) {
@@ -266,6 +278,7 @@ const resetFormularioNueva = () => {
   nroHrInput.value = undefined
   hrEncontrada.value = null
   errorHr.value = null
+  asignarCiteHr.value = true
 }
 
 const cargarFormularioEdicion = (val: Correspondencia) => {
@@ -286,10 +299,11 @@ const cargarFormularioEdicion = (val: Correspondencia) => {
     val.proceso?.requiere_entidad || val.corresp_entidad?.length,
   )
   entidadId.value = val.corresp_entidad?.[0]?.entidad_id
-  tipoHr.value = 'existente'
+  tipoHr.value = val.hoja_ruta ? 'existente' : 'nueva'
   nroHrInput.value = val.hoja_ruta?.numero
   hrEncontrada.value = val.hoja_ruta || null
   errorHr.value = null
+  asignarCiteHr.value = !(correspondenciaSinNumerar(val) && !correspondenciaTieneCite(val))
 }
 
 const sincronizarFormularioConProps = () => {
@@ -430,8 +444,9 @@ const handleSave = async (event?: FormSubmitEvent<CorrespondenciaSchemaType>) =>
     return
   }
 
-  // Validación de HR si es creación y asociar existente
-  if (!isEditing.value && tipoHr.value === 'existente') {
+  // Validación de HR si asignará CITE/HR
+  if ((!isEditing.value && asignarCiteHr.value && tipoHr.value === 'existente')
+    || (pendienteNumeracion.value && tipoHr.value === 'existente')) {
     if (!nroHrInput.value) {
       toast.add({
         title: 'Validación',
@@ -451,11 +466,13 @@ const handleSave = async (event?: FormSubmitEvent<CorrespondenciaSchemaType>) =>
         proc_id: Number(data.proc_id),
         prioridad_id: Number(data.prioridad_id),
         confidencial: Boolean(data.confidencial),
-        cite_origen: data.cite_origen?.trim() || undefined,
         remitente_id: data.remitente_id.trim(),
         destinatario_id: data.destinatario_id.trim(),
         cooperativa: buildCooperativaPayload(),
         entidades: buildEntidadesPayload(),
+      }
+      if (!pendienteNumeracion.value && data.cite_origen?.trim()) {
+        payload.cite_origen = data.cite_origen.trim()
       }
 
       await backendService.patch<Correspondencia>('correspondencia', props.correspondencia.id, payload)
@@ -474,9 +491,9 @@ const handleSave = async (event?: FormSubmitEvent<CorrespondenciaSchemaType>) =>
         area_origen_id: areaOrigenId,
         cargo_origen_id: cargoOrigenId,
         remitente_id: data.remitente_id.trim(),
-        es_nueva_hr: tipoHr.value === 'nueva',
-        nro_hr: tipoHr.value === 'existente' ? Number(nroHrInput.value) : undefined,
-        cite_origen: data.cite_origen?.trim() || undefined,
+        asignar_cite_hr: asignarCiteHr.value,
+        es_nueva_hr: asignarCiteHr.value ? tipoHr.value === 'nueva' : false,
+        nro_hr: asignarCiteHr.value && tipoHr.value === 'existente' ? Number(nroHrInput.value) : undefined,
         destinatario_id: data.destinatario_id.trim(),
         cooperativa: buildCooperativaPayload(),
         entidades: buildEntidadesPayload(),
@@ -485,9 +502,11 @@ const handleSave = async (event?: FormSubmitEvent<CorrespondenciaSchemaType>) =>
       await backendService.post<Correspondencia>('correspondencia', payload)
       toast.add({
         title: 'Correspondencia creada',
-        description: tipoHr.value === 'nueva' 
-          ? 'Correspondencia y nueva Hoja de Ruta generadas con éxito.' 
-          : 'Correspondencia asociada a la Hoja de Ruta existente con éxito.',
+        description: asignarCiteHr.value
+          ? (tipoHr.value === 'nueva'
+            ? 'Correspondencia numerada con CITE y nueva Hoja de Ruta.'
+            : 'Correspondencia numerada con CITE y asociada a la HR existente.')
+          : 'Borrador registrado sin numeración. Podrá asignar CITE y HR más adelante.',
         color: 'success',
         icon: 'i-lucide-check-circle',
       })
@@ -510,6 +529,51 @@ const handleSave = async (event?: FormSubmitEvent<CorrespondenciaSchemaType>) =>
     })
   } finally {
     saving.value = false
+  }
+}
+
+const handleAsignarCiteHr = async () => {
+  const id = props.correspondencia?.id
+  if (!id || !pendienteNumeracion.value) return
+
+  if (tipoHr.value === 'existente' && !nroHrInput.value) {
+    toast.add({
+      title: 'Validación',
+      description: 'Debe indicar el número de Hoja de Ruta existente.',
+      color: 'warning',
+      icon: 'i-lucide-alert-triangle',
+    })
+    return
+  }
+
+  assigningNumeracion.value = true
+  try {
+    const res = await backendService.post<Correspondencia>(`correspondencia/${id}/asignar-cite-hr`, {
+      es_nueva_hr: tipoHr.value === 'nueva',
+      nro_hr: tipoHr.value === 'existente' ? Number(nroHrInput.value) : undefined,
+    })
+    const data = (res as { data?: Correspondencia })?.data ?? (res as Correspondencia)
+    toast.add({
+      title: 'CITE y numeración asignados',
+      description: data.cite_origen
+        ? `Correlativo ${data.nro}/${data.gestion} · ${data.cite_origen}`
+        : 'La correspondencia fue numerada correctamente.',
+      color: 'success',
+      icon: 'i-lucide-check-circle',
+    })
+    open.value = false
+    emit('guardado')
+  } catch (error: unknown) {
+    const err = error as { data?: { message?: string | string[] }; message?: string }
+    const msg = err?.data?.message
+    toast.add({
+      title: 'No se pudo asignar CITE',
+      description: Array.isArray(msg) ? msg.join(', ') : msg || err?.message || 'Error al numerar la correspondencia.',
+      color: 'error',
+      icon: 'i-lucide-alert-circle',
+    })
+  } finally {
+    assigningNumeracion.value = false
   }
 }
 </script>
@@ -564,86 +628,39 @@ const handleSave = async (event?: FormSubmitEvent<CorrespondenciaSchemaType>) =>
           />
         </UFormField>
 
-        <!-- Sección Hoja de Ruta (Solo en creación) -->
-        <div v-if="!isEditing" class="p-4 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/30 space-y-3">
-          <div class="flex items-center justify-between">
-            <label class="text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-400 flex items-center gap-1.5">
-              <UIcon name="i-lucide-git-branch" class="size-4 text-primary-500" />
-              Gestión de Hoja de Ruta (HR)
-            </label>
-          </div>
-
-          <div class="grid grid-cols-2 gap-3">
-            <button
-              type="button"
-              class="p-3 rounded-lg border text-left transition-all flex items-start gap-2.5 cursor-pointer"
-              :class="[
-                tipoHr === 'nueva'
-                  ? 'border-primary-500 bg-primary-50/80 dark:bg-primary-950/40 text-primary-900 dark:text-primary-100 ring-2 ring-primary-500/20'
-                  : 'border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700'
-              ]"
-              @click="tipoHr = 'nueva'"
-            >
-              <UIcon name="i-lucide-plus-circle" class="size-5 shrink-0 text-primary-500 mt-0.5" />
-              <div>
-                <div class="font-semibold text-xs">Nueva Hoja de Ruta</div>
-                <div class="text-[11px] text-gray-500 dark:text-gray-400">Crear nuevo correlativo HR con la misma referencia</div>
-              </div>
-            </button>
-
-            <button
-              type="button"
-              class="p-3 rounded-lg border text-left transition-all flex items-start gap-2.5 cursor-pointer"
-              :class="[
-                tipoHr === 'existente'
-                  ? 'border-primary-500 bg-primary-50/80 dark:bg-primary-950/40 text-primary-900 dark:text-primary-100 ring-2 ring-primary-500/20'
-                  : 'border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700'
-              ]"
-              @click="tipoHr = 'existente'"
-            >
-              <UIcon name="i-lucide-link" class="size-5 shrink-0 text-primary-500 mt-0.5" />
-              <div>
-                <div class="font-semibold text-xs">Asociar a HR Existente</div>
-                <div class="text-[11px] text-gray-500 dark:text-gray-400">Vincular a un expediente o trámite ya iniciado</div>
-              </div>
-            </button>
-          </div>
-
-          <!-- Campo de búsqueda de HR existente -->
-          <div v-if="tipoHr === 'existente'" class="pt-2 space-y-2">
-            <div class="flex gap-2">
-              <UInput
-                v-model.number="nroHrInput"
-                type="number"
-                placeholder="Ingrese Nº de Hoja de Ruta (Ej. 142)"
-                icon="i-lucide-hash"
-                class="flex-1"
-                @keyup.enter="buscarHojaRutaExistente"
-              />
-              <UButton
-                label="Verificar HR"
-                icon="i-lucide-search"
-                color="neutral"
-                variant="subtle"
-                :loading="verificandoHr"
-                @click="buscarHojaRutaExistente"
-              />
-            </div>
-
-            <div v-if="hrEncontrada" class="p-2.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-xs text-emerald-800 dark:text-emerald-300 flex items-center justify-between">
-              <div class="flex items-center gap-2">
-                <UIcon name="i-lucide-check-circle-2" class="size-4 shrink-0 text-emerald-500" />
-                <span><strong>HR Nº {{ hrEncontrada.numero }}/{{ hrEncontrada.anio }}:</strong> {{ hrEncontrada.referencia || 'Sin referencia registrada' }}</span>
-              </div>
-              <UBadge color="success" variant="subtle" size="xs">Válida</UBadge>
-            </div>
-
-            <div v-if="errorHr" class="p-2.5 rounded-lg bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800 text-xs text-rose-700 dark:text-rose-300 flex items-center gap-2">
-              <UIcon name="i-lucide-alert-circle" class="size-4 shrink-0 text-rose-500" />
-              <span>{{ errorHr }}</span>
-            </div>
-          </div>
+        <div
+          v-if="!isEditing"
+          class="p-3 rounded-xl border border-default bg-elevated/30"
+        >
+          <UCheckbox
+            v-model="asignarCiteHr"
+            label="Asignar CITE y Hoja de Ruta"
+            description="Si está desmarcado, se guarda un borrador sin número ni HR. Podrá numerar y asignar CITE después."
+          />
         </div>
+
+        <div
+          v-if="pendienteNumeracion"
+          class="p-3 rounded-xl border border-warning/40 bg-warning/10 text-xs text-default space-y-1"
+        >
+          <p class="font-semibold text-highlighted flex items-center gap-1.5">
+            <UIcon name="i-lucide-hash" class="size-4 text-warning" />
+            Pendiente de numeración y CITE
+          </p>
+          <p class="text-muted">
+            Configure la Hoja de Ruta y pulse «Asignar CITE y numerar». El CITE se generará automáticamente al numerar.
+          </p>
+        </div>
+
+        <CorrespondenciaHojaRutaFields
+          v-if="mostrarHrAlCrear || pendienteNumeracion"
+          v-model:tipo-hr="tipoHr"
+          v-model:nro-hr-input="nroHrInput"
+          v-model:hr-encontrada="hrEncontrada"
+          v-model:error-hr="errorHr"
+          :verificando-hr="verificandoHr"
+          @verificar="buscarHojaRutaExistente"
+        />
 
         <!-- Referencia -->
         <UFormField
@@ -741,48 +758,54 @@ const handleSave = async (event?: FormSubmitEvent<CorrespondenciaSchemaType>) =>
           />
         </UFormField>
 
-        <!-- CITE de origen y Check Confidencial -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
-          <UFormField
-            label="CITE Origen (Opcional)"
-            name="cite_origen"
-            help="Identificador o código institucional de la nota externa."
-          >
-            <UInput
-              v-model="form.cite_origen"
-              placeholder="Ej. AFCOOP-DGE-045/2026"
-              icon="i-lucide-file-code"
-              class="w-full"
-            />
-          </UFormField>
+        <UFormField
+          v-if="isEditing && correspondencia && correspondenciaTieneCite(correspondencia)"
+          label="CITE asignado"
+          name="cite_origen"
+        >
+          <UInput
+            v-model="form.cite_origen"
+            icon="i-lucide-file-code"
+            class="w-full font-mono"
+            disabled
+          />
+        </UFormField>
 
-          <div class="pt-4 flex items-center">
-            <UCheckbox
-              v-model="form.confidencial"
-              label="Documento Confidencial"
-              description="Restringe la visualización exclusivamente a los cargos remitente y destinatarios."
-            />
-          </div>
-        </div>
+        <UCheckbox
+          v-model="form.confidencial"
+          label="Documento confidencial"
+          description="Restringe la visualización a remitente y destinatarios autorizados."
+        />
       </UForm>
     </template>
 
     <template #footer>
-      <div class="flex items-center justify-end gap-3 w-full">
+      <div class="flex flex-wrap items-center justify-end gap-3 w-full">
         <UButton
           label="Cancelar"
           color="neutral"
           variant="outline"
-          :disabled="saving"
+          :disabled="saving || assigningNumeracion"
           @click="open = false"
+        />
+        <UButton
+          v-if="pendienteNumeracion"
+          label="Asignar CITE y numerar"
+          icon="i-lucide-stamp"
+          color="primary"
+          variant="soft"
+          :loading="assigningNumeracion"
+          :disabled="saving"
+          @click="handleAsignarCiteHr"
         />
         <UButton
           type="submit"
           form="corresp-form"
-          :label="isEditing ? 'Guardar Cambios' : 'Registrar Correspondencia'"
+          :label="isEditing ? 'Guardar cambios' : 'Registrar correspondencia'"
           icon="i-lucide-save"
           color="primary"
           :loading="saving"
+          :disabled="assigningNumeracion"
         />
       </div>
     </template>

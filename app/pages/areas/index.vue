@@ -104,6 +104,22 @@ const columns: TableColumn<Area>[] = [
     },
   },
   {
+    id: 'routing',
+    header: 'Comunicación',
+    cell: ({ row }) => {
+      const count =
+        row.original._count?.area_routing_rules_area_routing_rules_area_origen_idToareas ?? 0
+      if (count === 0) {
+        return h('span', { class: 'text-xs text-muted italic' }, 'Sin lista blanca')
+      }
+      return h(
+        UBadge,
+        { color: 'info', variant: 'subtle', size: 'xs' },
+        () => `${count} área(s)`,
+      )
+    },
+  },
+  {
     accessorKey: 'activo',
     header: 'Estado',
     cell: ({ row }) => {

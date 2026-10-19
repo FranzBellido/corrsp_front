@@ -22,6 +22,12 @@ const saving = ref(false)
 const procesosDisponibles = ref<CodificadorDto[]>([])
 const loadingProcesos = ref(false)
 
+// Catálogo de áreas y lista blanca de comunicación (area_routing_rules)
+const areasCatalogo = ref<CodificadorDto[]>([])
+const loadingAreasCatalogo = ref(false)
+const loadingRouting = ref(false)
+const selectedAreasDestinoIds = ref<string[]>([])
+
 // Esquema de validación con Zod
 const areaSchema = z.object({
   codigo: z
@@ -56,6 +62,14 @@ const selectedProcesosIds = ref<number[]>([])
 
 const isEditing = computed(() => !!props.area?.id)
 
+const areasComunicacionOpciones = computed(() => {
+  const actualId = props.area?.id
+  if (!actualId) {
+    return areasCatalogo.value
+  }
+  return areasCatalogo.value.filter((a) => String(a.id) !== actualId)
+})
+
 // Cargar catálogo de procesos
 const cargarProcesos = async () => {
   loadingProcesos.value = true
@@ -66,6 +80,33 @@ const cargarProcesos = async () => {
     console.error('Error cargando procesos:', error)
   } finally {
     loadingProcesos.value = false
+  }
+}
+
+const cargarAreasCatalogo = async () => {
+  loadingAreasCatalogo.value = true
+  try {
+    const res = await backendService.get<CodificadorDto[]>('comun/codificador/areas')
+    areasCatalogo.value = (res as { data?: CodificadorDto[] })?.data || (res as CodificadorDto[]) || []
+  } catch (error) {
+    console.error('Error cargando áreas:', error)
+    areasCatalogo.value = []
+  } finally {
+    loadingAreasCatalogo.value = false
+  }
+}
+
+const cargarRoutingArea = async (areaId: string) => {
+  loadingRouting.value = true
+  try {
+    const res = await backendService.getById<Area>('areas', areaId)
+    const data = (res as { data?: Area })?.data ?? (res as Area)
+    selectedAreasDestinoIds.value =
+      data.routing_destinos?.map((r) => r.area_destino_id) ?? []
+  } catch {
+    selectedAreasDestinoIds.value = []
+  } finally {
+    loadingRouting.value = false
   }
 }
 
@@ -93,13 +134,24 @@ watch(
         area_comunicacion_id: '',
       }
       selectedProcesosIds.value = []
+      selectedAreasDestinoIds.value = []
     }
   },
   { immediate: true },
 )
 
+watch(open, async (isOpen) => {
+  if (!isOpen) return
+  if (props.area?.id) {
+    await cargarRoutingArea(props.area.id)
+  } else {
+    selectedAreasDestinoIds.value = []
+  }
+})
+
 onMounted(() => {
   cargarProcesos()
+  cargarAreasCatalogo()
 })
 
 const handleToggleProceso = (procId: number) => {
@@ -119,6 +171,24 @@ const handleSelectAllProcesos = () => {
   }
 }
 
+const handleToggleAreaDestino = (areaId: string) => {
+  const index = selectedAreasDestinoIds.value.indexOf(areaId)
+  if (index > -1) {
+    selectedAreasDestinoIds.value.splice(index, 1)
+  } else {
+    selectedAreasDestinoIds.value.push(areaId)
+  }
+}
+
+const handleSelectAllAreasDestino = () => {
+  const opciones = areasComunicacionOpciones.value.map((a) => String(a.id))
+  if (selectedAreasDestinoIds.value.length === opciones.length) {
+    selectedAreasDestinoIds.value = []
+  } else {
+    selectedAreasDestinoIds.value = [...opciones]
+  }
+}
+
 const handleSave = async (event?: FormSubmitEvent<AreaSchemaType>) => {
   const data = event?.data || form.value
 
@@ -130,8 +200,8 @@ const handleSave = async (event?: FormSubmitEvent<AreaSchemaType>) => {
       activo: data.activo,
       id_anterior: data.id_anterior !== undefined ? Number(data.id_anterior) : undefined,
       area_padre_id: data.area_padre_id || undefined,
-      area_comunicacion_id: data.area_comunicacion_id || undefined,
       procesos_ids: selectedProcesosIds.value,
+      areas_destino_ids: [...selectedAreasDestinoIds.value],
     }
 
     if (isEditing.value && props.area?.id) {
@@ -179,7 +249,7 @@ const handleSave = async (event?: FormSubmitEvent<AreaSchemaType>) => {
     :title="isEditing ? 'Editar Área / Unidad' : 'Nueva Área / Unidad'"
     :description="isEditing ? 'Modifique los datos organizacionales y los procesos asignados.' : 'Complete los campos para registrar una nueva unidad organizacional y sus procesos.'"
     :ui="{
-      content: 'sm:max-w-2xl',
+      content: 'sm:max-w-3xl',
     }"
   >
     <template #body>
@@ -238,18 +308,6 @@ const handleSave = async (event?: FormSubmitEvent<AreaSchemaType>) => {
             />
           </UFormField>
 
-          <UFormField
-            label="Área de Comunicación"
-            name="area_comunicacion_id"
-            help="Área vía para correspondencia oficial (opcional)."
-          >
-            <CodificadorSelect
-              v-model="form.area_comunicacion_id"
-              endpoint="comun/codificador/areas"
-              placeholder="Seleccionar área de enlace..."
-              class="w-full"
-            />
-          </UFormField>
         </div>
 
         <!-- ID Anterior y Estado Activo -->
@@ -343,6 +401,87 @@ const handleSave = async (event?: FormSubmitEvent<AreaSchemaType>) => {
 
           <div v-else class="text-xs text-neutral-400 italic py-2">
             No se encontraron procesos registrados en el catálogo.
+          </div>
+        </div>
+
+        <!-- Lista blanca de comunicación (area_routing_rules) -->
+        <div class="border border-default rounded-xl p-4 bg-elevated/30 space-y-3">
+          <div class="flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2 min-w-0">
+              <UIcon name="i-lucide-shield-check" class="size-4 text-primary shrink-0" />
+              <span class="text-sm font-semibold text-highlighted">
+                Lista blanca de comunicación
+              </span>
+              <UBadge
+                size="xs"
+                color="primary"
+                variant="subtle"
+                class="rounded-full font-bold shrink-0"
+              >
+                {{ selectedAreasDestinoIds.length }} área(s)
+              </UBadge>
+            </div>
+
+            <UButton
+              v-if="areasComunicacionOpciones.length > 0"
+              size="xs"
+              color="neutral"
+              variant="ghost"
+              :label="
+                selectedAreasDestinoIds.length === areasComunicacionOpciones.length
+                  ? 'Quitar todas'
+                  : 'Seleccionar todas'
+              "
+              @click="handleSelectAllAreasDestino"
+            />
+          </div>
+
+          <p class="text-xs text-muted">
+            Áreas destino con las que esta unidad (área origen) puede comunicarse o derivar correspondencia.
+            Si no selecciona ninguna, no se registran reglas en
+            <span class="font-mono text-[11px]">area_routing_rules</span>.
+          </p>
+
+          <div v-if="loadingAreasCatalogo || loadingRouting" class="flex gap-2">
+            <USkeleton class="h-8 w-32 rounded-lg" />
+            <USkeleton class="h-8 w-40 rounded-lg" />
+          </div>
+
+          <div
+            v-else-if="areasComunicacionOpciones.length > 0"
+            class="flex flex-wrap gap-2 max-h-48 overflow-y-auto pr-1"
+          >
+            <button
+              v-for="areaItem in areasComunicacionOpciones"
+              :key="areaItem.id"
+              type="button"
+              class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 border cursor-pointer select-none"
+              :class="[
+                selectedAreasDestinoIds.includes(String(areaItem.id))
+                  ? 'bg-primary/10 border-primary text-primary shadow-xs'
+                  : 'bg-default border-default text-muted hover:border-muted',
+              ]"
+              @click="handleToggleAreaDestino(String(areaItem.id))"
+            >
+              <UIcon
+                :name="
+                  selectedAreasDestinoIds.includes(String(areaItem.id))
+                    ? 'i-lucide-check-circle-2'
+                    : 'i-lucide-circle'
+                "
+                :class="
+                  selectedAreasDestinoIds.includes(String(areaItem.id))
+                    ? 'text-primary size-3.5'
+                    : 'text-dimmed size-3.5'
+                "
+              />
+              <span class="font-mono font-bold">[{{ areaItem.codigo || '—' }}]</span>
+              <span class="truncate max-w-[200px]">{{ areaItem.nombre }}</span>
+            </button>
+          </div>
+
+          <div v-else class="text-xs text-muted italic py-2">
+            No hay otras áreas disponibles en el catálogo.
           </div>
         </div>
       </UForm>

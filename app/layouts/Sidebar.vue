@@ -43,11 +43,6 @@ const defaultNavItems: NavItem[] = [
         icon: 'i-lucide-file-edit'
       },
       {
-        label: 'Compartidos',
-        to: '/bandejas/compartidos',
-        icon: 'i-lucide-share-2'
-      },
-      {
         label: 'Ingreso',
         to: '/bandejas/ingreso',
         icon: 'i-lucide-arrow-down-left'
@@ -57,11 +52,19 @@ const defaultNavItems: NavItem[] = [
         to: '/bandejas/salida',
         icon: 'i-lucide-arrow-up-right'
       },
+      
       {
         label: 'Con copia',
         to: '/bandejas/con-copia',
         icon: 'i-lucide-copy'
       },
+      {
+        label: 'Compartidos',
+        to: '/bandejas/compartidos',
+        icon: 'i-lucide-share-2'
+      },
+    
+   
       {
         label: 'Archivo',
         to: '/bandejas/archivo',
@@ -69,25 +72,22 @@ const defaultNavItems: NavItem[] = [
       }
     ]
   },
-  {
-    label: 'Documentos',
-    icon: 'i-lucide-file-text',
-    to: '/documents'
-  },
+ 
   {
     label: 'Administración',
     icon: 'i-lucide-folder-cog',
     children: [
+    {
+        label: 'Áreas / Unidades',
+        to: '/areas',
+        icon: 'i-lucide-building-2'
+      },
       {
         label: 'Usuarios',
         to: '/usuarios',
         icon: 'i-lucide-users'
       },
-      {
-        label: 'Áreas / Unidades',
-        to: '/areas',
-        icon: 'i-lucide-building-2'
-      },
+     
       {
         label: 'Cargos',
         to: '/cargos',
@@ -148,7 +148,7 @@ const isItemActive = (item: NavItem) => {
     <!-- Brand Header -->
     <div class="p-4 shrink-0 border-b border-neutral-200/80 dark:border-neutral-800/80 bg-white/60 dark:bg-neutral-900/60 backdrop-blur-md">
       
-      <img src="/logo_afcoop.png" alt="Logo AfCoop"/>
+      <img src="/logo_afcoop.png" alt="Logo AfCoop" style="width: 220px; height: auto;"/>
      
     </div>
 

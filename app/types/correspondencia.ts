@@ -158,11 +158,18 @@ export interface CreateCorrespondenciaPayload {
   remitente_id?: string;
   destinatario_id: string;
   es_nueva_hr?: boolean;
+  /** Si es false, no se genera HR ni correlativo/CITE al crear. */
+  asignar_cite_hr?: boolean;
   nro_hr?: number;
   hr_id?: string;
   cite_origen?: string;
   cooperativa?: CorrespCooperativaPayload;
   entidades?: CorrespEntidadPayload;
+}
+
+export interface AsignarCiteHrPayload {
+  es_nueva_hr: boolean;
+  nro_hr?: number;
 }
 
 export interface UpdateCorrespondenciaPayload {

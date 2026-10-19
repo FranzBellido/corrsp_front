@@ -1,52 +1,111 @@
 <script setup lang="ts">
 import { formatTimeAgo } from '@vueuse/core'
-import type { Notification } from '~/types'
 
-const { isNotificationsSlideoverOpen } = useDashboard()
+const {
+  items,
+  unreadCount,
+  markAllRead,
+  markRead,
+  clear,
+  rutaNotificacion,
+  isNotificationsSlideoverOpen,
+  connected,
+  ensureSubscribed,
+  cargando,
+  cargarDesdeApi,
+} = useNotifications()
 
-const { data: notifications } = await useFetch<Notification[]>('/api/notifications')
+onMounted(() => {
+  ensureSubscribed()
+})
+
+watch(isNotificationsSlideoverOpen, (open) => {
+  if (open && unreadCount.value > 0) {
+    markAllRead()
+  }
+})
+
+const iconoTipo = (tipo: string) => {
+  if (tipo === 'derivacion') return 'i-lucide-send'
+  if (tipo === 'copia') return 'i-lucide-copy'
+  return 'i-lucide-share-2'
+}
 </script>
 
 <template>
   <USlideover
     v-model:open="isNotificationsSlideoverOpen"
-    title="Notifications"
+    title="Notificaciones"
+    description="Derivaciones, copias y documentos compartidos en tiempo real."
   >
     <template #body>
-      <NuxtLink
-        v-for="notification in notifications"
-        :key="notification.id"
-        :to="`/inbox?id=${notification.id}`"
-        class="px-3 py-2.5 rounded-md hover:bg-elevated/50 flex items-center gap-3 relative -mx-3 first:-mt-3 last:-mb-3"
-      >
-        <UChip
-          color="error"
-          :show="!!notification.unread"
-          inset
-        >
-          <UAvatar
-            v-bind="notification.sender.avatar"
-            :alt="notification.sender.name"
-            size="md"
+      <div class="flex items-center justify-between gap-2 mb-4">
+        <div class="flex items-center gap-2 text-xs text-muted">
+          <span
+            class="size-2 rounded-full"
+            :class="connected ? 'bg-success' : 'bg-warning'"
           />
-        </UChip>
-
-        <div class="text-sm flex-1">
-          <p class="flex items-center justify-between">
-            <span class="text-highlighted font-medium">{{ notification.sender.name }}</span>
-
-            <time
-              :datetime="notification.date"
-              class="text-muted text-xs"
-              v-text="formatTimeAgo(new Date(notification.date))"
-            />
-          </p>
-
-          <p class="text-dimmed">
-            {{ notification.body }}
-          </p>
+          {{ connected ? 'Conectado' : 'Reconectando…' }}
         </div>
-      </NuxtLink>
+        <div class="flex gap-1">
+          <UButton
+            icon="i-lucide-refresh-cw"
+            size="xs"
+            color="neutral"
+            variant="ghost"
+            :loading="cargando"
+            title="Actualizar"
+            @click="cargarDesdeApi"
+          />
+          <UButton
+            v-if="items.length"
+            label="Limpiar"
+            size="xs"
+            color="neutral"
+            variant="ghost"
+            @click="clear"
+          />
+        </div>
+      </div>
+
+      <div v-if="items.length === 0" class="py-12 text-center text-sm text-muted">
+        <UIcon name="i-lucide-bell-off" class="size-10 text-dimmed mx-auto mb-2" />
+        No hay notificaciones recientes.
+      </div>
+
+      <div v-else class="space-y-1">
+        <NuxtLink
+          v-for="notification in items"
+          :key="notification.id"
+          :to="rutaNotificacion(notification)"
+          class="px-3 py-2.5 rounded-md hover:bg-elevated/50 flex items-start gap-3 relative -mx-1"
+          @click="markRead(notification.id); isNotificationsSlideoverOpen = false"
+        >
+          <UChip color="error" :show="!notification.leida" inset>
+            <div class="size-9 rounded-full bg-primary/10 flex items-center justify-center">
+              <UIcon :name="iconoTipo(notification.tipo)" class="size-4 text-primary" />
+            </div>
+          </UChip>
+
+          <div class="text-sm flex-1 min-w-0">
+            <p class="flex items-center justify-between gap-2">
+              <span class="text-highlighted font-medium truncate">{{ notification.titulo }}</span>
+              <time
+                :datetime="notification.created_at"
+                class="text-muted text-xs shrink-0"
+              >
+                {{ formatTimeAgo(new Date(notification.created_at)) }}
+              </time>
+            </p>
+            <p class="text-dimmed line-clamp-2 mt-0.5">
+              {{ notification.mensaje }}
+            </p>
+            <p v-if="notification.remitente" class="text-[11px] text-muted mt-1 truncate">
+              De: {{ notification.remitente }}
+            </p>
+          </div>
+        </NuxtLink>
+      </div>
     </template>
   </USlideover>
 </template>
