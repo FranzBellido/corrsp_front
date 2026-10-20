@@ -2,9 +2,11 @@ services:
 
   # ==========================================
   # Frontend - Nuxt / Nitro (producción)
-  # Copie .env.example → .env en el servidor.
-  # Con ssr: false las NUXT_PUBLIC_* se incluyen en el build:
-  # tras cambiar .env ejecute: docker compose build --no-cache && docker compose up -d
+  #
+  # Portainer / Docker Stack: no usa .env en disco; defina las variables
+  # en "Environment variables" del stack (mismos nombres que .env.example).
+  # Con ssr: false las NUXT_PUBLIC_* deben estar en el BUILD (build.args).
+  # Tras cambiar URLs: rebuild de la imagen.
   # ==========================================
   frontend:
     build:
@@ -23,9 +25,14 @@ services:
     restart: unless-stopped
     ports:
       - "${PORT:-3000}:${PORT:-3000}"
-    env_file:
-      - .env
     environment:
       NODE_ENV: production
       HOST: 0.0.0.0
       PORT: ${PORT:-3000}
+      NUXT_PUBLIC_KEYCLOAK_URL: ${NUXT_PUBLIC_KEYCLOAK_URL}
+      NUXT_PUBLIC_KEYCLOAK_REALM: ${NUXT_PUBLIC_KEYCLOAK_REALM}
+      NUXT_PUBLIC_KEYCLOAK_CLIENT_ID: ${NUXT_PUBLIC_KEYCLOAK_CLIENT_ID}
+      NUXT_PUBLIC_API_BASE_URL: ${NUXT_PUBLIC_API_BASE_URL}
+      NUXT_PUBLIC_API_PUBLIC_URL: ${NUXT_PUBLIC_API_PUBLIC_URL}
+      NUXT_PUBLIC_ONLY_OFFICE_TOKEN: ${NUXT_PUBLIC_ONLY_OFFICE_TOKEN}
+      NUXT_PUBLIC_ONLY_OFFICE_SERVER: ${NUXT_PUBLIC_ONLY_OFFICE_SERVER}
