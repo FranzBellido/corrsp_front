@@ -14,6 +14,7 @@ export default defineNuxtPlugin(async (nuxtApp) => {
       onLoad: 'login-required',
       checkLoginIframe: false,
       responseMode: 'query',
+      pkceMethod: false,
       redirectUri: window.location.origin + window.location.pathname
     })
 
