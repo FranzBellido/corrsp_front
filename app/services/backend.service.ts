@@ -36,7 +36,10 @@ export const getApi = (): $Fetch => {
       if ($keycloak && ($keycloak as any).authenticated) {
         try {
           await ($keycloak as any).updateToken(30);
-          headers.set("Authorization", `Bearer ${($keycloak as any).token}`);
+          const token = ($keycloak as any).token as string | undefined;
+          if (token) {
+            headers.set("Authorization", `Bearer ${token}`);
+          }
         } catch {
           ($keycloak as any).logout();
         }
