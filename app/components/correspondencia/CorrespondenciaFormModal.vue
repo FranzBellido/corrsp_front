@@ -13,6 +13,8 @@ import { correspondenciaSinNumerar, correspondenciaTieneCite } from '~/utils/cor
 
 const props = defineProps<{
   correspondencia?: Correspondencia | null
+  /** Bandeja ingreso: documento recibido para responder en la misma HR */
+  correspondenciaOrigenRespuesta?: Correspondencia | null
 }>()
 
 const open = defineModel<boolean>('open', { default: false })
@@ -216,6 +218,9 @@ const buildEntidadesPayload = (): CorrespEntidadPayload | undefined => {
 }
 
 const isEditing = computed(() => !!props.correspondencia?.id)
+const esModoRespuesta = computed(
+  () => !isEditing.value && Boolean(props.correspondenciaOrigenRespuesta?.id),
+)
 
 const pendienteNumeracion = computed(() => {
   const c = props.correspondencia
@@ -308,16 +313,40 @@ const cargarFormularioEdicion = (val: Correspondencia) => {
   asignarCiteHr.value = !(correspondenciaSinNumerar(val) && !correspondenciaTieneCite(val))
 }
 
+const prefillDesdeOrigenRespuesta = (origen: Correspondencia) => {
+  const hr = origen.hoja_ruta
+  if (!hr?.numero) return
+
+  tipoHr.value = 'existente'
+  nroHrInput.value = hr.numero
+  hrEncontrada.value = hr
+  errorHr.value = null
+  asignarCiteHr.value = true
+
+  const refOrigen = origen.referencia?.trim() || 'documento recibido'
+  const sugerida = `Respuesta a: ${refOrigen}`
+  form.value.referencia = sugerida.length > 1000 ? sugerida.slice(0, 1000) : sugerida
+}
+
 const sincronizarFormularioConProps = () => {
   const val = props.correspondencia
   if (val?.id) {
     cargarFormularioEdicion(val)
-  } else {
-    resetFormularioNueva()
+    return
+  }
+
+  resetFormularioNueva()
+  const origen = props.correspondenciaOrigenRespuesta
+  if (origen?.id) {
+    prefillDesdeOrigenRespuesta(origen)
   }
 }
 
-watch(() => props.correspondencia, sincronizarFormularioConProps, { immediate: true })
+watch(
+  () => [props.correspondencia, props.correspondenciaOrigenRespuesta] as const,
+  sincronizarFormularioConProps,
+  { immediate: true },
+)
 
 // Al abrir el modal, reiniciar siempre (evita datos previos cuando correspondencia sigue null)
 watch(open, (isOpen) => {
@@ -584,8 +613,8 @@ const handleAsignarCiteHr = async () => {
 <template>
   <UModal
     v-model:open="open"
-    :title="isEditing ? 'Editar Correspondencia' : 'Nueva Correspondencia'"
-    :description="isEditing ? 'Modifique los campos correspondientes del registro.' : 'Complete la información para generar o asociar la correspondencia.'"
+    :title="isEditing ? 'Editar Correspondencia' : (esModoRespuesta ? 'Asociar / responder correspondencia' : 'Nueva Correspondencia')"
+    :description="isEditing ? 'Modifique los campos correspondientes del registro.' : (esModoRespuesta ? 'Registre la respuesta institucional vinculada a la misma Hoja de Ruta del documento recibido.' : 'Complete la información para generar o asociar la correspondencia.')"
     :ui="{
       content: requiereCooperativa || requiereEntidad ? 'sm:max-w-3xl' : 'sm:max-w-2xl',
     }"
@@ -632,7 +661,21 @@ const handleAsignarCiteHr = async () => {
         </UFormField>
 
         <div
-          v-if="!isEditing"
+          v-if="esModoRespuesta && hrEncontrada"
+          class="p-3 rounded-md border border-primary/30 bg-primary/5 text-xs space-y-1"
+        >
+          <p class="font-semibold text-highlighted flex items-center gap-1.5">
+            <UIcon name="i-lucide-link" class="size-4 text-primary" />
+            Hoja de Ruta del trámite entrante
+          </p>
+          <p class="text-muted">
+            HR {{ hrEncontrada.numero }}/{{ hrEncontrada.anio }}
+            <span v-if="hrEncontrada.referencia"> — {{ hrEncontrada.referencia }}</span>
+          </p>
+        </div>
+
+        <div
+          v-if="!isEditing && !esModoRespuesta"
           class="p-3 rounded-md border border-default bg-elevated/30"
         >
           <UCheckbox
@@ -656,12 +699,13 @@ const handleAsignarCiteHr = async () => {
         </div>
 
         <CorrespondenciaHojaRutaFields
-          v-if="mostrarHrAlCrear || pendienteNumeracion"
+          v-if="!esModoRespuesta && (mostrarHrAlCrear || pendienteNumeracion)"
           v-model:tipo-hr="tipoHr"
           v-model:nro-hr-input="nroHrInput"
           v-model:hr-encontrada="hrEncontrada"
           v-model:error-hr="errorHr"
           :verificando-hr="verificandoHr"
+          :fijar-hr-existente="esModoRespuesta"
           @verificar="buscarHojaRutaExistente"
         />
 

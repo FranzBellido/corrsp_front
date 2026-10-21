@@ -1,29 +1,23 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, h } from 'vue'
-import type { DropdownMenuItem, TableColumn } from '@nuxt/ui'
+import { ref, computed, onMounted, watch, h, resolveComponent } from 'vue'
+import type { TableColumn } from '@nuxt/ui'
 import type { Correspondencia, FiltroCorrespondencia, RespuestaBusquedaCorrespondencia } from '~/types/correspondencia'
 import { backendService } from '~/services/backend.service'
 import CorrespondenciaFormModal from '~/components/correspondencia/CorrespondenciaFormModal.vue'
 import CorrespondenciaCompartirModal from '~/components/correspondencia/CorrespondenciaCompartirModal.vue'
-import DerivacionFormModal from '~/components/correspondencia/DerivacionFormModal.vue'
+import DerivacionFormModal from '~/components/derivaciones/DerivacionFormModal.vue'
 import CorrespondenciaDetalleModal from '~/components/correspondencia/CorrespondenciaDetalleModal.vue'
 import CorrespondenciaAdjuntosModal from '~/components/correspondencia/CorrespondenciaAdjuntosModal.vue'
+import CorAcciones from '~/components/correspondencia/CorAcciones.vue'
 import CorTable from '~/components/CorTable.vue'
+import BandejaViewHeader from '~/components/BandejaViewHeader.vue'
 import {
   correspondenciaPuedeDerivar,
   correspondenciaSinNumerar,
-  correspondenciaTieneCite,
   etiquetaNumeroCorrespondencia,
   mensajeNoDerivarCorrespondencia,
-  observacionesPendientesCorrespondencia,
-  textoTooltipObservacionesCorrespondencia,
 } from '~/utils/correspondencia'
-import {
-  enriquecerItemMenuAcciones,
-  CLASE_CONTENEDOR_ACCIONES_CELDA,
-  hMenuAccionesTabla,
-  META_COLUMNA_ACCIONES_TABLA,
-} from '~/utils/acciones-menu'
+import { META_COLUMNA_ACCIONES_TABLA } from '~/utils/acciones-menu'
 
 const props = withDefaults(
   defineProps<{
@@ -43,8 +37,6 @@ const props = withDefaults(
 const UBadge = resolveComponent('UBadge')
 const UButton = resolveComponent('UButton')
 const UIcon = resolveComponent('UIcon')
-const UDropdownMenu = resolveComponent('UDropdownMenu')
-const UTooltip = resolveComponent('UTooltip')
 
 const toast = useToast()
 const { profile, cargoActivo, resolveCargoOrigenId } = useProfile()
@@ -59,27 +51,30 @@ const pageSize = ref(10)
 
 // Filtros de búsqueda
 const searchCriterio = ref('')
+const compartidosAlcance = ref<'todos' | 'recibidos' | 'enviados'>('todos')
+const compartidosAlcanceOptions = [
+  { label: 'Todos', value: 'todos' },
+  { label: 'Me compartieron', value: 'recibidos' },
+  { label: 'Compartí yo', value: 'enviados' },
+] as const
 
-// Modal de Creación / Edición
+// Modales y Estados de Operación
 const isModalOpen = ref(false)
 const correspToEdit = ref<Correspondencia | null>(null)
 
-// Modal de Compartir
 const isCompartirOpen = ref(false)
 const correspToCompartir = ref<Correspondencia | null>(null)
 
-// Modal de Derivación
 const isDerivacionOpen = ref(false)
 const correspToDerivar = ref<Correspondencia | null>(null)
 
-// Modal de Detalle
 const isDetalleOpen = ref(false)
 const detalleDocumentoId = ref<string | null>(null)
 
-// Modal de Eliminación
 const isDeleteOpen = ref(false)
 const correspToDelete = ref<Correspondencia | null>(null)
 const deleting = ref(false)
+
 const generandoId = ref<string | null>(null)
 const abriendoEditorId = ref<string | null>(null)
 
@@ -96,8 +91,22 @@ const isAdjuntosOpen = ref(false)
 const correspAdjuntos = ref<Correspondencia | null>(null)
 const adjuntosSoloLectura = ref(true)
 
-// Configuración de columnas
-const columns = computed<TableColumn<Correspondencia>[]>(() => [
+// Configuración de columnas utilizando el componente encapsulado CorAcciones
+const columns = computed<TableColumn<Correspondencia>[]>(() => {
+  const cols: TableColumn<Correspondencia>[] = [
+  {
+    accessorKey: 'hoja_ruta',
+    header: 'Hoja de Ruta',
+    cell: ({ row }) => {
+      const hr = row.original.hoja_ruta
+      if (!hr) {
+        return h('span', { class: 'text-xs text-gray-400 italic' }, 'Sin HR')
+      }
+      return h('div', { class: 'flex items-center gap-1.5' }, [
+        h(UBadge, { color: 'neutral', variant: 'subtle', size: 'xs' }, () => `HR ${hr.numero}/${hr.anio}`),
+      ])
+    },
+  },
   {
     accessorKey: 'nro',
     header: 'Nº / Correlativo',
@@ -111,19 +120,6 @@ const columns = computed<TableColumn<Correspondencia>[]>(() => [
           ],
         }, etiquetaNumeroCorrespondencia(c)),
         c.cite_origen ? h('span', { class: 'text-[11px] text-gray-400 font-mono' }, c.cite_origen) : null,
-      ])
-    },
-  },
-  {
-    accessorKey: 'hoja_ruta',
-    header: 'Hoja de Ruta',
-    cell: ({ row }) => {
-      const hr = row.original.hoja_ruta
-      if (!hr) {
-        return h('span', { class: 'text-xs text-gray-400 italic' }, 'Sin HR')
-      }
-      return h('div', { class: 'flex items-center gap-1.5' }, [
-        h(UBadge, { color: 'neutral', variant: 'subtle', size: 'xs' }, () => `HR ${hr.numero}/${hr.anio}`),
       ])
     },
   },
@@ -163,19 +159,49 @@ const columns = computed<TableColumn<Correspondencia>[]>(() => [
       )
     },
   },
-  {
+  ]
+
+  if (props.modo === 'compartidos') {
+    cols.push({
+      id: 'compartido_contexto',
+      header: 'Compartición',
+      cell: ({ row }) => {
+        const esEnviado = row.original.compartido_contexto === 'enviado'
+        const nCompartidos =
+          row.original._count?.corresp_usuario ?? row.original.corresp_usuario?.length ?? 0
+        return h('div', { class: 'flex flex-col gap-1' }, [
+          h(
+            UBadge,
+            {
+              color: esEnviado ? 'primary' : 'info',
+              variant: 'subtle',
+              size: 'xs',
+              icon: esEnviado ? 'i-lucide-share-2' : 'i-lucide-inbox',
+            },
+            () => (esEnviado ? 'Compartí yo' : 'Me compartieron'),
+          ),
+          esEnviado && nCompartidos > 0
+            ? h('span', { class: 'text-[10px] text-muted' }, `${nCompartidos} usuario${nCompartidos === 1 ? '' : 's'}`)
+            : null,
+        ])
+      },
+    })
+  }
+
+  cols.push({
     accessorKey: 'remitente_id',
-    header: props.modo === 'compartidos' ? 'Propietario / Permiso' : 'Remitente / Área',
+    header: 'Remitente / Área',
     cell: ({ row }) => {
       const c = row.original
       const esCompartidos = props.modo === 'compartidos'
       const soloLectura = c.acceso_compartido?.solo_lectura
+      const esRecibido = c.compartido_contexto !== 'enviado'
 
       return h('div', { class: 'flex flex-col text-xs gap-0.5' }, [
         h('span', { class: 'font-medium text-gray-800 dark:text-gray-200 truncate' }, c.cargos?.nombre || 'Sin cargo'),
         h('span', { class: 'text-[11px] text-gray-400 truncate' }, c.areas?.nombre || 'Sin área'),
-        esCompartidos
-          ? h('div', { class: 'flex items-center gap-1 mt-0.5' }, [
+        esCompartidos && esRecibido
+          ? h('div', { class: 'flex flex-col items-start gap-1 mt-0.5' }, [
               h(
                 UBadge,
                 {
@@ -183,52 +209,43 @@ const columns = computed<TableColumn<Correspondencia>[]>(() => [
                   variant: 'subtle',
                   size: 'xs',
                 },
-                () => (soloLectura ? 'Solo Lectura' : 'Puede Editar contenido del documento'),
+                () => (soloLectura ? 'Solo lectura' : 'Puede editar documento'),
               ),
               c.acceso_compartido?.comentario
-                ? h('span', { class: 'text-[10px] text-gray-400 italic truncate max-w-[120px]', title: c.acceso_compartido.comentario }, `"${c.acceso_compartido.comentario}"`)
+                ? h('span', { class: 'text-[10px] text-gray-400 italic truncate max-w-[160px]', title: c.acceso_compartido.comentario }, `"${c.acceso_compartido.comentario}"`)
                 : null,
             ])
           : null,
       ])
     },
-  },
-  {
+  })
+
+  cols.push({
     id: 'acciones',
     header: '',
     meta: META_COLUMNA_ACCIONES_TABLA,
     cell: ({ row }) => {
       const c = row.original
-      const tienePlantilla = Boolean(c.proceso?.plantilla?.trim())
-      const acciones = []
 
-      const menuItems =
-        props.modo === 'borrador'
-          ? buildBorradorAccionesMenu(c, tienePlantilla)
-          : props.modo === 'compartidos'
-            ? buildCompartidosAccionesMenu(c)
-            : buildArchivoAccionesMenu(c)
-
-      const alertaPendientes = hIconoAlertaPendientes(c)
-
-      acciones.push(
-        h(UButton, {
-          icon: 'i-lucide-eye',
-          color: 'neutral',
-          variant: 'ghost',
-          size: 'xs',
-          class: 'shrink-0',
-          title: 'Ver detalle',
-          onClick: () => handleVerDetalle(c),
-        }),
-        ...(alertaPendientes ? [alertaPendientes] : []),
-        hMenuAccionesTabla(UDropdownMenu, UButton, menuItems),
-      )
-
-      return h('div', { class: CLASE_CONTENEDOR_ACCIONES_CELDA }, acciones)
+      return h(CorAcciones, {
+        correspondencia: c,
+        modo: props.modo,
+        generandoId: generandoId.value,
+        abriendoEditorId: abriendoEditorId.value,
+        onVerDetalle: (item) => handleVerDetalle(item),
+        onEditarDoc: (item, readOnly) => void handleEditarDocumentoOnlyOffice(item, readOnly),
+        onGenerarDoc: (item) => void handleGenerarDocumento(item),
+        onAdjuntos: (item) => handleAdjuntos(item, false),
+        onDerivar: (item) => handleDerivar(item),
+        onCompartir: (item) => handleCompartir(item),
+        onEditarInfo: (item) => handleEditar(item),
+        onEliminar: (item) => handleConfirmarEliminar(item),
+      })
     },
-  },
-])
+  })
+
+  return cols
+})
 
 // Cargar correspondencias
 const fetchCorrespondencias = async () => {
@@ -247,10 +264,11 @@ const fetchCorrespondencias = async () => {
       }
       filtro.sin_derivaciones = true
     } else if (props.modo === 'compartidos') {
-      // Compartidos conmigo: documentos compartidos vía corresp_usuario
       filtro.solo_compartidos = true
+      if (compartidosAlcance.value !== 'todos') {
+        filtro.compartidos_alcance = compartidosAlcance.value
+      }
     } else if (props.modo === 'archivo') {
-      // Archivo: área_origen = área_activa_id de session storage (o profile)
       const areaId =
         (import.meta.client ? sessionStorage.getItem('area_activa_id') : null) ||
         profile.value?.area_activa_id
@@ -260,7 +278,6 @@ const fetchCorrespondencias = async () => {
     }
 
     const response = await backendService.post<RespuestaBusquedaCorrespondencia>('correspondencia/buscar', filtro)
-
     const resData = ((response as any)?.data || response) as RespuestaBusquedaCorrespondencia
     if (resData) {
       items.value = resData.items || []
@@ -280,15 +297,20 @@ const fetchCorrespondencias = async () => {
   }
 }
 
-const handleBuscar = () => {
+watch(compartidosAlcance, () => {
+  if (props.modo !== 'compartidos') return
   page.value = 1
   fetchCorrespondencias()
-}
+})
 
-const handleLimpiarFiltros = () => {
-  searchCriterio.value = ''
-  page.value = 1
-  fetchCorrespondencias()
+let debounceTimer: ReturnType<typeof setTimeout> | null = null
+
+const onSearchInput = () => {
+  if (debounceTimer) clearTimeout(debounceTimer)
+  debounceTimer = setTimeout(() => {
+    page.value = 1
+    fetchCorrespondencias()
+  }, 350)
 }
 
 const handleNuevo = () => {
@@ -345,9 +367,6 @@ const handleConfirmarEliminar = (corresp: Correspondencia) => {
 const obtenerRutaDocumento = (c: Correspondencia): string =>
   (c.url_documento || c.contenido)?.trim() || ''
 
-const tieneDocumentoGenerado = (c: Correspondencia): boolean =>
-  Boolean(obtenerRutaDocumento(c))
-
 const buildEditorKey = (correspId: string) =>
   `c${correspId.replace(/-/g, '')}_${Date.now()}`
 
@@ -374,7 +393,6 @@ const abrirEditorOnlyOffice = async (
     })
 
     editorKey.value = response.key || key
-    // Preferir URLs del backend (PUBLIC_DOCS_BASE_URL), accesibles desde OnlyOffice DS
     editorUrl.value =
       response.documentUrl ||
       `${apiPublicUrl}/documents/file/${encodeURIComponent(response.fileName)}`
@@ -390,9 +408,7 @@ const abrirEditorOnlyOffice = async (
 }
 
 const handleGenerarDocumento = async (corresp: Correspondencia) => {
-  if (!corresp.id) {
-    return
-  }
+  if (!corresp.id) return
 
   if (!corresp.proceso?.plantilla?.trim()) {
     toast.add({
@@ -429,25 +445,12 @@ const handleGenerarDocumento = async (corresp: Correspondencia) => {
   } catch (error: any) {
     toast.add({
       title: 'No se pudo generar',
-      description:
-        error?.data?.message ||
-        (Array.isArray(error?.data?.message) ? error.data.message.join(', ') : null) ||
-        error?.message ||
-        'Error al generar el documento desde la plantilla.',
+      description: error?.data?.message || error?.message || 'Error al generar el documento desde la plantilla.',
       color: 'error',
       icon: 'i-lucide-alert-circle',
     })
   } finally {
     generandoId.value = null
-  }
-}
-
-/** Borrador: genera desde plantilla si no hay doc; si ya existe, abre OnlyOffice para editar. */
-const handleDocumentoOnlyOffice = async (corresp: Correspondencia) => {
-  if (tieneDocumentoGenerado(corresp)) {
-    await handleEditarDocumentoOnlyOffice(corresp, false)
-  } else {
-    await handleGenerarDocumento(corresp)
   }
 }
 
@@ -471,190 +474,11 @@ const handleEditarDocumentoOnlyOffice = async (
   } catch (error: any) {
     toast.add({
       title: 'No se pudo abrir el editor',
-      description:
-        error?.data?.message ||
-        error?.message ||
-        'Error al preparar el documento.',
+      description: error?.data?.message || error?.message || 'Error al preparar el documento.',
       color: 'error',
       icon: 'i-lucide-alert-circle',
     })
   }
-}
-
-const hIconoAlertaPendientes = (c: Correspondencia) => {
-  if (props.modo !== 'borrador') return null
-  const observaciones = observacionesPendientesCorrespondencia(c)
-  if (!observaciones.length) return null
-
-  return h(
-    UTooltip,
-    {
-      text: textoTooltipObservacionesCorrespondencia(observaciones),
-      content: { side: 'left', align: 'center' },
-    },
-    {
-      default: () =>
-        h(
-          'span',
-          {
-            class: 'inline-flex size-7 items-center justify-center shrink-0',
-            'aria-label': 'Pendientes antes de derivar',
-          },
-          [
-            h(UIcon, {
-              name: 'i-lucide-triangle-alert',
-              class: 'size-4 text-warning',
-            }),
-          ],
-        ),
-    },
-  )
-}
-
-const buildCompartidosAccionesMenu = (c: Correspondencia): DropdownMenuItem[] => {
-  const tieneDocumento = tieneDocumentoGenerado(c)
-  const esSoloLectura = c.acceso_compartido?.solo_lectura ?? false
-  const busyEditor = abriendoEditorId.value === c.id
-
-  const children: DropdownMenuItem[] = []
-
-  if (tieneDocumento) {
-    children.push(
-      enriquecerItemMenuAcciones(
-        {
-          label: busyEditor
-            ? 'Abriendo documento…'
-            : esSoloLectura
-              ? 'Ver contenido del documento (solo lectura)'
-              : 'Editar contenido del documento',
-          icon: esSoloLectura ? 'i-lucide-file-text' : 'i-lucide-file-pen-line',
-          disabled: busyEditor,
-          onSelect: () => {
-            void handleEditarDocumentoOnlyOffice(c, esSoloLectura)
-          },
-        },
-        busyEditor ? 'Espere a que termine de abrirse el documento.' : undefined,
-      ),
-    )
-  }
-
-  return children
-}
-
-const buildArchivoAccionesMenu = (c: Correspondencia): DropdownMenuItem[] => {
-  const children: DropdownMenuItem[] = [
-    enriquecerItemMenuAcciones({
-      label: 'Editar',
-      icon: 'i-lucide-pencil',
-      onSelect: () => {
-        handleEditar(c)
-      },
-    }),
-  ]
-
-  if (!correspondenciaTieneCite(c)) {
-    children.push(
-      enriquecerItemMenuAcciones({
-        label: 'Eliminar',
-        icon: 'i-lucide-trash-2',
-        class: 'text-error',
-        onSelect: () => {
-          handleConfirmarEliminar(c)
-        },
-      }),
-    )
-  }
-
-  return children
-}
-
-const buildBorradorAccionesMenu = (
-  c: Correspondencia,
-  tienePlantilla: boolean,
-): DropdownMenuItem[] => {
-  const tieneDocumento = tieneDocumentoGenerado(c)
-  const compartidos = c._count?.corresp_usuario || c.corresp_usuario?.length || 0
-  const busyGenerar = generandoId.value === c.id
-  const busyEditor = abriendoEditorId.value === c.id
-
-  const docDeshabilitado =
-    (!tieneDocumento && !tienePlantilla) || busyGenerar || busyEditor
-  let motivoDocumento: string | undefined
-  if (docDeshabilitado) {
-    if (busyGenerar || busyEditor) {
-      motivoDocumento = 'Espere a que finalice la operación con el documento.'
-    } else if (!tienePlantilla) {
-      motivoDocumento = 'El proceso no tiene plantilla Word para generar el documento.'
-    }
-  }
-
-  const children: DropdownMenuItem[] = [
-    enriquecerItemMenuAcciones(
-      {
-        label: busyGenerar
-          ? 'Generando documento…'
-          : busyEditor
-            ? 'Abriendo editor…'
-            : tieneDocumento
-              ? 'Editar contenido del documento'
-              : 'Generar documento',
-        icon: tieneDocumento ? 'i-lucide-file-pen-line' : 'i-lucide-file-output',
-        disabled: docDeshabilitado,
-        onSelect: () => {
-          void handleDocumentoOnlyOffice(c)
-        },
-      },
-      motivoDocumento,
-    ),
-  ]
-
-  children.push(
-    enriquecerItemMenuAcciones({
-      label: 'Adjuntos',
-      icon: 'i-lucide-paperclip',
-      onSelect: () => {
-        handleAdjuntos(c, false)
-      },
-    }),
-    enriquecerItemMenuAcciones({
-      label: 'Derivar correspondencia',
-      icon: 'i-lucide-send',
-      onSelect: () => {
-        handleDerivar(c)
-      },
-    }),
-    enriquecerItemMenuAcciones({
-      label: compartidos
-        ? `Compartir (${compartidos} usuario${compartidos === 1 ? '' : 's'})`
-        : 'Compartir documento',
-      icon: 'i-lucide-share-2',
-      onSelect: () => {
-        handleCompartir(c)
-      },
-    }),
-    enriquecerItemMenuAcciones({
-      label: 'Editar',
-      icon: 'i-lucide-pencil',
-      onSelect: () => {
-        handleEditar(c)
-      },
-    }),
-  )
-
-  if (!correspondenciaTieneCite(c)) {
-    children.push(
-      enriquecerItemMenuAcciones({
-        label: 'Eliminar',
-        icon: 'i-lucide-trash-2',
-        class: 'text-error',
-        onSelect: () => {
-          handleConfirmarEliminar(c)
-        },
-      }),
-    )
-  }
-
-  return children
 }
 
 const cerrarEditorOnlyOffice = () => {
@@ -700,21 +524,19 @@ onMounted(() => {
 
 <template>
   <div class="space-y-6">
-    <!-- Header de la Bandeja -->
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-gray-100 dark:border-gray-800">
-      <div>
-        <div class="flex items-center gap-2.5">
-          <div class="p-2 rounded-md bg-primary-50 dark:bg-primary-950/50 text-primary-600 dark:text-primary-400">
-            <UIcon :name="icono" class="size-6" />
-          </div>
-          <div>
-            <h1 class="text-xl font-bold tracking-tight text-gray-900 dark:text-white">{{ titulo }}</h1>
-            <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{{ descripcion }}</p>
-          </div>
-        </div>
-      </div>
-
-      <div v-if="props.modo !== 'compartidos'" class="flex items-center gap-2">
+    <BandejaViewHeader
+      v-if="props.modo === 'compartidos'"
+      :titulo="props.titulo"
+      :descripcion="props.descripcion"
+      :icono="props.icono"
+    />
+    <BandejaViewHeader
+      v-else
+      :titulo="props.titulo"
+      :descripcion="props.descripcion"
+      :icono="props.icono"
+    >
+      <template #actions>
         <UButton
           label="Nueva Correspondencia"
           icon="i-lucide-plus"
@@ -722,36 +544,43 @@ onMounted(() => {
           class="rounded-md shadow-xs"
           @click="handleNuevo"
         />
-      </div>
-    </div>
+      </template>
+    </BandejaViewHeader>
 
     <!-- Barra de Filtros y Búsqueda -->
     <div class="p-4 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-xs flex flex-col sm:flex-row items-center gap-3">
+      <div
+        v-if="props.modo === 'compartidos'"
+        class="w-full sm:w-52 shrink-0"
+      >
+       
+        <USelect
+          v-model="compartidosAlcance"
+          :items="[...compartidosAlcanceOptions]"
+          value-key="value"
+          class="w-full"
+        />
+      </div>
+
       <div class="w-full sm:flex-1 relative">
         <UInput
           v-model="searchCriterio"
           placeholder="Buscar por referencia, CITE, área o proceso..."
           icon="i-lucide-search"
           class="w-full"
-          @keyup.enter="handleBuscar"
+          @update:model-value="onSearchInput"
         />
       </div>
 
       <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
         <UButton
-          label="Buscar"
-          icon="i-lucide-search"
+          label="Actualizar"
+          icon="i-lucide-refresh-cw"
           color="neutral"
-          variant="subtle"
-          @click="handleBuscar"
-        />
-        <UButton
-          v-if="searchCriterio"
-          label="Limpiar"
-          icon="i-lucide-x"
-          color="neutral"
-          variant="ghost"
-          @click="handleLimpiarFiltros"
+          variant="outline"
+          title="Volver a cargar la bandeja"
+          :loading="loading"
+          @click="fetchCorrespondencias"
         />
       </div>
     </div>
@@ -759,7 +588,10 @@ onMounted(() => {
     <!-- Tabla de Registros -->
     <div
       class="corresp-bandeja-tabla min-w-0"
-      :class="{ 'corresp-bandeja-tabla--borrador': modo === 'borrador' }"
+      :class="{
+        'corresp-bandeja-tabla--borrador': modo === 'borrador',
+        'corresp-bandeja-tabla--compartidos': modo === 'compartidos',
+      }"
     >
       <CorTable
         :columns="columns"
@@ -773,14 +605,13 @@ onMounted(() => {
       />
     </div>
 
-    <!-- Modal Formulario de Creación / Edición -->
+    <!-- Modales -->
     <CorrespondenciaFormModal
       v-model:open="isModalOpen"
       :correspondencia="correspToEdit"
       @guardado="fetchCorrespondencias"
     />
 
-    <!-- Modal Compartir Correspondencia -->
     <CorrespondenciaCompartirModal
       v-model:open="isCompartirOpen"
       :correspondencia="correspToCompartir"
@@ -805,7 +636,7 @@ onMounted(() => {
       :solo-lectura="adjuntosSoloLectura"
     />
 
-    <!-- Editor OnlyOffice (documento generado) -->
+    <!-- Editor OnlyOffice -->
     <UModal
       v-model:open="showEditor"
       fullscreen
@@ -896,18 +727,62 @@ onMounted(() => {
 
 <style scoped>
 .corresp-bandeja-tabla :deep(table) {
-  table-layout: auto;
+  table-layout: fixed;
   width: 100%;
+}
+
+.corresp-bandeja-tabla :deep(thead th:nth-child(1)),
+.corresp-bandeja-tabla :deep(tbody td:nth-child(1)) {
+  width: 9%;
+}
+
+.corresp-bandeja-tabla :deep(thead th:nth-child(2)),
+.corresp-bandeja-tabla :deep(tbody td:nth-child(2)) {
+  width: 12%;
+}
+
+.corresp-bandeja-tabla :deep(thead th:nth-child(3)),
+.corresp-bandeja-tabla :deep(tbody td:nth-child(3)) {
+  width: 26%;
+}
+
+.corresp-bandeja-tabla :deep(thead th:nth-child(4)),
+.corresp-bandeja-tabla :deep(tbody td:nth-child(4)) {
+  width: 10%;
+}
+
+.corresp-bandeja-tabla :deep(thead th:nth-child(5)),
+.corresp-bandeja-tabla :deep(tbody td:nth-child(5)) {
+  width: 18%;
+}
+
+.corresp-bandeja-tabla--compartidos :deep(thead th:nth-child(5)),
+.corresp-bandeja-tabla--compartidos :deep(tbody td:nth-child(5)) {
+  width: 12%;
+}
+
+.corresp-bandeja-tabla--compartidos :deep(thead th:nth-child(6)),
+.corresp-bandeja-tabla--compartidos :deep(tbody td:nth-child(6)) {
+  width: 14%;
 }
 
 .corresp-bandeja-tabla :deep(thead th:last-child),
 .corresp-bandeja-tabla :deep(tbody td:last-child) {
-  width: 1%;
-  max-width: 4.75rem;
+  width: 5.5rem !important;
+  min-width: 5.5rem !important;
+  max-width: 5.5rem !important;
+  overflow: visible;
 }
 
 .corresp-bandeja-tabla--borrador :deep(thead th:last-child),
 .corresp-bandeja-tabla--borrador :deep(tbody td:last-child) {
-  max-width: 6.5rem;
+  width: 6.5rem !important;
+  min-width: 6.5rem !important;
+  max-width: 6.5rem !important;
+}
+
+.corresp-bandeja-tabla :deep(thead th:not(:last-child)),
+.corresp-bandeja-tabla :deep(tbody td:not(:last-child)) {
+  overflow: hidden;
 }
 </style>

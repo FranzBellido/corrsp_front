@@ -85,6 +85,8 @@ export interface Correspondencia {
     solo_lectura: boolean;
     comentario?: string | null;
   } | null;
+  /** Bandeja compartidos: documento recibido por share o enviado por el usuario titular */
+  compartido_contexto?: 'recibido' | 'enviado';
   _count?: {
     derivaciones: number;
     corresp_usuario?: number;
@@ -196,6 +198,7 @@ export interface FiltroCorrespondencia {
   gestion?: number;
   sin_derivaciones?: boolean;
   solo_compartidos?: boolean;
+  compartidos_alcance?: 'todos' | 'recibidos' | 'enviados';
   pagina?: number;
   limite?: number;
 }

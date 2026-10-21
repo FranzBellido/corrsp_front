@@ -4,7 +4,7 @@ import { z } from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
 import type { Correspondencia } from '~/types/correspondencia'
 import { TipoCodificadorEnum } from '~/types/correspondencia'
-import type { CreateDerivacionPayload, Derivacion } from '~/types/derivacion'
+import type { CreateDerivacionPayload, Derivacion, UpdateDerivacionPayload } from '~/types/derivacion'
 import type { CodificadorDto } from '~/types/codificador'
 import { backendService } from '~/services/backend.service'
 import CodificadorSelect from '~/components/codificador/CodificadorSelect.vue'
@@ -16,12 +16,19 @@ import {
 
 const props = defineProps<{
   correspondencia?: Correspondencia | null
+  derivacion?: Derivacion | null
 }>()
 
 const open = defineModel<boolean>('open', { default: false })
 const emit = defineEmits<{
   (e: 'derivado'): void
+  (e: 'actualizado'): void
 }>()
+
+const isEditing = computed(() => Boolean(props.derivacion?.id))
+const correspondenciaActiva = computed(
+  () => props.correspondencia || props.derivacion?.correspondencia || null,
+)
 
 const toast = useToast()
 const { cargoActivo, cargoOrigen, areaActiva, resolveCargoOrigenId } = useProfile()
@@ -97,7 +104,7 @@ const form = ref<FormState>({
 const copiasSeleccionadas = ref<{ id: string; nombre: string }[]>([])
 
 const tituloDoc = computed(() => {
-  const c = props.correspondencia
+  const c = correspondenciaActiva.value
   if (!c) return ''
   return `${etiquetaNumeroCorrespondencia(c)} — ${c.referencia?.slice(0, 80) || 'Sin referencia'}`
 })
@@ -116,6 +123,21 @@ const resetForm = () => {
 
 watch(open, (isOpen) => {
   if (!isOpen) return
+
+  const d = props.derivacion
+  if (d?.id) {
+    resetForm()
+    form.value = {
+      cargo_destino_id: d.cargo_destino_id,
+      tipo_instruccion_id: d.tipo_instruccion_id,
+      instruccion: d.instruccion,
+      fecha_plazo: isoAFechaInput(d.fecha_plazo),
+      copias: [],
+    }
+    conCopia.value = false
+    return
+  }
+
   const c = props.correspondencia
   if (c && !correspondenciaPuedeDerivar(c)) {
     toast.add({
@@ -128,7 +150,7 @@ watch(open, (isOpen) => {
     return
   }
   resetForm()
-  form.value.fecha_plazo = isoAFechaInput(c.fecha_plazo)
+  form.value.fecha_plazo = isoAFechaInput(c?.fecha_plazo)
 })
 
 watch(conCopia, (activo) => {
@@ -176,6 +198,87 @@ const copiaTempId = ref<string | null>(null)
 
 const handleSave = async (event?: FormSubmitEvent<FormState>) => {
   const data = event?.data || form.value
+
+  if (isEditing.value && props.derivacion?.id) {
+    if (!data.cargo_destino_id?.trim()) {
+      toast.add({
+        title: 'Validación',
+        description: 'Seleccione el cargo destinatario.',
+        color: 'warning',
+        icon: 'i-lucide-alert-triangle',
+      })
+      return
+    }
+
+    if (!data.tipo_instruccion_id) {
+      toast.add({
+        title: 'Validación',
+        description: 'Seleccione el tipo de instrucción.',
+        color: 'warning',
+        icon: 'i-lucide-alert-triangle',
+      })
+      return
+    }
+
+    const cargoOperacion = resolveCargoOrigenId() || cargoActivo.value?.id
+    if (!cargoOperacion) {
+      toast.add({
+        title: 'Sin cargo activo',
+        description: 'Configure su cargo de trabajo antes de editar.',
+        color: 'error',
+        icon: 'i-lucide-alert-circle',
+      })
+      return
+    }
+
+    saving.value = true
+    try {
+      const fechaPlazo = data.fecha_plazo?.trim()
+      if (fechaPlazo && fechaPlazo < fechaPlazoMinima.value) {
+        toast.add({
+          title: 'Validación',
+          description: 'La fecha de plazo no puede ser anterior a hoy.',
+          color: 'warning',
+          icon: 'i-lucide-alert-triangle',
+        })
+        return
+      }
+
+      const payload: UpdateDerivacionPayload = {
+        cargo_destino_id: data.cargo_destino_id.trim(),
+        instruccion: data.instruccion.trim(),
+        tipo_instruccion_id: Number(data.tipo_instruccion_id),
+        fecha_plazo: fechaPlazo || null,
+        cargo_id: cargoOperacion,
+      }
+
+      await backendService.patch<Derivacion>('derivaciones', props.derivacion.id, payload)
+      toast.add({
+        title: 'Derivación actualizada',
+        description: 'Los datos de la derivación se guardaron correctamente.',
+        color: 'success',
+        icon: 'i-lucide-check-circle',
+      })
+      open.value = false
+      emit('actualizado')
+    } catch (error: unknown) {
+      const err = error as { data?: { message?: string | string[] }; message?: string }
+      const msg =
+        (Array.isArray(err?.data?.message) ? err.data.message.join(', ') : err?.data?.message) ||
+        err?.message ||
+        'No se pudo actualizar la derivación'
+      toast.add({
+        title: 'Error al guardar',
+        description: msg,
+        color: 'error',
+        icon: 'i-lucide-alert-circle',
+      })
+    } finally {
+      saving.value = false
+    }
+    return
+  }
+
   if (!props.correspondencia?.id) return
 
   if (!correspondenciaPuedeDerivar(props.correspondencia)) {
@@ -272,13 +375,17 @@ const handleSave = async (event?: FormSubmitEvent<FormState>) => {
 <template>
   <UModal
     v-model:open="open"
-    title="Derivar correspondencia"
-    description="Envíe el documento a un cargo destinatario con instrucción (previsto)."
+    :title="isEditing ? 'Editar derivación' : 'Derivar correspondencia'"
+    :description="
+      isEditing
+        ? 'Modifique destinatario, instrucción o plazo según el estado actual del trámite.'
+        : 'Envíe el documento a un cargo destinatario con instrucción (previsto).'
+    "
     :ui="{ content: 'sm:max-w-xl' }"
   >
     <template #body>
       <div
-        v-if="correspondencia"
+        v-if="correspondenciaActiva"
         class="mb-4 p-3 rounded-md bg-primary-50/60 dark:bg-primary-950/30 border border-primary-100 dark:border-primary-900/40 text-xs"
       >
         <p class="font-semibold text-gray-800 dark:text-gray-200 truncate">{{ tituloDoc }}</p>
@@ -358,7 +465,7 @@ const handleSave = async (event?: FormSubmitEvent<FormState>) => {
           />
         </UFormField>
 
-        <div class="space-y-3">
+        <div v-if="!isEditing" class="space-y-3">
           <UCheckbox
             v-model="conCopia"
             label="Enviar con copia (CC)"
@@ -419,8 +526,8 @@ const handleSave = async (event?: FormSubmitEvent<FormState>) => {
         <UButton
           type="submit"
           form="derivacion-form"
-          label="Derivar"
-          icon="i-lucide-send"
+          :label="isEditing ? 'Guardar cambios' : 'Derivar'"
+          :icon="isEditing ? 'i-lucide-save' : 'i-lucide-send'"
           color="primary"
           :loading="saving"
         />

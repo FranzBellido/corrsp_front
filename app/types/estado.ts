@@ -4,6 +4,7 @@ export enum EstadoDerivacionEnum {
   RECEPCIONADO = 2,
   ARCHIVADO = 3,
   TRANSFERIDO_BAJA = 4,
+  RECHAZADO = 5,
 }
 
 export const ENTIDAD_ESTADO_LOG_CORRESPONDENCIA = 'correspondencia'
@@ -12,6 +13,7 @@ export type PermisoEstadoDerivacion =
   | 'permite_derivar'
   | 'permite_archivar'
   | 'permite_recepcionar'
+  | 'permite_asociar'
   | 'permite_editar'
   | 'permite_eliminar'
 
@@ -22,6 +24,7 @@ export interface EstadoDerivacion {
   permite_derivar?: boolean
   permite_archivar?: boolean
   permite_recepcionar?: boolean
+  permite_asociar?: boolean
   permite_editar?: boolean | null
   permite_eliminar?: boolean | null
 }

@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, h } from 'vue'
+import { ref, computed, onMounted, watch, h } from 'vue'
 import type { DropdownMenuItem, TableColumn } from '@nuxt/ui'
 import type { Correspondencia } from '~/types/correspondencia'
 import type {
   Derivacion,
+  DerivacionCargo,
   DestinatarioCopiaConDerivacion,
   FiltroDerivacion,
   RespuestaBusquedaDerivacion,
@@ -11,20 +12,22 @@ import type {
 import { EstadoDerivacionEnum, estadoPermite } from '~/types/estado'
 import { backendService } from '~/services/backend.service'
 import CorrespondenciaDetalleModal from '~/components/correspondencia/CorrespondenciaDetalleModal.vue'
-import DerivacionFormModal from '~/components/correspondencia/DerivacionFormModal.vue'
-import CambioEstadoDerivacionModal from '~/components/correspondencia/CambioEstadoDerivacionModal.vue'
-import EstadoLogTimelineModal from '~/components/correspondencia/EstadoLogTimelineModal.vue'
+import CorrespondenciaFormModal from '~/components/correspondencia/CorrespondenciaFormModal.vue'
+import DerivacionFormModal from '~/components/derivaciones/DerivacionFormModal.vue'
+import CambioEstadoDerivacionModal from '~/components/derivaciones/CambioEstadoDerivacionModal.vue'
+import EstadoLogTimelineModal from '~/components/derivaciones/EstadoLogTimelineModal.vue'
 import CorTable from '~/components/CorTable.vue'
+import BandejaViewHeader from '~/components/BandejaViewHeader.vue'
 import {
   correspondenciaPuedeDerivar,
   mensajeNoDerivarCorrespondencia,
 } from '~/utils/correspondencia'
 import {
-  enriquecerItemMenuAcciones,
   CLASE_CONTENEDOR_ACCIONES_CELDA,
   hMenuAccionesTabla,
   META_COLUMNA_ACCIONES_TABLA,
 } from '~/utils/acciones-menu'
+import { getAccionesDerivacionBandeja } from '~/utils/derivacionActions'
 
 const props = defineProps<{
   modo: 'salida' | 'ingreso' | 'con_copia'
@@ -52,8 +55,18 @@ const searchCriterio = ref('')
 const isDetalleOpen = ref(false)
 const detalleDocumentoId = ref<string | null>(null)
 
+const isRespuestaCorrespOpen = ref(false)
+const correspOrigenRespuesta = ref<Correspondencia | null>(null)
+
 const isDerivacionOpen = ref(false)
 const correspToDerivar = ref<Correspondencia | null>(null)
+
+const isEditDerivacionOpen = ref(false)
+const derivacionToEdit = ref<Derivacion | null>(null)
+
+const isDeleteDerivacionOpen = ref(false)
+const derivacionToDelete = ref<Derivacion | null>(null)
+const deletingDerivacion = ref(false)
 
 const isCambioEstadoOpen = ref(false)
 const cambioDerivacionId = ref<string | null>(null)
@@ -167,6 +180,20 @@ const correspondenciaDeFila = (
   row: Derivacion | DestinatarioCopiaConDerivacion,
 ): Correspondencia | null => {
   return derivacionDeFila(row)?.correspondencia || null
+}
+
+const etiquetaPersonaCargo = (cargo?: DerivacionCargo | null): string => {
+  if (!cargo) return ''
+  const persona = cargo.usuarios?.nombre_completo?.trim()
+  return persona ? `${persona} — ${cargo.nombre}` : cargo.nombre
+}
+
+/** En salida `nombre` es el destinatario; en ingreso se muestra quien derivó (cargo origen). */
+const contraparteDerivacion = (d: Derivacion): string => {
+  if (esIngreso.value) {
+    return etiquetaPersonaCargo(d.cargo_origen) || '—'
+  }
+  return d.nombre || etiquetaPersonaCargo(d.cargo_destino) || '—'
 }
 
 const textoNoLeido = (leido: boolean, base: string) =>
@@ -299,6 +326,17 @@ const abrirRecepcionar = (row: Derivacion | DestinatarioCopiaConDerivacion) => {
   })
 }
 
+const abrirRechazar = (row: Derivacion | DestinatarioCopiaConDerivacion) => {
+  abrirCambioEstado(row, EstadoDerivacionEnum.RECHAZADO, {
+    titulo: 'Rechazar derivación',
+    descripcion:
+      'Indique el motivo del rechazo. El documento pasará a estado rechazado y quedará registrado en el historial.',
+    confirmLabel: 'Rechazar',
+    confirmIcon: 'i-lucide-ban',
+    confirmColor: 'error',
+  })
+}
+
 const abrirArchivar = (row: Derivacion | DestinatarioCopiaConDerivacion) => {
   abrirCambioEstado(row, EstadoDerivacionEnum.ARCHIVADO, {
     titulo: 'Archivar derivación',
@@ -326,95 +364,107 @@ const abrirEstadoLog = (row: Derivacion | DestinatarioCopiaConDerivacion) => {
   isEstadoLogOpen.value = true
 }
 
+const abrirResponderCorrespondencia = (row: Derivacion | DestinatarioCopiaConDerivacion) => {
+  const corresp = correspondenciaDeFila(row)
+  if (!corresp?.hoja_ruta?.numero && !corresp?.hr_id) {
+    toast.add({
+      title: 'Sin Hoja de Ruta',
+      description: 'El documento derivado no tiene HR asociada para vincular una respuesta.',
+      color: 'warning',
+      icon: 'i-lucide-alert-triangle',
+    })
+    return
+  }
+  correspOrigenRespuesta.value = corresp
+  isRespuestaCorrespOpen.value = true
+}
+
+watch(isRespuestaCorrespOpen, (abierto) => {
+  if (!abierto) {
+    correspOrigenRespuesta.value = null
+  }
+})
+
+const abrirEditarDerivacion = (row: Derivacion | DestinatarioCopiaConDerivacion) => {
+  const d = derivacionDeFila(row)
+  if (!d?.id) return
+  derivacionToEdit.value = d
+  isEditDerivacionOpen.value = true
+}
+
+const abrirConfirmarEliminarDerivacion = (row: Derivacion | DestinatarioCopiaConDerivacion) => {
+  const d = derivacionDeFila(row)
+  if (!d?.id) return
+  derivacionToDelete.value = d
+  isDeleteDerivacionOpen.value = true
+}
+
+const handleEliminarDerivacion = async () => {
+  const d = derivacionToDelete.value
+  if (!d?.id) return
+
+  deletingDerivacion.value = true
+  try {
+    await backendService.delete('derivaciones', d.id)
+    toast.add({
+      title: 'Derivación eliminada',
+      description: 'El registro de derivación fue eliminado correctamente.',
+      color: 'success',
+      icon: 'i-lucide-check-circle',
+    })
+    isDeleteDerivacionOpen.value = false
+    derivacionToDelete.value = null
+    fetchItems()
+  } catch (error: unknown) {
+    const err = error as { data?: { message?: string }; message?: string }
+    toast.add({
+      title: 'No se pudo eliminar',
+      description: err?.data?.message || err?.message || 'Error al eliminar la derivación.',
+      color: 'error',
+      icon: 'i-lucide-alert-circle',
+    })
+  } finally {
+    deletingDerivacion.value = false
+  }
+}
+
 const buildDerivacionAccionesMenu = (
   original: Derivacion | DestinatarioCopiaConDerivacion,
 ): DropdownMenuItem[] => {
   const docId = documentoIdDeFila(original)
   const d = derivacionDeFila(original)
-  const corresp = correspondenciaDeFila(original)
+  const correspDerivar = correspondenciaDeFila(original)
   const estado = d?.estado
+  const puedeDerivar = Boolean(correspDerivar && correspondenciaPuedeDerivar(correspDerivar))
 
-  const children: DropdownMenuItem[] = [
-    enriquecerItemMenuAcciones(
-      {
-        label: 'Historial de estados',
-        icon: 'i-lucide-history',
-        disabled: !docId,
-        onSelect: () => {
-          abrirEstadoLog(original)
-        },
-      },
-      !docId ? 'No hay documento asociado a esta fila.' : undefined,
-    ),
-  ]
-
-  if (esIngreso.value) {
-    
-
-    if (estadoPermite(estado, 'permite_recepcionar')) {
-      children.push(
-        enriquecerItemMenuAcciones({
-          label: 'Recepcionar',
-          icon: 'i-lucide-inbox',
-          onSelect: () => {
-            abrirRecepcionar(original)
-          },
-        }),
-      )
-    }
-
-    if (estadoPermite(estado, 'permite_derivar')) {
-      const correspDerivar = correspondenciaDeFila(original)
-      const puedeDerivar = Boolean(correspDerivar && correspondenciaPuedeDerivar(correspDerivar))
-      children.push(
-        enriquecerItemMenuAcciones(
-          {
-            label: 'Derivar',
-            icon: 'i-lucide-share-2',
-            disabled: !puedeDerivar,
-            onSelect: () => {
-              abrirDerivar(original)
-            },
-          },
-          !puedeDerivar && correspDerivar
-            ? mensajeNoDerivarCorrespondencia(correspDerivar)
-            : !puedeDerivar
-              ? 'No se puede derivar esta correspondencia.'
-              : undefined,
-        ),
-      )
-    }
-
-    if (estadoPermite(estado, 'permite_archivar')) {
-      children.push(
-        enriquecerItemMenuAcciones({
-          label: 'Archivar',
-          icon: 'i-lucide-archive',
-          onSelect: () => {
-            abrirArchivar(original)
-          },
-        }),
-      )
-    }
-
-    if (
-      puedeTransferirPorBaja.value &&
-      d?.estado_id !== EstadoDerivacionEnum.TRANSFERIDO_BAJA
-    ) {
-      children.push(
-        enriquecerItemMenuAcciones({
-          label: 'Transferir por baja',
-          icon: 'i-lucide-user-minus',
-          class: 'text-error',
-          onSelect: () => {
-            abrirTransferirBaja(original)
-          },
-        }),
-      )
-    }
-  }
-
-  return children
+  return getAccionesDerivacionBandeja({
+    modo: props.modo,
+    tieneDocumento: Boolean(docId),
+    permiteRecepcionar: estadoPermite(estado, 'permite_recepcionar'),
+    permiteRechazar: estadoPermite(estado, 'permite_recepcionar'),
+    permiteDerivar: estadoPermite(estado, 'permite_derivar'),
+    permiteArchivar: estadoPermite(estado, 'permite_archivar'),
+    permiteAsociar: estadoPermite(estado, 'permite_asociar'),
+    puedeTransferirPorBaja: puedeTransferirPorBaja.value,
+    yaTransferidoBaja: d?.estado_id === EstadoDerivacionEnum.TRANSFERIDO_BAJA,
+    puedeDerivarCorresp: puedeDerivar,
+    mensajeNoDerivar:
+      !puedeDerivar && correspDerivar
+        ? mensajeNoDerivarCorrespondencia(correspDerivar)
+        : undefined,
+    permiteEditar: estadoPermite(estado, 'permite_editar'),
+    permiteEliminar: estadoPermite(estado, 'permite_eliminar'),
+    tieneHojaRuta: Boolean(correspDerivar?.hoja_ruta?.numero || correspDerivar?.hr_id),
+    onResponderCorrespondencia: () => abrirResponderCorrespondencia(original),
+    onHistorial: () => abrirEstadoLog(original),
+    onRecepcionar: () => abrirRecepcionar(original),
+    onRechazar: () => abrirRechazar(original),
+    onDerivar: () => abrirDerivar(original),
+    onArchivar: () => abrirArchivar(original),
+    onTransferirBaja: () => abrirTransferirBaja(original),
+    onEditar: () => abrirEditarDerivacion(original),
+    onEliminar: () => abrirConfirmarEliminarDerivacion(original),
+  })
 }
 
 const columns = computed<TableColumn<Derivacion | DestinatarioCopiaConDerivacion>[]>(() => {
@@ -423,6 +473,31 @@ const columns = computed<TableColumn<Derivacion | DestinatarioCopiaConDerivacion
   const auxCompacto = celdasAuxiliaresCompactas.value
 
   const cols: TableColumn<Derivacion | DestinatarioCopiaConDerivacion>[] = [
+    {
+      id: 'hoja_ruta',
+      header: 'Hoja de Ruta',
+      cell: ({ row }) => {
+        const leido = leidoDeFila(row.original)
+        const corresp = correspondenciaDeFila(row.original)
+        const hr = corresp?.hoja_ruta
+        return h(
+          'div',
+          {
+            class: [
+              'min-w-0 pl-2 border-l-2',
+              leido ? 'border-transparent' : 'border-primary-600',
+            ],
+          },
+          hr
+            ? h(
+                UBadge,
+                { color: 'neutral', variant: 'subtle', size: 'xs' },
+                () => `HR ${hr.numero}/${hr.anio}`,
+              )
+            : h('span', { class: 'text-xs text-muted italic' }, 'Sin HR'),
+        )
+      },
+    },
     {
       id: 'documento',
       header: compacto || ingreso ? 'Documento' : 'Documento / Referencia',
@@ -435,10 +510,7 @@ const columns = computed<TableColumn<Derivacion | DestinatarioCopiaConDerivacion
         return h(
           'div',
           {
-            class: [
-              'flex flex-col gap-0.5 min-w-0 pl-2 border-l-2',
-              leido ? 'border-transparent' : 'border-primary-600',
-            ],
+            class: 'flex flex-col gap-0.5 min-w-0',
           },
           [
             h(
@@ -487,14 +559,15 @@ const columns = computed<TableColumn<Derivacion | DestinatarioCopiaConDerivacion
           )
         }
         const d = row.original as Derivacion
+        const contraparte = contraparteDerivacion(d)
         return h('div', { class: 'flex flex-col text-[11px] gap-0.5 min-w-0' }, [
           h(
             'span',
             {
               class: `${textoNoLeido(leido, '')} truncate`,
-              title: d.nombre || '',
+              title: contraparte,
             },
-            d.nombre || '—',
+            contraparte,
           ),
           h(
             'span',
@@ -568,7 +641,8 @@ const columns = computed<TableColumn<Derivacion | DestinatarioCopiaConDerivacion
             ? 'neutral'
             : estado.id === EstadoDerivacionEnum.RECEPCIONADO
               ? 'success'
-              : estado.id === EstadoDerivacionEnum.TRANSFERIDO_BAJA
+              : estado.id === EstadoDerivacionEnum.RECHAZADO ||
+                  estado.id === EstadoDerivacionEnum.TRANSFERIDO_BAJA
                 ? 'error'
                 : 'warning'
         return h(
@@ -594,7 +668,7 @@ const columns = computed<TableColumn<Derivacion | DestinatarioCopiaConDerivacion
         return h(
           'span',
           {
-            class: textoNoLeido(leido, 'text-[10px] font-mono'),
+            class: textoNoLeido(leido, 'text-[10px] font-mono whitespace-nowrap'),
             title: formatFecha(fecha),
           },
           texto,
@@ -694,32 +768,38 @@ onMounted(() => {
 
 <template>
   <div class="space-y-6">
-    <PageHeader :title="titulo" :description="descripcion">
-      <template #actions>
-        <div class="flex items-center gap-2 text-primary-600 dark:text-primary-400">
-          <UIcon :name="icono" class="size-6" />
-        </div>
-      </template>
-    </PageHeader>
+    <BandejaViewHeader :titulo="props.titulo" :descripcion="props.descripcion" :icono="props.icono" />
 
-    <AppFilter>
-      <AppFilterItem label="Búsqueda" min-w="320px" flex1>
+    <div class="p-4 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-xs flex flex-col sm:flex-row items-center gap-3">
+      <div class="w-full sm:flex-1 relative">
         <UInput
           v-model="searchCriterio"
-          icon="i-lucide-search"
           placeholder="Buscar por referencia, instrucción..."
-          variant="ghost"
+          icon="i-lucide-search"
           class="w-full"
           @update:model-value="onSearchInput"
         />
-      </AppFilterItem>
-    </AppFilter>
+      </div>
+
+      <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
+        <UButton
+          label="Actualizar"
+          icon="i-lucide-refresh-cw"
+          color="neutral"
+          variant="outline"
+          title="Volver a cargar la bandeja"
+          :loading="loading"
+          @click="fetchItems"
+        />
+      </div>
+    </div>
 
     <div
       class="derivacion-bandeja-tabla min-w-0"
       :class="{
         'derivacion-bandeja-tabla--compacta': tablaCompacta,
         'derivacion-bandeja-tabla--ingreso': esIngreso,
+        'derivacion-bandeja-tabla--con-copia': esConCopia,
       }"
     >
       <CorTable
@@ -740,10 +820,22 @@ onMounted(() => {
       @leido="fetchItems"
     />
 
+    <CorrespondenciaFormModal
+      v-model:open="isRespuestaCorrespOpen"
+      :correspondencia-origen-respuesta="correspOrigenRespuesta"
+      @guardado="fetchItems"
+    />
+
     <DerivacionFormModal
       v-model:open="isDerivacionOpen"
       :correspondencia="correspToDerivar"
       @derivado="fetchItems"
+    />
+
+    <DerivacionFormModal
+      v-model:open="isEditDerivacionOpen"
+      :derivacion="derivacionToEdit"
+      @actualizado="fetchItems"
     />
 
     <CambioEstadoDerivacionModal
@@ -762,6 +854,44 @@ onMounted(() => {
       v-model:open="isEstadoLogOpen"
       :documento-id="estadoLogDocumentoId"
     />
+
+    <UModal
+      v-model:open="isDeleteDerivacionOpen"
+      title="Eliminar derivación"
+      description="¿Confirma eliminar este registro de derivación? Esta acción no se puede deshacer."
+      :ui="{ content: 'sm:max-w-md' }"
+    >
+      <template #body>
+        <div
+          v-if="derivacionToDelete"
+          class="p-3 rounded-md bg-rose-50 dark:bg-rose-950/30 border border-rose-100 dark:border-rose-900/40 text-xs text-rose-800 dark:text-rose-300"
+        >
+          <p class="font-bold line-clamp-2">{{ derivacionToDelete.instruccion }}</p>
+          <p v-if="derivacionToDelete.correspondencia" class="mt-1 line-clamp-2 text-rose-700/90 dark:text-rose-200/90">
+            {{ derivacionToDelete.correspondencia.referencia }}
+          </p>
+        </div>
+      </template>
+
+      <template #footer>
+        <div class="flex items-center justify-end gap-3 w-full">
+          <UButton
+            label="Cancelar"
+            color="neutral"
+            variant="outline"
+            :disabled="deletingDerivacion"
+            @click="isDeleteDerivacionOpen = false"
+          />
+          <UButton
+            label="Eliminar"
+            icon="i-lucide-trash-2"
+            color="error"
+            :loading="deletingDerivacion"
+            @click="handleEliminarDerivacion"
+          />
+        </div>
+      </template>
+    </UModal>
 
     <UModal
       v-model:open="showEditor"
@@ -819,29 +949,30 @@ onMounted(() => {
   width: 100%;
 }
 
+/* Salida: HR + documento + destinatario + estado + envío + lectura */
 .derivacion-bandeja-tabla--compacta :deep(thead th:nth-child(1)),
 .derivacion-bandeja-tabla--compacta :deep(tbody td:nth-child(1)) {
-  width: 24%;
+  width: 9%;
 }
 
 .derivacion-bandeja-tabla--compacta :deep(thead th:nth-child(2)),
 .derivacion-bandeja-tabla--compacta :deep(tbody td:nth-child(2)) {
-  width: 24%;
+  width: 21%;
 }
 
 .derivacion-bandeja-tabla--compacta :deep(thead th:nth-child(3)),
 .derivacion-bandeja-tabla--compacta :deep(tbody td:nth-child(3)) {
-  width: 20%;
+  width: 21%;
 }
 
 .derivacion-bandeja-tabla--compacta :deep(thead th:nth-child(4)),
 .derivacion-bandeja-tabla--compacta :deep(tbody td:nth-child(4)) {
-  width: 15%;
+  width: 17%;
 }
 
 .derivacion-bandeja-tabla--compacta :deep(thead th:nth-child(5)),
 .derivacion-bandeja-tabla--compacta :deep(tbody td:nth-child(5)) {
-  width: 9%;
+  width: 14%;
 }
 
 .derivacion-bandeja-tabla--compacta :deep(thead th:nth-child(6)),
@@ -870,39 +1001,98 @@ onMounted(() => {
   width: 100%;
 }
 
+/* Ingreso: HR + documento + origen + instrucción + plazo + estado + envío + lectura */
 .derivacion-bandeja-tabla--ingreso :deep(thead th:nth-child(1)),
 .derivacion-bandeja-tabla--ingreso :deep(tbody td:nth-child(1)) {
-  width: 19%;
+  width: 8%;
 }
 
 .derivacion-bandeja-tabla--ingreso :deep(thead th:nth-child(2)),
 .derivacion-bandeja-tabla--ingreso :deep(tbody td:nth-child(2)) {
-  width: 14%;
+  width: 16%;
 }
 
 .derivacion-bandeja-tabla--ingreso :deep(thead th:nth-child(3)),
 .derivacion-bandeja-tabla--ingreso :deep(tbody td:nth-child(3)) {
-  width: 24%;
+  width: 12%;
 }
 
 .derivacion-bandeja-tabla--ingreso :deep(thead th:nth-child(4)),
 .derivacion-bandeja-tabla--ingreso :deep(tbody td:nth-child(4)) {
-  width: 12%;
+  width: 19%;
 }
 
 .derivacion-bandeja-tabla--ingreso :deep(thead th:nth-child(5)),
 .derivacion-bandeja-tabla--ingreso :deep(tbody td:nth-child(5)) {
-  width: 9%;
+  width: 11%;
 }
 
 .derivacion-bandeja-tabla--ingreso :deep(thead th:nth-child(6)),
 .derivacion-bandeja-tabla--ingreso :deep(tbody td:nth-child(6)) {
-  width: 9%;
+  width: 8%;
 }
 
 .derivacion-bandeja-tabla--ingreso :deep(thead th:nth-child(7)),
 .derivacion-bandeja-tabla--ingreso :deep(tbody td:nth-child(7)) {
+  width: 11%;
+}
+
+.derivacion-bandeja-tabla--ingreso :deep(thead th:nth-child(8)),
+.derivacion-bandeja-tabla--ingreso :deep(tbody td:nth-child(8)) {
   width: 5%;
+}
+
+/* Con copia: sin plazo */
+.derivacion-bandeja-tabla--con-copia :deep(table) {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.derivacion-bandeja-tabla--con-copia :deep(thead th:nth-child(1)),
+.derivacion-bandeja-tabla--con-copia :deep(tbody td:nth-child(1)) {
+  width: 8%;
+}
+
+.derivacion-bandeja-tabla--con-copia :deep(thead th:nth-child(2)),
+.derivacion-bandeja-tabla--con-copia :deep(tbody td:nth-child(2)) {
+  width: 17%;
+}
+
+.derivacion-bandeja-tabla--con-copia :deep(thead th:nth-child(3)),
+.derivacion-bandeja-tabla--con-copia :deep(tbody td:nth-child(3)) {
+  width: 12%;
+}
+
+.derivacion-bandeja-tabla--con-copia :deep(thead th:nth-child(4)),
+.derivacion-bandeja-tabla--con-copia :deep(tbody td:nth-child(4)) {
+  width: 21%;
+}
+
+.derivacion-bandeja-tabla--con-copia :deep(thead th:nth-child(5)),
+.derivacion-bandeja-tabla--con-copia :deep(tbody td:nth-child(5)) {
+  width: 9%;
+}
+
+.derivacion-bandeja-tabla--con-copia :deep(thead th:nth-child(6)),
+.derivacion-bandeja-tabla--con-copia :deep(tbody td:nth-child(6)) {
+  width: 11%;
+}
+
+.derivacion-bandeja-tabla--con-copia :deep(thead th:nth-child(7)),
+.derivacion-bandeja-tabla--con-copia :deep(tbody td:nth-child(7)) {
+  width: 6%;
+}
+
+.derivacion-bandeja-tabla--con-copia :deep(th),
+.derivacion-bandeja-tabla--con-copia :deep(td) {
+  padding-left: 0.375rem !important;
+  padding-right: 0.375rem !important;
+  vertical-align: middle;
+}
+
+.derivacion-bandeja-tabla--con-copia :deep(thead th:not(:last-child)),
+.derivacion-bandeja-tabla--con-copia :deep(tbody td:not(:last-child)) {
+  overflow: hidden;
 }
 
 .derivacion-bandeja-tabla--ingreso :deep(th),

@@ -6,6 +6,8 @@ const errorHr = defineModel<string | null>('errorHr', { default: null })
 
 const props = defineProps<{
   verificandoHr?: boolean
+  /** Respuesta desde bandeja ingreso: solo HR existente precargada */
+  fijarHrExistente?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -20,8 +22,9 @@ const emit = defineEmits<{
       Gestión de Hoja de Ruta (HR)
     </label>
 
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+    <div class="grid grid-cols-1 gap-3" :class="fijarHrExistente ? '' : 'sm:grid-cols-2'">
       <button
+        v-if="!fijarHrExistente"
         type="button"
         class="p-3 rounded-md border text-left transition-all flex items-start gap-2.5 cursor-pointer"
         :class="[
@@ -64,9 +67,11 @@ const emit = defineEmits<{
           placeholder="Nº de Hoja de Ruta (ej. 142)"
           icon="i-lucide-hash"
           class="flex-1"
+          :readonly="fijarHrExistente"
           @keyup.enter="emit('verificar')"
         />
         <UButton
+          v-if="!fijarHrExistente"
           label="Verificar HR"
           icon="i-lucide-search"
           color="neutral"

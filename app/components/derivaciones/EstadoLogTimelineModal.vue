@@ -37,6 +37,8 @@ const iconForEstado = (estadoId?: number | null) => {
       return 'i-lucide-archive'
     case EstadoDerivacionEnum.TRANSFERIDO_BAJA:
       return 'i-lucide-user-minus'
+    case EstadoDerivacionEnum.RECHAZADO:
+      return 'i-lucide-ban'
     default:
       return 'i-lucide-circle-dot'
   }

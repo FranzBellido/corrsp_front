@@ -44,6 +44,8 @@ export interface Derivacion {
     descripcion?: string | null
   } | null
   destinatarios_copia?: DestinatarioCopia[]
+  cargo_origen?: DerivacionCargo | null
+  cargo_destino?: DerivacionCargo | null
 }
 
 export interface CreateDerivacionPayload {
@@ -56,6 +58,14 @@ export interface CreateDerivacionPayload {
   cargo_origen_id?: string
   /** Límite para derivar, responder o archivar (ISO o YYYY-MM-DD). */
   fecha_plazo?: string
+}
+
+export interface UpdateDerivacionPayload {
+  cargo_destino_id?: string
+  instruccion?: string
+  tipo_instruccion_id?: number
+  fecha_plazo?: string | null
+  cargo_id?: string
 }
 
 export interface FiltroDerivacion {
