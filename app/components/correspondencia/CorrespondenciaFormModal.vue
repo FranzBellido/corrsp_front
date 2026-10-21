@@ -36,6 +36,7 @@ const errorHr = ref<string | null>(null)
 const requiereCooperativa = ref(false)
 const requiereEntidad = ref(false)
 const entidadId = ref<number | undefined>(undefined)
+const codigoUnico :string = crypto.randomUUID()
 
 const emptyCooperativa = (): CorrespCooperativaFormState => ({
   cooperativa_id: undefined,
@@ -75,6 +76,7 @@ const cooperativaSchema = z.object({
     .union([z.number().nonnegative('El importe no puede ser negativo'), z.nan(), z.undefined()])
     .optional(),
   telefono: z.string().optional(),
+  codigo_unico: z.string()
 })
 
 // Esquema de validación con Zod
@@ -497,6 +499,7 @@ const handleSave = async (event?: FormSubmitEvent<CorrespondenciaSchemaType>) =>
         destinatario_id: data.destinatario_id.trim(),
         cooperativa: buildCooperativaPayload(),
         entidades: buildEntidadesPayload(),
+        codigo_unico: codigoUnico,
       }
 
       await backendService.post<Correspondencia>('correspondencia', payload)
@@ -596,7 +599,7 @@ const handleAsignarCiteHr = async () => {
         @submit="handleSave"
       >
         <!-- Cargo de origen (registro) y área activa -->
-        <div class="p-3 rounded-xl bg-primary-50/60 dark:bg-primary-950/30 border border-primary-100 dark:border-primary-900/40 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs">
+        <div class="p-3 rounded-md bg-primary-50/60 dark:bg-primary-950/30 border border-primary-100 dark:border-primary-900/40 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs">
           <div class="flex items-center gap-2">
             <UIcon name="i-lucide-clipboard-pen" class="size-4 text-primary-600 shrink-0" />
             <div>
@@ -630,7 +633,7 @@ const handleAsignarCiteHr = async () => {
 
         <div
           v-if="!isEditing"
-          class="p-3 rounded-xl border border-default bg-elevated/30"
+          class="p-3 rounded-md border border-default bg-elevated/30"
         >
           <UCheckbox
             v-model="asignarCiteHr"
@@ -641,7 +644,7 @@ const handleAsignarCiteHr = async () => {
 
         <div
           v-if="pendienteNumeracion"
-          class="p-3 rounded-xl border border-warning/40 bg-warning/10 text-xs text-default space-y-1"
+          class="p-3 rounded-md border border-warning/40 bg-warning/10 text-xs text-default space-y-1"
         >
           <p class="font-semibold text-highlighted flex items-center gap-1.5">
             <UIcon name="i-lucide-hash" class="size-4 text-warning" />
@@ -662,26 +665,10 @@ const handleAsignarCiteHr = async () => {
           @verificar="buscarHojaRutaExistente"
         />
 
-        <!-- Referencia -->
-        <UFormField
-          label="Referencia"
-          name="referencia"
-          required
-          help="Descripción concisa y tema principal de la correspondencia."
-        >
-          <UTextarea
-            v-model="form.referencia"
-            placeholder="Ej. SOLICITUD DE INFORME TÉCNICO SOBRE ADECUACIÓN ESTATUTARIA..."
-            class="w-full"
-            :rows="3"
-            autofocus
-          />
-        </UFormField>
-
         <!-- Proceso y Prioridad -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <UFormField
-            label="Proceso"
+            label="Tipo de proceso"
             name="proc_id"
             required
             help="Filtrado según los procesos autorizados para el área activa."
@@ -712,6 +699,22 @@ const handleAsignarCiteHr = async () => {
           </UFormField>
         </div>
 
+        <!-- Referencia -->
+        <UFormField
+          label="Referencia"
+          name="referencia"
+          required
+          help="Descripción concisa y tema principal de la correspondencia."
+        >
+          <UTextarea
+            v-model="form.referencia"
+            placeholder="Ej. SOLICITUD DE INFORME TÉCNICO SOBRE ADECUACIÓN ESTATUTARIA..."
+            class="w-full"
+            :rows="3"
+            autofocus
+          />
+        </UFormField>
+
         <CorrespCooperativaFields
           v-if="requiereCooperativa"
           v-model="form.cooperativa"
@@ -719,7 +722,7 @@ const handleAsignarCiteHr = async () => {
 
         <div
           v-if="requiereEntidad"
-          class="p-4 rounded-xl border border-sky-200 dark:border-sky-900/50 bg-sky-50/50 dark:bg-sky-950/20 space-y-4"
+          class="p-4 rounded-md border border-sky-200 dark:border-sky-900/50 bg-sky-50/50 dark:bg-sky-950/20 space-y-4"
         >
           <div class="flex items-start gap-2">
             <UIcon name="i-lucide-building-2" class="size-4 text-sky-600 dark:text-sky-400 mt-0.5 shrink-0" />

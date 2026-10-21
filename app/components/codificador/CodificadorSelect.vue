@@ -130,6 +130,6 @@ const truncateLabel = (text: string) => {
 @reference "../../assets/css/main.css";
 
 :deep(.u-select-menu-trigger) {
-  @apply rounded-xl border-neutral-200 dark:border-neutral-800 focus:ring-primary-500/20;
+  @apply rounded-md border-neutral-200 dark:border-neutral-800 focus:ring-primary-500/20;
 }
 </style>

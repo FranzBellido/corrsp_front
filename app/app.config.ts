@@ -68,6 +68,14 @@ export default defineAppConfig({
       defaultVariants: {
         variant: 'soft'
       }
+    },
+    formField: {
+      slots: {
+        help: 'mt-1.5 text-xs text-muted leading-snug',
+        description: 'text-xs text-muted leading-snug',
+        hint: 'text-xs text-muted',
+        error: 'mt-1.5 text-xs text-error leading-snug'
+      }
     }
   }
 })

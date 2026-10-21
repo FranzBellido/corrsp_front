@@ -60,7 +60,7 @@
         variant="ghost"
         :ui="{
           root: 'gap-0.5',
-          label: 'min-w-[32px] font-bold rounded-lg',
+          label: 'min-w-[32px] font-bold rounded-md',
           list: 'bg-primary-50 text-primary-600 dark:bg-primary-950/50 dark:text-primary-400 border border-primary-200 dark:border-primary-800'
         }"
       />

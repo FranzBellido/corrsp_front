@@ -14,7 +14,7 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <div class="p-4 rounded-xl border border-default bg-elevated/30 space-y-3">
+  <div class="p-4 rounded-md border border-default bg-elevated/30 space-y-3">
     <label class="text-xs font-bold uppercase tracking-wider text-muted flex items-center gap-1.5">
       <UIcon name="i-lucide-git-branch" class="size-4 text-primary" />
       Gestión de Hoja de Ruta (HR)
@@ -23,7 +23,7 @@ const emit = defineEmits<{
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
       <button
         type="button"
-        class="p-3 rounded-lg border text-left transition-all flex items-start gap-2.5 cursor-pointer"
+        class="p-3 rounded-md border text-left transition-all flex items-start gap-2.5 cursor-pointer"
         :class="[
           tipoHr === 'nueva'
             ? 'border-primary bg-primary/5 text-highlighted ring-2 ring-primary/20'
@@ -40,7 +40,7 @@ const emit = defineEmits<{
 
       <button
         type="button"
-        class="p-3 rounded-lg border text-left transition-all flex items-start gap-2.5 cursor-pointer"
+        class="p-3 rounded-md border text-left transition-all flex items-start gap-2.5 cursor-pointer"
         :class="[
           tipoHr === 'existente'
             ? 'border-primary bg-primary/5 text-highlighted ring-2 ring-primary/20'
@@ -78,7 +78,7 @@ const emit = defineEmits<{
 
       <div
         v-if="hrEncontrada"
-        class="p-2.5 rounded-lg bg-success/10 border border-success/30 text-xs text-success flex items-center justify-between gap-2"
+        class="p-2.5 rounded-md bg-success/10 border border-success/30 text-xs text-success flex items-center justify-between gap-2"
       >
         <div class="flex items-center gap-2 min-w-0">
           <UIcon name="i-lucide-check-circle-2" class="size-4 shrink-0" />
@@ -92,7 +92,7 @@ const emit = defineEmits<{
 
       <div
         v-if="errorHr"
-        class="p-2.5 rounded-lg bg-error/10 border border-error/30 text-xs text-error flex items-center gap-2"
+        class="p-2.5 rounded-md bg-error/10 border border-error/30 text-xs text-error flex items-center gap-2"
       >
         <UIcon name="i-lucide-alert-circle" class="size-4 shrink-0" />
         <span>{{ errorHr }}</span>

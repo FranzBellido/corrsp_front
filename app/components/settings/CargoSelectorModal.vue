@@ -83,7 +83,7 @@ const handleConfirmar = async () => {
           <div
             v-for="cargo in cargos"
             :key="cargo.id"
-            class="p-3.5 rounded-xl border transition-all duration-200 cursor-pointer flex items-start gap-3 select-none"
+            class="p-3.5 rounded-md border transition-all duration-200 cursor-pointer flex items-start gap-3 select-none"
             :class="[
               selectedCargoId === cargo.id
                 ? 'border-primary-500 bg-primary-50/80 dark:bg-primary-950/40 text-primary-950 dark:text-primary-100 ring-2 ring-primary-500/20 shadow-xs'
@@ -127,7 +127,7 @@ const handleConfirmar = async () => {
           icon="i-lucide-arrow-right"
           :loading="saving"
           :disabled="!selectedCargoId"
-          class="rounded-xl px-5 h-10 font-bold"
+          class="rounded-md px-5 h-10 font-bold"
           @click="handleConfirmar"
         />
       </div>

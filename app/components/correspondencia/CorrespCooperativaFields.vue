@@ -17,7 +17,7 @@ const model = defineModel<CorrespCooperativaFormState>({ required: true })
 </script>
 
 <template>
-  <div class="p-4 rounded-xl border border-amber-200 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-950/20 space-y-4">
+  <div class="p-4 rounded-md border border-amber-200 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-950/20 space-y-4">
     <div class="flex items-start gap-2">
       <UIcon name="i-lucide-handshake" class="size-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
       <div>

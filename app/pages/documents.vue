@@ -28,7 +28,7 @@ const enlaces = [
 <template>
   <div class="space-y-6 max-w-3xl">
     <div class="flex items-start gap-3 pb-4 border-b border-gray-100 dark:border-gray-800">
-      <div class="p-2 rounded-xl bg-primary-50 dark:bg-primary-950/50 text-primary-600 dark:text-primary-400">
+      <div class="p-2 rounded-md bg-primary-50 dark:bg-primary-950/50 text-primary-600 dark:text-primary-400">
         <UIcon name="i-lucide-book-open" class="size-6" />
       </div>
       <div>

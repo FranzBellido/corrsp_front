@@ -482,7 +482,7 @@ async function onSubmit(event: FormSubmitEvent<ProfileFormSchema>) {
 
           <!-- Vista fija si solo tiene 1 cargo -->
           <template v-else-if="primerCargo">
-            <div class="p-3 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900/50 flex flex-col gap-1">
+            <div class="p-3 rounded-md border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900/50 flex flex-col gap-1">
               <span class="text-xs font-semibold text-neutral-900 dark:text-neutral-100 flex items-center gap-1.5">
                 <UIcon name="i-lucide-briefcase" class="size-4 text-primary-500" />
                 {{ primerCargo.nombre }}

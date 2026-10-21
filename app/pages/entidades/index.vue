@@ -205,7 +205,7 @@ onMounted(() => {
         <UButton
           icon="i-lucide-plus"
           color="primary"
-          class="justify-center h-10 rounded-xl font-bold px-6 shadow-lg shadow-primary-500/20"
+          class="justify-center h-10 rounded-md font-bold px-6 shadow-lg shadow-primary-500/20"
           @click="handleCrear"
         >
           Nueva Entidad
@@ -262,7 +262,7 @@ onMounted(() => {
       description="¿Está seguro de eliminar esta entidad?"
     >
       <template #body>
-        <div v-if="itemToDelete" class="p-3 bg-error/10 rounded-lg border border-error/20">
+        <div v-if="itemToDelete" class="p-3 bg-error/10 rounded-md border border-error/20">
           <p class="font-bold text-sm">{{ itemToDelete.nombre_ent?.trim() }}</p>
           <p class="text-xs text-muted mt-2">
             La eliminación fallará si la entidad está asociada a correspondencia.

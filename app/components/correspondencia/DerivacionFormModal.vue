@@ -279,7 +279,7 @@ const handleSave = async (event?: FormSubmitEvent<FormState>) => {
     <template #body>
       <div
         v-if="correspondencia"
-        class="mb-4 p-3 rounded-xl bg-primary-50/60 dark:bg-primary-950/30 border border-primary-100 dark:border-primary-900/40 text-xs"
+        class="mb-4 p-3 rounded-md bg-primary-50/60 dark:bg-primary-950/30 border border-primary-100 dark:border-primary-900/40 text-xs"
       >
         <p class="font-semibold text-gray-800 dark:text-gray-200 truncate">{{ tituloDoc }}</p>
         <p class="text-muted mt-0.5">
@@ -365,7 +365,7 @@ const handleSave = async (event?: FormSubmitEvent<FormState>) => {
             description="Notificar a otros cargos institucionales."
           />
 
-          <div v-if="conCopia" class="space-y-2 p-3 rounded-xl border border-gray-200 dark:border-gray-800">
+          <div v-if="conCopia" class="space-y-2 p-3 rounded-md border border-gray-200 dark:border-gray-800">
             <UFormField
               label="Agregar cargo en copia"
               name="copia_temp"

@@ -106,7 +106,7 @@ const items = computed(() => {
       <UButton
         variant="ghost"
         color="neutral"
-        class="gap-3 p-1.5 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+        class="gap-3 p-1.5 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
       >
         <UAvatar
           :src="avatarUrl"

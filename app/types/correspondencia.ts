@@ -166,6 +166,7 @@ export interface CreateCorrespondenciaPayload {
   cite_origen?: string;
   cooperativa?: CorrespCooperativaPayload;
   entidades?: CorrespEntidadPayload;
+  codigo_unico: string;   // para validar si ya existe la correspondencia
 }
 
 export interface AsignarCiteHrPayload {

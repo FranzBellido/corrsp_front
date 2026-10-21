@@ -34,7 +34,7 @@ defineEmits<{
       
       <!-- Mobile brand pill -->
       <div class="flex items-center gap-2 lg:hidden">
-        <div class="size-8 bg-primary-600 rounded-lg flex items-center justify-center text-white text-[11px] font-bold shadow-sm">
+        <div class="size-8 bg-primary-600 rounded-md flex items-center justify-center text-white text-[11px] font-bold shadow-sm">
           CORR
         </div>
         <span class="font-bold text-sm tracking-tight text-neutral-900 dark:text-white">AFCOOP</span>

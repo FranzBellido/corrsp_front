@@ -339,7 +339,7 @@ const handleSave = async (event?: FormSubmitEvent<AreaSchemaType>) => {
         </div>
 
         <!-- CONTROL PARA REGISTRAR PROCESOS (area_proceso) -->
-        <div class="border border-neutral-200 dark:border-neutral-800 rounded-xl p-4 bg-neutral-50/50 dark:bg-neutral-900/40 space-y-3">
+        <div class="border border-neutral-200 dark:border-neutral-800 rounded-md p-4 bg-neutral-50/50 dark:bg-neutral-900/40 space-y-3">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
               <UIcon name="i-lucide-git-branch" class="size-4 text-primary-500" />
@@ -372,9 +372,9 @@ const handleSave = async (event?: FormSubmitEvent<AreaSchemaType>) => {
 
           <!-- Skeleton si carga -->
           <div v-if="loadingProcesos" class="flex gap-2">
-            <USkeleton class="h-8 w-28 rounded-lg" />
-            <USkeleton class="h-8 w-36 rounded-lg" />
-            <USkeleton class="h-8 w-32 rounded-lg" />
+            <USkeleton class="h-8 w-28 rounded-md" />
+            <USkeleton class="h-8 w-36 rounded-md" />
+            <USkeleton class="h-8 w-32 rounded-md" />
           </div>
 
           <!-- Cuadrícula / Etiquetas interactivas de procesos -->
@@ -383,7 +383,7 @@ const handleSave = async (event?: FormSubmitEvent<AreaSchemaType>) => {
               v-for="proc in procesosDisponibles"
               :key="proc.id"
               type="button"
-              class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 border cursor-pointer select-none"
+              class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 border cursor-pointer select-none"
               :class="[
                 selectedProcesosIds.includes(Number(proc.id))
                   ? 'bg-primary-50 dark:bg-primary-950/40 border-primary-500 text-primary-700 dark:text-primary-300 shadow-xs'
@@ -405,7 +405,7 @@ const handleSave = async (event?: FormSubmitEvent<AreaSchemaType>) => {
         </div>
 
         <!-- Lista blanca de comunicación (area_routing_rules) -->
-        <div class="border border-default rounded-xl p-4 bg-elevated/30 space-y-3">
+        <div class="border border-default rounded-md p-4 bg-elevated/30 space-y-3">
           <div class="flex items-center justify-between gap-2">
             <div class="flex items-center gap-2 min-w-0">
               <UIcon name="i-lucide-shield-check" class="size-4 text-primary shrink-0" />
@@ -443,8 +443,8 @@ const handleSave = async (event?: FormSubmitEvent<AreaSchemaType>) => {
           </p>
 
           <div v-if="loadingAreasCatalogo || loadingRouting" class="flex gap-2">
-            <USkeleton class="h-8 w-32 rounded-lg" />
-            <USkeleton class="h-8 w-40 rounded-lg" />
+            <USkeleton class="h-8 w-32 rounded-md" />
+            <USkeleton class="h-8 w-40 rounded-md" />
           </div>
 
           <div
@@ -455,7 +455,7 @@ const handleSave = async (event?: FormSubmitEvent<AreaSchemaType>) => {
               v-for="areaItem in areasComunicacionOpciones"
               :key="areaItem.id"
               type="button"
-              class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 border cursor-pointer select-none"
+              class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 border cursor-pointer select-none"
               :class="[
                 selectedAreasDestinoIds.includes(String(areaItem.id))
                   ? 'bg-primary/10 border-primary text-primary shadow-xs'

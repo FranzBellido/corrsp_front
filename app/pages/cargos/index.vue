@@ -210,7 +210,7 @@ onMounted(() => {
         <UButton
           icon="i-lucide-plus"
           color="primary"
-          class="justify-center h-10 rounded-xl font-bold px-6 shadow-lg shadow-primary-500/20 hover:shadow-primary-500/30 transition-all duration-300 cursor-pointer"
+          class="justify-center h-10 rounded-md font-bold px-6 shadow-lg shadow-primary-500/20 hover:shadow-primary-500/30 transition-all duration-300 cursor-pointer"
           @click="handleCrear"
         >
           Nuevo Cargo
@@ -280,7 +280,7 @@ onMounted(() => {
         description="¿Está seguro de que desea eliminar el siguiente cargo institucional?"
       >
         <template #body>
-          <div v-if="cargoToDelete" class="p-3 bg-red-50 dark:bg-red-950/20 rounded-lg border border-red-200 dark:border-red-900/50">
+          <div v-if="cargoToDelete" class="p-3 bg-red-50 dark:bg-red-950/20 rounded-md border border-red-200 dark:border-red-900/50">
             <p class="font-bold text-red-900 dark:text-red-200 text-sm">
               {{ cargoToDelete.nombre }}
             </p>

@@ -49,7 +49,7 @@ const handleLogout = () => {
       </div>
 
       <div
-        class="rounded-xl border border-amber-200 dark:border-amber-900/50 bg-amber-50/80 dark:bg-amber-950/20 p-4 text-left text-xs text-amber-900 dark:text-amber-200/90 space-y-1"
+        class="rounded-md border border-amber-200 dark:border-amber-900/50 bg-amber-50/80 dark:bg-amber-950/20 p-4 text-left text-xs text-amber-900 dark:text-amber-200/90 space-y-1"
       >
         <p class="font-semibold flex items-center gap-1.5">
           <UIcon name="i-lucide-info" class="size-3.5" />
@@ -67,7 +67,7 @@ const handleLogout = () => {
           label="Cerrar sesión"
           color="primary"
           icon="i-lucide-log-out"
-          class="rounded-xl px-5 h-10 font-bold"
+          class="rounded-md px-5 h-10 font-bold"
           @click="handleLogout"
         />
       </div>

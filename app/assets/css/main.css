@@ -12,7 +12,8 @@
 }
 
 :root {
-  --ui-radius: 0.75rem;
+  /* Radio global Nuxt UI: inputs, modales, botones del kit */
+  --ui-radius: 0.375rem;
 }
 
 :root, .light {

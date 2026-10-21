@@ -131,17 +131,17 @@ const identificacion = computed(() => {
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-          <div class="p-3 rounded-xl bg-gray-50 dark:bg-gray-900/40 border border-gray-200 dark:border-gray-800">
+          <div class="p-3 rounded-md bg-gray-50 dark:bg-gray-900/40 border border-gray-200 dark:border-gray-800">
             <p class="text-[11px] font-bold uppercase tracking-wider text-muted mb-1">Correo</p>
             <p class="text-gray-800 dark:text-gray-200 break-all">{{ info.email || '—' }}</p>
           </div>
-          <div class="p-3 rounded-xl bg-gray-50 dark:bg-gray-900/40 border border-gray-200 dark:border-gray-800">
+          <div class="p-3 rounded-md bg-gray-50 dark:bg-gray-900/40 border border-gray-200 dark:border-gray-800">
             <p class="text-[11px] font-bold uppercase tracking-wider text-muted mb-1">CI / NI</p>
             <p class="font-mono text-gray-800 dark:text-gray-200">{{ identificacion }}</p>
           </div>
           <div
             v-if="info.id_ref != null"
-            class="p-3 rounded-xl bg-gray-50 dark:bg-gray-900/40 border border-gray-200 dark:border-gray-800"
+            class="p-3 rounded-md bg-gray-50 dark:bg-gray-900/40 border border-gray-200 dark:border-gray-800"
           >
             <p class="text-[11px] font-bold uppercase tracking-wider text-muted mb-1">ID referencia</p>
             <p class="font-mono text-gray-800 dark:text-gray-200">{{ info.id_ref }}</p>
@@ -176,7 +176,7 @@ const identificacion = computed(() => {
             <div
               v-for="cargo in info.cargos"
               :key="cargo.id"
-              class="p-3 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950/30"
+              class="p-3 rounded-md border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950/30"
             >
               <p class="font-semibold text-sm text-gray-900 dark:text-white">{{ cargo.nombre }}</p>
               <p v-if="cargo.areas" class="text-xs text-muted mt-1">

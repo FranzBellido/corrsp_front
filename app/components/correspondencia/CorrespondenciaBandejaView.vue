@@ -704,7 +704,7 @@ onMounted(() => {
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-gray-100 dark:border-gray-800">
       <div>
         <div class="flex items-center gap-2.5">
-          <div class="p-2 rounded-xl bg-primary-50 dark:bg-primary-950/50 text-primary-600 dark:text-primary-400">
+          <div class="p-2 rounded-md bg-primary-50 dark:bg-primary-950/50 text-primary-600 dark:text-primary-400">
             <UIcon :name="icono" class="size-6" />
           </div>
           <div>
@@ -719,7 +719,7 @@ onMounted(() => {
           label="Nueva Correspondencia"
           icon="i-lucide-plus"
           color="primary"
-          class="rounded-xl shadow-xs"
+          class="rounded-md shadow-xs"
           @click="handleNuevo"
         />
       </div>
@@ -866,7 +866,7 @@ onMounted(() => {
       :ui="{ content: 'sm:max-w-md' }"
     >
       <template #body>
-        <div v-if="correspToDelete" class="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-100 dark:border-rose-900/40 text-xs text-rose-800 dark:text-rose-300">
+        <div v-if="correspToDelete" class="p-3 rounded-md bg-rose-50 dark:bg-rose-950/30 border border-rose-100 dark:border-rose-900/40 text-xs text-rose-800 dark:text-rose-300">
           <p class="font-bold">Nº {{ correspToDelete.nro }}/{{ correspToDelete.gestion }}</p>
           <p class="mt-1 line-clamp-2">{{ correspToDelete.referencia }}</p>
         </div>

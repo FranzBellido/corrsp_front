@@ -191,7 +191,7 @@ const handleEliminar = async (usuarioId: string) => {
     <template #body>
       <div v-if="correspondencia" class="space-y-4">
         <!-- Info del documento -->
-        <div class="p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700/60 text-xs">
+        <div class="p-3 rounded-md bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700/60 text-xs">
           <div class="flex items-center justify-between font-bold text-gray-900 dark:text-gray-100">
             <span>Nº {{ correspondencia.nro }}/{{ correspondencia.gestion }}</span>
             <span class="text-gray-500 font-normal">{{ correspondencia.cite_origen || 'Sin CITE' }}</span>
@@ -202,7 +202,7 @@ const handleEliminar = async (usuarioId: string) => {
         </div>
 
         <!-- Formulario agregar colaborador -->
-        <div class="p-3.5 rounded-lg border border-primary-200/60 dark:border-primary-900/50 bg-primary-50/30 dark:bg-primary-950/20 space-y-3">
+        <div class="p-3.5 rounded-md border border-primary-200/60 dark:border-primary-900/50 bg-primary-50/30 dark:bg-primary-950/20 space-y-3">
           <span class="text-xs font-semibold text-primary-700 dark:text-primary-300 block">
             Agregar Colaborador
           </span>
@@ -275,7 +275,7 @@ const handleEliminar = async (usuarioId: string) => {
             Cargando usuarios compartidos...
           </div>
 
-          <div v-else-if="compartidos.length === 0" class="py-6 text-center text-xs text-gray-400 italic rounded-lg border border-dashed border-gray-200 dark:border-gray-800">
+          <div v-else-if="compartidos.length === 0" class="py-6 text-center text-xs text-gray-400 italic rounded-md border border-dashed border-gray-200 dark:border-gray-800">
             Este documento aún no está compartido con otros usuarios.
           </div>
 
@@ -283,7 +283,7 @@ const handleEliminar = async (usuarioId: string) => {
             <div
               v-for="item in compartidos"
               :key="item.usuario_id"
-              class="flex items-center justify-between p-2.5 rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-xs"
+              class="flex items-center justify-between p-2.5 rounded-md border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-xs"
             >
               <div class="min-w-0 flex-1 pr-2">
                 <p class="font-medium text-gray-900 dark:text-gray-100 truncate">

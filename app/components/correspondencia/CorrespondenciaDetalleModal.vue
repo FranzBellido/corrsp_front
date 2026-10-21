@@ -276,41 +276,41 @@ const tabItems = computed<TabsItem[]>(() => [
         >
           <template #info>
             <div class="pt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-              <div class="p-3 rounded-xl bg-elevated/50 border border-default">
+              <div class="p-3 rounded-md bg-elevated/50 border border-default">
                 <p class="text-[11px] font-bold uppercase tracking-wider text-muted mb-1">Proceso</p>
                 <p class="text-default">{{ detalle.proceso?.nombre || '—' }}</p>
               </div>
-              <div class="p-3 rounded-xl bg-elevated/50 border border-default">
+              <div class="p-3 rounded-md bg-elevated/50 border border-default">
                 <p class="text-[11px] font-bold uppercase tracking-wider text-muted mb-1">Prioridad</p>
                 <p class="text-default">{{ detalle.codificador?.nombre || '—' }}</p>
               </div>
-              <div class="p-3 rounded-xl bg-elevated/50 border border-default">
+              <div class="p-3 rounded-md bg-elevated/50 border border-default">
                 <p class="text-[11px] font-bold uppercase tracking-wider text-muted mb-1">Área origen</p>
                 <p class="text-default">{{ detalle.areas?.nombre || '—' }}</p>
               </div>
-              <div class="p-3 rounded-xl bg-elevated/50 border border-default">
+              <div class="p-3 rounded-md bg-elevated/50 border border-default">
                 <p class="text-[11px] font-bold uppercase tracking-wider text-muted mb-1">Cargo origen</p>
                 <p class="text-default">{{ detalle.cargo_origen?.nombre || detalle.cargos?.nombre || '—' }}</p>
               </div>
-              <div class="p-3 rounded-xl bg-elevated/50 border border-default">
+              <div class="p-3 rounded-md bg-elevated/50 border border-default">
                 <p class="text-[11px] font-bold uppercase tracking-wider text-muted mb-1">Remitente</p>
                 <p class="text-default">{{ detalle.cargos?.nombre || '—' }}</p>
               </div>
-              <div class="p-3 rounded-xl bg-elevated/50 border border-default">
+              <div class="p-3 rounded-md bg-elevated/50 border border-default">
                 <p class="text-[11px] font-bold uppercase tracking-wider text-muted mb-1">Destinatario (doc.)</p>
                 <p class="text-default">{{ detalle.cargo_destinatario?.nombre || '—' }}</p>
               </div>
-              <div class="p-3 rounded-xl bg-elevated/50 border border-default">
+              <div class="p-3 rounded-md bg-elevated/50 border border-default">
                 <p class="text-[11px] font-bold uppercase tracking-wider text-muted mb-1">Fecha emisión</p>
                 <p class="text-default">{{ formatFecha(detalle.fecha_emision) }}</p>
               </div>
-              <div class="p-3 rounded-xl bg-elevated/50 border border-default">
+              <div class="p-3 rounded-md bg-elevated/50 border border-default">
                 <p class="text-[11px] font-bold uppercase tracking-wider text-muted mb-1">Fecha plazo</p>
                 <p class="text-default">{{ formatFecha(detalle.fecha_plazo) }}</p>
               </div>
               <div
                 v-if="detalle.cite_origen"
-                class="p-3 rounded-xl bg-elevated/50 border border-default sm:col-span-2"
+                class="p-3 rounded-md bg-elevated/50 border border-default sm:col-span-2"
               >
                 <p class="text-[11px] font-bold uppercase tracking-wider text-muted mb-1">CITE origen</p>
                 <p class="font-mono text-xs text-default">{{ detalle.cite_origen }}</p>
@@ -335,7 +335,7 @@ const tabItems = computed<TabsItem[]>(() => [
                 <div
                   v-for="d in detalle.derivaciones"
                   :key="d.id"
-                  class="p-3 rounded-xl border border-default bg-default/50"
+                  class="p-3 rounded-md border border-default bg-default/50"
                 >
                   <div class="flex items-start justify-between gap-2">
                     <div class="min-w-0">

@@ -377,7 +377,7 @@ const handleSave = async (event?: FormSubmitEvent<UsuarioSchemaType>) => {
         class="space-y-4"
         @submit="handleSave"
       >
-        <div class="flex flex-col sm:flex-row sm:items-center gap-4 p-4 rounded-xl border border-default bg-elevated/40">
+        <div class="flex flex-col sm:flex-row sm:items-center gap-4 p-4 rounded-md border border-default bg-elevated/40">
           <UAvatar
             :key="avatarSrc"
             :src="avatarSrc"
@@ -525,7 +525,7 @@ const handleSave = async (event?: FormSubmitEvent<UsuarioSchemaType>) => {
         <!-- Estados: Activo y Disponible -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <!-- Estado Activo / Inactivo -->
-          <div class="flex items-center justify-between p-3 rounded-xl bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800">
+          <div class="flex items-center justify-between p-3 rounded-md bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800">
             <div class="flex flex-col pr-2">
               <span class="text-sm font-semibold text-neutral-800 dark:text-neutral-200">Activo</span>
               <span class="text-[11px] text-neutral-500">Acceso habilitado al sistema.</span>
@@ -537,7 +537,7 @@ const handleSave = async (event?: FormSubmitEvent<UsuarioSchemaType>) => {
           </div>
 
           <!-- Estado Disponible -->
-          <div class="flex items-center justify-between p-3 rounded-xl bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800">
+          <div class="flex items-center justify-between p-3 rounded-md bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800">
             <div class="flex flex-col pr-2">
               <span class="text-sm font-semibold text-neutral-800 dark:text-neutral-200">Disponible</span>
               <span class="text-[11px] text-neutral-500">Disponible para derivaciones.</span>
@@ -554,14 +554,14 @@ const handleSave = async (event?: FormSubmitEvent<UsuarioSchemaType>) => {
           <div v-if="loadingRoles" class="py-4 flex justify-center text-xs text-neutral-400">
             Cargando roles disponibles...
           </div>
-          <div v-else-if="rolesDisponibles.length === 0" class="p-3 text-xs text-neutral-400 italic bg-neutral-50 dark:bg-neutral-900 rounded-lg">
+          <div v-else-if="rolesDisponibles.length === 0" class="p-3 text-xs text-neutral-400 italic bg-neutral-50 dark:bg-neutral-900 rounded-md">
             No se encontraron roles disponibles en la base de datos.
           </div>
           <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
             <div
               v-for="rol in rolesDisponibles"
               :key="rol.id"
-              class="flex items-start gap-2.5 p-2.5 rounded-xl border transition-all duration-200 cursor-pointer select-none"
+              class="flex items-start gap-2.5 p-2.5 rounded-md border transition-all duration-200 cursor-pointer select-none"
               :class="[
                 (form.roles_ids || []).includes(rol.id)
                   ? 'border-primary-500 bg-primary-50/40 dark:bg-primary-950/20 text-primary-950 dark:text-primary-100 shadow-sm'

@@ -203,7 +203,7 @@ defineExpose({ items, fetchAdjuntos })
   <div class="space-y-4">
     <div
       v-if="!soloLectura"
-      class="space-y-3 p-4 rounded-xl border border-default bg-elevated/40"
+      class="space-y-3 p-4 rounded-md border border-default bg-elevated/40"
     >
       <p class="text-xs font-semibold uppercase tracking-wider text-muted">Nuevo adjunto</p>
       <UFormField label="Descripción" required>
@@ -219,7 +219,7 @@ defineExpose({ items, fetchAdjuntos })
         <input
           ref="fileInput"
           type="file"
-          class="block w-full text-sm text-muted file:mr-3 file:rounded-lg file:border-0 file:bg-primary/10 file:px-3 file:py-2 file:text-sm file:font-medium file:text-primary"
+          class="block w-full text-sm text-muted file:mr-3 file:rounded-md file:border-0 file:bg-primary/10 file:px-3 file:py-2 file:text-sm file:font-medium file:text-primary"
           @change="onFileChange"
         />
       </UFormField>
@@ -247,7 +247,7 @@ defineExpose({ items, fetchAdjuntos })
       <li
         v-for="adj in items"
         :key="adj.id"
-        class="flex items-start gap-3 p-3 rounded-xl border border-default bg-default/50"
+        class="flex items-start gap-3 p-3 rounded-md border border-default bg-default/50"
       >
         <UIcon name="i-lucide-file" class="size-5 text-primary shrink-0 mt-0.5" />
         <div class="min-w-0 flex-1">

@@ -317,9 +317,9 @@ const handleSave = async (event?: FormSubmitEvent<ProcesoSchemaType>) => {
           />
         </UFormField>
 
-        <div class="space-y-2 p-4 rounded-xl border border-default bg-elevated/40">
+        <div class="space-y-2 p-4 rounded-md border border-default bg-elevated/40">
           <div class="flex items-start gap-3">
-            <div class="size-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+            <div class="size-10 rounded-md bg-primary/10 text-primary flex items-center justify-center shrink-0">
               <UIcon name="i-lucide-file-type" class="size-5" />
             </div>
             <div class="min-w-0 flex-1 space-y-1">
@@ -380,7 +380,7 @@ const handleSave = async (event?: FormSubmitEvent<ProcesoSchemaType>) => {
           </p>
         </div>
 
-        <div class="space-y-3 rounded-xl border border-default p-3">
+        <div class="space-y-3 rounded-md border border-default p-3">
           <UCheckbox
             v-model="form.interna"
             label="Proceso interno"

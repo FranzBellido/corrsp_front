@@ -161,7 +161,7 @@ const isItemActive = (item: NavItem) => {
             :to="item.to"
             variant="ghost"
             color="neutral"
-            class="w-full gap-3 py-2.5 px-3 rounded-xl transition-all duration-200 group relative"
+            class="w-full gap-3 py-2.5 px-3 rounded-md transition-all duration-200 group relative"
             :class="[
               isItemActive(item) 
                 ? 'bg-primary-50 dark:bg-primary-950/40 text-primary-600 dark:text-primary-400 font-semibold shadow-xs' 
@@ -192,7 +192,7 @@ const isItemActive = (item: NavItem) => {
           <UButton
             variant="ghost"
             color="neutral"
-            class="w-full gap-3 py-2.5 px-3 rounded-xl transition-all duration-200 group"
+            class="w-full gap-3 py-2.5 px-3 rounded-md transition-all duration-200 group"
             :class="[
               isChildActive(item) 
                 ? 'text-primary-600 dark:text-primary-400 font-semibold' 
@@ -223,7 +223,7 @@ const isItemActive = (item: NavItem) => {
                 v-for="child in item.children"
                 :key="child.label"
                 :to="child.to"
-                class="flex items-center gap-2 py-1.5 px-2 rounded-lg text-xs font-medium transition-colors"
+                class="flex items-center gap-2 py-1.5 px-2 rounded-md text-xs font-medium transition-colors"
                 :class="[
                   route.path === child.to 
                     ? 'text-primary-600 dark:text-primary-400 font-semibold bg-primary-50/50 dark:bg-primary-950/30' 
@@ -250,7 +250,7 @@ const isItemActive = (item: NavItem) => {
           variant="ghost"
           color="neutral"
           block
-          class="text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-100 py-2 rounded-xl text-xs font-medium"
+          class="text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-100 py-2 rounded-md text-xs font-medium"
           :class="[collapsed ? 'px-0 justify-center' : 'justify-start']"
           @click="emit('navigate')"
         />
