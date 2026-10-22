@@ -9,6 +9,7 @@ interface EntidadOpcion {
 }
 
 const modelValue = defineModel<number | undefined>()
+const remitenteEntidad = defineModel<string>('remitenteEntidad', { default: '' })
 
 const loading = ref(false)
 const items = ref<EntidadOpcion[]>([])
@@ -43,6 +44,12 @@ watch(
   { immediate: true },
 )
 
+watch(modelValue, (id) => {
+  if (id == null) {
+    remitenteEntidad.value = ''
+  }
+})
+
 const selectedValue = computed({
   get: () => selectedItem.value,
   set: (val: EntidadOpcion | null) => {
@@ -57,28 +64,53 @@ onMounted(() => {
 </script>
 
 <template>
-  <USelectMenu
-    v-model="selectedValue"
-    :items="items"
-    label-key="nombre"
-    :placeholder="selectedItem?.nombre || 'Seleccione una entidad...'"
-    :loading="loading"
-    :search-input="{
-      placeholder: 'Buscar entidad...',
-      icon: 'i-lucide-search',
-    }"
-    class="w-full"
-  >
-    <template #leading>
-      <UIcon name="i-lucide-building-2" class="size-4 text-muted" />
-    </template>
-    <template #item-label="{ item }">
-      <span class="truncate">{{ item.nombre }}</span>
-    </template>
-    <template #empty>
-      <div class="p-2 text-xs text-muted">
-        {{ loading ? 'Cargando entidades...' : 'No hay entidades activas registradas.' }}
-      </div>
-    </template>
-  </USelectMenu>
+  <div class="space-y-3 w-full">
+    <UFormField
+      label="Entidad"
+      name="entidad_id"
+      required
+      help="Seleccione la entidad externa asociada a este trámite."
+    >
+      <USelectMenu
+        v-model="selectedValue"
+        :items="items"
+        label-key="nombre"
+        :placeholder="selectedItem?.nombre || 'Seleccione una entidad...'"
+        :loading="loading"
+        :search-input="{
+          placeholder: 'Buscar entidad...',
+          icon: 'i-lucide-search',
+        }"
+        class="w-full"
+      >
+        <template #leading>
+          <UIcon name="i-lucide-building-2" class="size-4 text-muted" />
+        </template>
+        <template #item-label="{ item }">
+          <span class="truncate">{{ item.nombre }}</span>
+        </template>
+        <template #empty>
+          <div class="p-2 text-xs text-muted">
+            {{ loading ? 'Cargando entidades...' : 'No hay entidades activas registradas.' }}
+          </div>
+        </template>
+      </USelectMenu>
+    </UFormField>
+
+    <UFormField
+      label="Remitente de la entidad"
+      name="remitente_entidad"
+      :required="modelValue != null"
+      help="Nombre de la persona o funcionario que remite el documento en nombre de la entidad seleccionada."
+    >
+      <UInput
+        v-model="remitenteEntidad"
+        :disabled="modelValue == null"
+        placeholder="Ej.: Lic. Juan Pérez — Director Ejecutivo"
+        icon="i-lucide-user"
+        class="w-full"
+        maxlength="500"
+      />
+    </UFormField>
+  </div>
 </template>

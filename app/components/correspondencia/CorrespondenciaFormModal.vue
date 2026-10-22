@@ -38,6 +38,7 @@ const errorHr = ref<string | null>(null)
 const requiereCooperativa = ref(false)
 const requiereEntidad = ref(false)
 const entidadId = ref<number | undefined>(undefined)
+const remitenteEntidad = ref('')
 const codigoUnico :string = crypto.randomUUID()
 
 const emptyCooperativa = (): CorrespCooperativaFormState => ({
@@ -146,6 +147,7 @@ const onProcesoSeleccionado = (item: CodificadorDto | null) => {
       requiereCooperativa.value = false
       requiereEntidad.value = false
       entidadId.value = undefined
+      remitenteEntidad.value = ''
     }
     return
   }
@@ -159,6 +161,7 @@ const onProcesoSeleccionado = (item: CodificadorDto | null) => {
   const nextEntidad = Boolean(item.requiere_entidad)
   if (requiereEntidad.value && !nextEntidad) {
     entidadId.value = undefined
+    remitenteEntidad.value = ''
   }
   requiereEntidad.value = nextEntidad
 }
@@ -212,8 +215,10 @@ const buildEntidadesPayload = (): CorrespEntidadPayload | undefined => {
   if (!requiereEntidad.value || !entidadId.value) {
     return undefined
   }
+  const nombre = remitenteEntidad.value.trim()
   return {
     entidades_ids: [Number(entidadId.value)],
+    remitente_entidad: nombre || undefined,
   }
 }
 
@@ -296,6 +301,7 @@ const resetFormularioNueva = () => {
   requiereCooperativa.value = false
   requiereEntidad.value = false
   entidadId.value = undefined
+  remitenteEntidad.value = ''
   tipoHr.value = 'nueva'
   nroHrInput.value = undefined
   hrEncontrada.value = null
@@ -321,6 +327,7 @@ const cargarFormularioEdicion = (val: Correspondencia) => {
     val.proceso?.requiere_entidad || val.corresp_entidad?.length,
   )
   entidadId.value = val.corresp_entidad?.[0]?.entidad_id
+  remitenteEntidad.value = val.corresp_entidad?.[0]?.remitente_entidad?.trim() || ''
   tipoHr.value = val.hoja_ruta ? 'existente' : 'nueva'
   nroHrInput.value = val.hoja_ruta?.numero
   hrEncontrada.value = val.hoja_ruta || null
@@ -473,6 +480,16 @@ const handleSave = async (event?: FormSubmitEvent<CorrespondenciaSchemaType>) =>
     toast.add({
       title: 'Validación',
       description: 'Debe seleccionar una entidad externa.',
+      color: 'warning',
+      icon: 'i-lucide-alert-triangle',
+    })
+    return
+  }
+
+  if (requiereEntidad.value && entidadId.value && !remitenteEntidad.value.trim()) {
+    toast.add({
+      title: 'Validación',
+      description: 'Indique el nombre del remitente de la entidad seleccionada.',
       color: 'warning',
       icon: 'i-lucide-alert-triangle',
     })
@@ -801,14 +818,7 @@ const handleAsignarCiteHr = async () => {
             </div>
           </div>
 
-          <UFormField
-            label="Entidad"
-            name="entidad_id"
-            required
-            help="Seleccione la entidad externa asociada a este trámite."
-          >
-            <EntidadSelect v-model="entidadId" />
-          </UFormField>
+          <EntidadSelect v-model="entidadId" v-model:remitente-entidad="remitenteEntidad" />
         </div>
 
         <!-- Cargo destinatario (plantilla / trámite) -->

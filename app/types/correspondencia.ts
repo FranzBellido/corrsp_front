@@ -48,6 +48,7 @@ export interface Correspondencia {
     nombre: string;
     codigo?: string;
     plantilla?: string | null;
+    interna?: boolean;
     requiere_cooperativa?: boolean;
     requiere_entidad?: boolean;
   } | null;
@@ -140,6 +141,7 @@ export interface CorrespCooperativaPayload {
 export interface CorrespEntidad {
   corresp_id?: string;
   entidad_id: number;
+  remitente_entidad?: string | null;
   entidad?: {
     id: number;
     nombre_ent?: string | null;
@@ -149,6 +151,7 @@ export interface CorrespEntidad {
 
 export interface CorrespEntidadPayload {
   entidades_ids: number[];
+  remitente_entidad?: string;
 }
 
 export interface CreateCorrespondenciaPayload {

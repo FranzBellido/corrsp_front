@@ -27,15 +27,33 @@ export function correspondenciaTieneDocumentoOficial(
   return Boolean((c.url_documento || c.contenido)?.trim())
 }
 
-/** Requiere correlativo, HR y documento generado en OnlyOffice antes de derivar. */
-export function correspondenciaPuedeDerivar(
-  c: Pick<Correspondencia, 'nro' | 'hr_id' | 'hoja_ruta' | 'url_documento' | 'contenido'>,
+/** Correspondencia de proceso externo (entrante/saliente); no exige .docx institucional para derivar. */
+export function correspondenciaEsProcesoExterno(
+  c: Pick<Correspondencia, 'proceso'>,
 ): boolean {
-  return (
-    !correspondenciaSinNumerar(c) &&
-    correspondenciaTieneHojaRuta(c) &&
-    correspondenciaTieneDocumentoOficial(c)
-  )
+  return c.proceso?.interna === false
+}
+
+export function correspondenciaRequiereDocumentoParaDerivar(
+  c: Pick<Correspondencia, 'proceso'>,
+): boolean {
+  return !correspondenciaEsProcesoExterno(c)
+}
+
+/** Requiere correlativo y HR; documento OnlyOffice solo en procesos internos. */
+export function correspondenciaPuedeDerivar(
+  c: Pick<
+    Correspondencia,
+    'nro' | 'hr_id' | 'hoja_ruta' | 'url_documento' | 'contenido' | 'proceso'
+  >,
+): boolean {
+  if (correspondenciaSinNumerar(c) || !correspondenciaTieneHojaRuta(c)) {
+    return false
+  }
+  if (!correspondenciaRequiereDocumentoParaDerivar(c)) {
+    return true
+  }
+  return correspondenciaTieneDocumentoOficial(c)
 }
 
 export const MENSAJE_SIN_NUMERACION_HR =
@@ -50,12 +68,18 @@ export const MENSAJE_SIN_DOCUMENTO_OFICIAL =
 
 /** Mensaje de validación al bloquear derivación (borrador / modal). */
 export function mensajeNoDerivarCorrespondencia(
-  c: Pick<Correspondencia, 'nro' | 'hr_id' | 'hoja_ruta' | 'url_documento' | 'contenido'>,
+  c: Pick<
+    Correspondencia,
+    'nro' | 'hr_id' | 'hoja_ruta' | 'url_documento' | 'contenido' | 'proceso'
+  >,
 ): string {
   if (correspondenciaSinNumerar(c) || !correspondenciaTieneHojaRuta(c)) {
     return MENSAJE_SIN_NUMERACION_HR
   }
-  if (!correspondenciaTieneDocumentoOficial(c)) {
+  if (
+    correspondenciaRequiereDocumentoParaDerivar(c) &&
+    !correspondenciaTieneDocumentoOficial(c)
+  ) {
     return MENSAJE_SIN_DOCUMENTO_OFICIAL
   }
   return MENSAJE_SIN_NUMERACION_HR
@@ -80,12 +104,14 @@ export function observacionesPendientesCorrespondencia(c: CorrespondenciaObserva
     items.push('Falta asignar CITE de origen.')
   }
 
-  const tienePlantilla = Boolean(c.proceso?.plantilla?.trim())
-  if (!correspondenciaTieneDocumentoOficial(c)) {
-    if (!tienePlantilla) {
-      items.push('El proceso no tiene plantilla Word; no se puede generar el documento.')
-    } else {
-      items.push('Falta generar el documento.')
+  if (correspondenciaRequiereDocumentoParaDerivar(c)) {
+    const tienePlantilla = Boolean(c.proceso?.plantilla?.trim())
+    if (!correspondenciaTieneDocumentoOficial(c)) {
+      if (!tienePlantilla) {
+        items.push('El proceso no tiene plantilla Word; no se puede generar el documento.')
+      } else {
+        items.push('Falta generar el documento.')
+      }
     }
   }
 
