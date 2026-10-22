@@ -16,6 +16,7 @@ import {
   correspondenciaSinNumerar,
   etiquetaNumeroCorrespondencia,
   mensajeNoDerivarCorrespondencia,
+  MENSAJE_ELIMINAR_CORRELATIVO,
 } from '~/utils/correspondencia'
 import { META_COLUMNA_ACCIONES_TABLA } from '~/utils/acciones-menu'
 
@@ -693,7 +694,7 @@ onMounted(() => {
     <UModal
       v-model:open="isDeleteOpen"
       title="Eliminar Correspondencia"
-      description="¿Está seguro de que desea eliminar este registro? Esta acción no se puede deshacer."
+      :description="MENSAJE_ELIMINAR_CORRELATIVO"
       :ui="{ content: 'sm:max-w-md' }"
     >
       <template #body>

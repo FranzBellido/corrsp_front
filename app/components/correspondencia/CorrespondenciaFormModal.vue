@@ -228,7 +228,22 @@ const pendienteNumeracion = computed(() => {
   return correspondenciaSinNumerar(c) && !correspondenciaTieneCite(c)
 })
 
-const mostrarHrAlCrear = computed(() => !isEditing.value && asignarCiteHr.value)
+/** El correlativo depende del proceso; no se puede cambiar proc_id si ya hay nro > 0. */
+const procesoCorrelativoBloqueado = computed(() => {
+  const c = props.correspondencia
+  return Boolean(c?.id && c.nro > 0)
+})
+
+const mostrarCheckboxAsignarCiteHr = computed(
+  () => !esModoRespuesta.value && (!isEditing.value || pendienteNumeracion.value),
+)
+
+const mostrarBloqueHojaRuta = computed(
+  () =>
+    !esModoRespuesta.value &&
+    asignarCiteHr.value &&
+    (!isEditing.value || pendienteNumeracion.value),
+)
 
 // Obtener area_activa_id priorizando localStorage, sessionStorage y useProfile
 const areaActivaId = computed(() => {
@@ -310,7 +325,8 @@ const cargarFormularioEdicion = (val: Correspondencia) => {
   nroHrInput.value = val.hoja_ruta?.numero
   hrEncontrada.value = val.hoja_ruta || null
   errorHr.value = null
-  asignarCiteHr.value = !(correspondenciaSinNumerar(val) && !correspondenciaTieneCite(val))
+  asignarCiteHr.value =
+    correspondenciaSinNumerar(val) && !correspondenciaTieneCite(val)
 }
 
 const prefillDesdeOrigenRespuesta = (origen: Correspondencia) => {
@@ -675,18 +691,20 @@ const handleAsignarCiteHr = async () => {
         </div>
 
         <div
-          v-if="!isEditing && !esModoRespuesta"
+          v-if="mostrarCheckboxAsignarCiteHr"
           class="p-3 rounded-md border border-default bg-elevated/30"
         >
           <UCheckbox
             v-model="asignarCiteHr"
             label="Asignar CITE y Hoja de Ruta"
-            description="Si está desmarcado, se guarda un borrador sin número ni HR. Podrá numerar y asignar CITE después."
+            :description="isEditing
+              ? 'Marque para configurar HR y numerar con el botón «Asignar CITE y numerar», o desmarque para seguir editando solo como borrador.'
+              : 'Si está desmarcado, se guarda un borrador sin número ni HR. Podrá numerar y asignar CITE después.'"
           />
         </div>
 
         <div
-          v-if="pendienteNumeracion"
+          v-if="pendienteNumeracion && asignarCiteHr"
           class="p-3 rounded-md border border-warning/40 bg-warning/10 text-xs text-default space-y-1"
         >
           <p class="font-semibold text-highlighted flex items-center gap-1.5">
@@ -699,7 +717,7 @@ const handleAsignarCiteHr = async () => {
         </div>
 
         <CorrespondenciaHojaRutaFields
-          v-if="!esModoRespuesta && (mostrarHrAlCrear || pendienteNumeracion)"
+          v-if="mostrarBloqueHojaRuta"
           v-model:tipo-hr="tipoHr"
           v-model:nro-hr-input="nroHrInput"
           v-model:hr-encontrada="hrEncontrada"
@@ -715,7 +733,9 @@ const handleAsignarCiteHr = async () => {
             label="Tipo de proceso"
             name="proc_id"
             required
-            help="Filtrado según los procesos autorizados para el área activa."
+            :help="procesoCorrelativoBloqueado
+              ? 'No se puede cambiar: ya tiene número correlativo asignado para este proceso.'
+              : 'Filtrado según los procesos autorizados para el área activa.'"
           >
             <CodificadorSelect
               v-model="form.proc_id"
@@ -723,6 +743,7 @@ const handleAsignarCiteHr = async () => {
               :params="procesoParams"
               placeholder="Seleccione proceso..."
               class="w-full"
+              :disabled="procesoCorrelativoBloqueado"
               @item-selected="onProcesoSeleccionado"
             />
           </UFormField>
@@ -836,7 +857,7 @@ const handleAsignarCiteHr = async () => {
           @click="open = false"
         />
         <UButton
-          v-if="pendienteNumeracion"
+          v-if="pendienteNumeracion && asignarCiteHr"
           label="Asignar CITE y numerar"
           icon="i-lucide-stamp"
           color="primary"

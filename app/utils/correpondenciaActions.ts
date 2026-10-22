@@ -10,7 +10,7 @@ export interface ActionContext {
   modo: 'borrador' | 'archivo' | 'compartidos'
   tieneDocumento: boolean
   tienePlantilla: boolean
-  tieneCite: boolean
+  tieneDerivaciones: boolean
   esSoloLectura: boolean
   esCompartidoEnviado: boolean
   compartidosCount: number
@@ -96,8 +96,8 @@ export function getAccionesBandeja(ctx: ActionContext): ActionMenuItem[] {
       onSelect: ctx.onEditarInfo,
     })
 
-    // 6. Eliminar (Acción destructiva)
-    if (!ctx.tieneCite) {
+    // 6. Eliminar (último correlativo validado en backend)
+    if (!ctx.tieneDerivaciones) {
       items.push({
         label: 'Eliminar',
         icon: 'i-lucide-trash-2',
@@ -148,7 +148,7 @@ export function getAccionesBandeja(ctx: ActionContext): ActionMenuItem[] {
       onSelect: ctx.onEditarInfo,
     })
 
-    if (!ctx.tieneCite) {
+    if (!ctx.tieneDerivaciones) {
       items.push({
         label: 'Eliminar',
         icon: 'i-lucide-trash-2',

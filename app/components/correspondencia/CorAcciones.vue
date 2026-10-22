@@ -3,7 +3,6 @@ import { computed, h, resolveComponent } from 'vue'
 import type { DropdownMenuItem } from '@nuxt/ui'
 import type { Correspondencia } from '~/types/correspondencia'
 import {
-  correspondenciaTieneCite,
   observacionesPendientesCorrespondencia,
   textoTooltipObservacionesCorrespondencia,
 } from '~/utils/correspondencia'
@@ -83,7 +82,7 @@ const menuItems = computed<DropdownMenuItem[]>(() => {
     modo: props.modo,
     tieneDocumento,
     tienePlantilla,
-    tieneCite: correspondenciaTieneCite(c),
+    tieneDerivaciones: (c._count?.derivaciones ?? 0) > 0,
     esSoloLectura: esCompartidoEnviado ? false : esSoloLectura,
     esCompartidoEnviado,
     compartidosCount: c._count?.corresp_usuario || c.corresp_usuario?.length || 0,
