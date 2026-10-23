@@ -1,7 +1,22 @@
 import type { Correspondencia } from '~/types/correspondencia'
 
-export function correspondenciaTieneCite(c: Pick<Correspondencia, 'cite_origen'>): boolean {
-  return Boolean(c.cite_origen?.trim())
+/** CITE almacenado en corresp_entidad o corresp_cooperativa (compat. con cite_origen mapeado en API). */
+export function citeOrigenCorrespondencia(
+  c: Pick<Correspondencia, 'cite_origen' | 'corresp_entidad' | 'corresp_cooperativa'>,
+): string {
+  const directo = c.cite_origen?.trim()
+  if (directo) return directo
+  const citeEntidad = c.corresp_entidad?.[0]?.cite_origen?.trim()
+  if (citeEntidad) return citeEntidad
+  const citeCoop = c.corresp_cooperativa?.[0]?.cite_origen?.trim()
+  if (citeCoop) return citeCoop
+  return ''
+}
+
+export function correspondenciaTieneCite(
+  c: Pick<Correspondencia, 'cite_origen' | 'corresp_entidad' | 'corresp_cooperativa'>,
+): boolean {
+  return Boolean(citeOrigenCorrespondencia(c))
 }
 
 export function correspondenciaSinNumerar(c: Pick<Correspondencia, 'nro'>): boolean {
@@ -87,7 +102,7 @@ export function mensajeNoDerivarCorrespondencia(
 
 type CorrespondenciaObservaciones = Pick<
   Correspondencia,
-  'nro' | 'hr_id' | 'hoja_ruta' |'url_documento' | 'contenido' | 'proceso'
+  'nro' | 'hr_id' | 'hoja_ruta' | 'url_documento' | 'contenido' | 'proceso' | 'cite_origen' | 'corresp_entidad' | 'corresp_cooperativa'
 >
 
 /** Avisos visibles en bandeja (tooltip junto al detalle). */

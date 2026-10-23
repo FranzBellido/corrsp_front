@@ -2,6 +2,7 @@
 import { ref, computed, watch } from 'vue'
 import type { Correspondencia } from '~/types/correspondencia'
 import { backendService } from '~/services/backend.service'
+import { citeOrigenCorrespondencia } from '~/utils/correspondencia'
 
 const props = defineProps<{
   correspondencia: Correspondencia | null
@@ -194,7 +195,7 @@ const handleEliminar = async (usuarioId: string) => {
         <div class="p-3 rounded-md bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700/60 text-xs">
           <div class="flex items-center justify-between font-bold text-gray-900 dark:text-gray-100">
             <span>Nº {{ correspondencia.nro }}/{{ correspondencia.gestion }}</span>
-            <span class="text-gray-500 font-normal">{{ correspondencia.cite_origen || 'Sin CITE' }}</span>
+            <span class="text-gray-500 font-normal">{{ citeOrigenCorrespondencia(correspondencia) || 'Sin CITE' }}</span>
           </div>
           <p class="mt-1 text-gray-600 dark:text-gray-300 line-clamp-2">
             {{ correspondencia.referencia }}

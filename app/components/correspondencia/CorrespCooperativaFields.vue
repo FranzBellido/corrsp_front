@@ -3,14 +3,14 @@ import CooperativaAutocomplete from '~/components/correspondencia/CooperativaAut
 
 export interface CorrespCooperativaFormState {
   cooperativa_id: number | undefined
+  nombre_cooperativa: string
   solicitante: string
   nro_carnet: string
   cargo_solicitante: string
   correo_solicitante: string
   nro_poder: string
-  nro_deposito: string
-  importe: number | undefined
   telefono: string
+  cite_origen: string
 }
 
 const model = defineModel<CorrespCooperativaFormState>({ required: true })
@@ -33,10 +33,37 @@ const model = defineModel<CorrespCooperativaFormState>({ required: true })
     <UFormField
       label="Cooperativa"
       name="cooperativa.cooperativa_id"
-      required
-      help="Busque por denominación o nro. de registro. Al seleccionar verá registro, sector, tipo y departamento."
+      help="Busque en el catálogo o indique el nombre manualmente si no está registrada."
     >
       <CooperativaAutocomplete v-model="model.cooperativa_id" />
+    </UFormField>
+
+    <UFormField
+      label="Nombre de cooperativa (manual)"
+      name="cooperativa.nombre_cooperativa"
+      help="Opcional si seleccionó una cooperativa del catálogo."
+    >
+      <UInput
+        v-model="model.nombre_cooperativa"
+        placeholder="Ej. Cooperativa de Ahorro y Crédito..."
+        icon="i-lucide-building"
+        class="w-full"
+        maxlength="500"
+      />
+    </UFormField>
+
+    <UFormField
+      label="CITE de origen"
+      name="cooperativa.cite_origen"
+      help="CITE del documento externo. Si numera en el sistema, se completará automáticamente."
+    >
+      <UInput
+        v-model="model.cite_origen"
+        placeholder="Ej. CITE institucional o del documento recibido"
+        icon="i-lucide-file-code"
+        class="w-full font-mono"
+        maxlength="200"
+      />
     </UFormField>
 
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -107,43 +134,15 @@ const model = defineModel<CorrespCooperativaFormState>({ required: true })
       />
     </UFormField>
 
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-      <UFormField
-        label="Nro. de poder"
-        name="cooperativa.nro_poder"
-      >
-        <UInput
-          v-model="model.nro_poder"
-          placeholder="Opcional"
-          class="w-full"
-        />
-      </UFormField>
-
-      <UFormField
-        label="Nro. de depósito"
-        name="cooperativa.nro_deposito"
-      >
-        <UInput
-          v-model="model.nro_deposito"
-          placeholder="Opcional"
-          class="w-full"
-        />
-      </UFormField>
-
-      <UFormField
-        label="Importe"
-        name="cooperativa.importe"
-      >
-        <UInput
-          v-model.number="model.importe"
-          type="number"
-          step="0.01"
-          min="0"
-          placeholder="0.00"
-          icon="i-lucide-banknote"
-          class="w-full"
-        />
-      </UFormField>
-    </div>
+    <UFormField
+      label="Nro. de poder"
+      name="cooperativa.nro_poder"
+    >
+      <UInput
+        v-model="model.nro_poder"
+        placeholder="Opcional"
+        class="w-full"
+      />
+    </UFormField>
   </div>
 </template>

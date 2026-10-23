@@ -109,15 +109,15 @@ export interface CorrespUsuarioCompartido {
 
 export interface CorrespCooperativa {
   corresp_id?: string;
-  cooperativa_id: number;
+  cooperativa_id?: number | null;
   solicitante: string;
   nro_carnet: string;
   cargo_solicitante?: string | null;
   correo_solicitante?: string | null;
   nro_poder?: string | null;
-  nro_deposito?: string | null;
-  importe?: number | string | null;
   telefono?: string | null;
+  cite_origen?: string | null;
+  nombre_cooperativa?: string | null;
   cooperativa?: {
     id: number;
     denominacion?: string | null;
@@ -127,21 +127,22 @@ export interface CorrespCooperativa {
 }
 
 export interface CorrespCooperativaPayload {
-  cooperativa_id: number;
+  cooperativa_id?: number;
   solicitante: string;
   nro_carnet: string;
   cargo_solicitante?: string;
   correo_solicitante?: string;
   nro_poder?: string;
-  nro_deposito?: string;
-  importe?: number;
   telefono?: string;
+  cite_origen?: string;
+  nombre_cooperativa?: string;
 }
 
 export interface CorrespEntidad {
   corresp_id?: string;
   entidad_id: number;
   remitente_entidad?: string | null;
+  cite_origen?: string | null;
   entidad?: {
     id: number;
     nombre_ent?: string | null;
@@ -152,6 +153,7 @@ export interface CorrespEntidad {
 export interface CorrespEntidadPayload {
   entidades_ids: number[];
   remitente_entidad?: string;
+  cite_origen?: string;
 }
 
 export interface CreateCorrespondenciaPayload {
@@ -168,7 +170,6 @@ export interface CreateCorrespondenciaPayload {
   asignar_cite_hr?: boolean;
   nro_hr?: number;
   hr_id?: string;
-  cite_origen?: string;
   cooperativa?: CorrespCooperativaPayload;
   entidades?: CorrespEntidadPayload;
   codigo_unico: string;   // para validar si ya existe la correspondencia
@@ -184,7 +185,6 @@ export interface UpdateCorrespondenciaPayload {
   proc_id?: number;
   prioridad_id?: number;
   confidencial?: boolean;
-  cite_origen?: string;
   remitente_id?: string;
   destinatario_id?: string;
   cooperativa?: CorrespCooperativaPayload;

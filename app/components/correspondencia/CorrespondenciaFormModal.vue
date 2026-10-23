@@ -9,7 +9,7 @@ import { backendService } from '~/services/backend.service'
 import CodificadorSelect from '~/components/codificador/CodificadorSelect.vue'
 import CorrespCooperativaFields, { type CorrespCooperativaFormState } from '~/components/correspondencia/CorrespCooperativaFields.vue'
 import EntidadSelect from '~/components/correspondencia/EntidadSelect.vue'
-import { correspondenciaSinNumerar, correspondenciaTieneCite } from '~/utils/correspondencia'
+import { citeOrigenCorrespondencia, correspondenciaSinNumerar, correspondenciaTieneCite } from '~/utils/correspondencia'
 
 const props = defineProps<{
   correspondencia?: Correspondencia | null
@@ -39,22 +39,25 @@ const requiereCooperativa = ref(false)
 const requiereEntidad = ref(false)
 const entidadId = ref<number | undefined>(undefined)
 const remitenteEntidad = ref('')
+const citeOrigenEntidad = ref('')
 const codigoUnico :string = crypto.randomUUID()
 
 const emptyCooperativa = (): CorrespCooperativaFormState => ({
   cooperativa_id: undefined,
+  nombre_cooperativa: '',
   solicitante: '',
   nro_carnet: '',
   cargo_solicitante: '',
   correo_solicitante: '',
   nro_poder: '',
-  nro_deposito: '',
-  importe: undefined,
   telefono: '',
+  cite_origen: '',
 })
 
 const cooperativaSchema = z.object({
-  cooperativa_id: z.number({ message: 'Debe seleccionar una cooperativa' }),
+  cooperativa_id: z.number().optional(),
+  nombre_cooperativa: z.string().optional(),
+  cite_origen: z.string().optional(),
   solicitante: z
     .string()
     .trim()
@@ -74,12 +77,16 @@ const cooperativaSchema = z.object({
       'El correo del solicitante no es válido',
     ),
   nro_poder: z.string().optional(),
-  nro_deposito: z.string().optional(),
-  importe: z
-    .union([z.number().nonnegative('El importe no puede ser negativo'), z.nan(), z.undefined()])
-    .optional(),
   telefono: z.string().optional(),
-  codigo_unico: z.string()
+  codigo_unico: z.string(),
+}).superRefine((data, ctx) => {
+  if (!data.cooperativa_id && !data.nombre_cooperativa?.trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Seleccione una cooperativa o indique el nombre manualmente',
+      path: ['cooperativa_id'],
+    })
+  }
 })
 
 // Esquema de validación con Zod
@@ -93,7 +100,6 @@ const correspondenciaSchema = computed(() => {
     proc_id: z.number({ message: 'Debe seleccionar un proceso' }),
     prioridad_id: z.number({ message: 'Debe seleccionar una prioridad' }),
     confidencial: z.boolean().default(false),
-    cite_origen: z.string().optional(),
     remitente_id: z
       .string({ message: 'Debe seleccionar el cargo remitente' })
       .min(1, 'Debe seleccionar el cargo remitente')
@@ -122,7 +128,6 @@ type CorrespondenciaSchemaType = {
   proc_id: number
   prioridad_id: number
   confidencial: boolean
-  cite_origen?: string
   remitente_id: string
   destinatario_id: string
   cooperativa: CorrespCooperativaFormState
@@ -133,7 +138,6 @@ const form = ref<CorrespondenciaSchemaType>({
   proc_id: undefined as any,
   prioridad_id: undefined as any,
   confidencial: false,
-  cite_origen: '',
   remitente_id: '',
   destinatario_id: '',
   cooperativa: emptyCooperativa(),
@@ -148,6 +152,7 @@ const onProcesoSeleccionado = (item: CodificadorDto | null) => {
       requiereEntidad.value = false
       entidadId.value = undefined
       remitenteEntidad.value = ''
+      citeOrigenEntidad.value = ''
     }
     return
   }
@@ -162,6 +167,7 @@ const onProcesoSeleccionado = (item: CodificadorDto | null) => {
   if (requiereEntidad.value && !nextEntidad) {
     entidadId.value = undefined
     remitenteEntidad.value = ''
+    citeOrigenEntidad.value = ''
   }
   requiereEntidad.value = nextEntidad
 }
@@ -172,21 +178,20 @@ const mapCooperativaExistente = (val: Correspondencia): CorrespCooperativaFormSt
     return emptyCooperativa()
   }
 
-  const importeNumerico =
-    existente.importe === null || existente.importe === undefined || existente.importe === ''
-      ? undefined
-      : Number(existente.importe)
-
   return {
-    cooperativa_id: existente.cooperativa_id,
+    cooperativa_id: existente.cooperativa_id ?? undefined,
+    nombre_cooperativa:
+      existente.nombre_cooperativa?.trim() ||
+      existente.cooperativa?.denominacion?.trim() ||
+      existente.cooperativa?.razon_social?.trim() ||
+      '',
     solicitante: existente.solicitante || '',
     nro_carnet: existente.nro_carnet || '',
     cargo_solicitante: existente.cargo_solicitante || '',
     correo_solicitante: existente.correo_solicitante || '',
     nro_poder: existente.nro_poder || '',
-    nro_deposito: existente.nro_deposito || '',
-    importe: Number.isFinite(importeNumerico) ? importeNumerico : undefined,
     telefono: existente.telefono || '',
+    cite_origen: existente.cite_origen || '',
   }
 }
 
@@ -197,17 +202,15 @@ const buildCooperativaPayload = (): CorrespCooperativaPayload | undefined => {
 
   const coop = form.value.cooperativa
   return {
-    cooperativa_id: Number(coop.cooperativa_id),
+    cooperativa_id: coop.cooperativa_id != null ? Number(coop.cooperativa_id) : undefined,
+    nombre_cooperativa: coop.nombre_cooperativa?.trim() || undefined,
     solicitante: coop.solicitante.trim(),
     nro_carnet: coop.nro_carnet.trim(),
     cargo_solicitante: coop.cargo_solicitante?.trim() || undefined,
     correo_solicitante: coop.correo_solicitante?.trim() || undefined,
     nro_poder: coop.nro_poder?.trim() || undefined,
-    nro_deposito: coop.nro_deposito?.trim() || undefined,
-    importe: coop.importe === undefined || coop.importe === null || Number.isNaN(Number(coop.importe))
-      ? undefined
-      : Number(coop.importe),
     telefono: coop.telefono?.trim() || undefined,
+    cite_origen: coop.cite_origen?.trim() || undefined,
   }
 }
 
@@ -216,9 +219,11 @@ const buildEntidadesPayload = (): CorrespEntidadPayload | undefined => {
     return undefined
   }
   const nombre = remitenteEntidad.value.trim()
+  const cite = citeOrigenEntidad.value.trim()
   return {
     entidades_ids: [Number(entidadId.value)],
     remitente_entidad: nombre || undefined,
+    cite_origen: cite || undefined,
   }
 }
 
@@ -293,7 +298,6 @@ const resetFormularioNueva = () => {
     proc_id: undefined as any,
     prioridad_id: undefined as any,
     confidencial: false,
-    cite_origen: '',
     remitente_id: defaultRemitenteId(),
     destinatario_id: '',
     cooperativa: emptyCooperativa(),
@@ -302,6 +306,7 @@ const resetFormularioNueva = () => {
   requiereEntidad.value = false
   entidadId.value = undefined
   remitenteEntidad.value = ''
+  citeOrigenEntidad.value = ''
   tipoHr.value = 'nueva'
   nroHrInput.value = undefined
   hrEncontrada.value = null
@@ -315,7 +320,6 @@ const cargarFormularioEdicion = (val: Correspondencia) => {
     proc_id: val.proc_id,
     prioridad_id: val.prioridad_id,
     confidencial: Boolean(val.confidencial),
-    cite_origen: val.cite_origen || '',
     remitente_id: val.remitente_id || val.cargos?.id || defaultRemitenteId(),
     destinatario_id: val.destinatario_id || val.cargo_destinatario?.id || '',
     cooperativa: mapCooperativaExistente(val),
@@ -328,6 +332,8 @@ const cargarFormularioEdicion = (val: Correspondencia) => {
   )
   entidadId.value = val.corresp_entidad?.[0]?.entidad_id
   remitenteEntidad.value = val.corresp_entidad?.[0]?.remitente_entidad?.trim() || ''
+  citeOrigenEntidad.value =
+    val.corresp_entidad?.[0]?.cite_origen?.trim() || val.cite_origen?.trim() || ''
   tipoHr.value = val.hoja_ruta ? 'existente' : 'nueva'
   nroHrInput.value = val.hoja_ruta?.numero
   hrEncontrada.value = val.hoja_ruta || null
@@ -465,10 +471,14 @@ const handleSave = async (event?: FormSubmitEvent<CorrespondenciaSchemaType>) =>
 
   if (requiereCooperativa.value) {
     const coop = data.cooperativa || form.value.cooperativa
-    if (!coop?.cooperativa_id || !coop.solicitante?.trim() || !coop.nro_carnet?.trim()) {
+    if (
+      (!coop?.cooperativa_id && !coop?.nombre_cooperativa?.trim())
+      || !coop.solicitante?.trim()
+      || !coop.nro_carnet?.trim()
+    ) {
       toast.add({
         title: 'Validación',
-        description: 'Debe completar cooperativa, solicitante y número de carnet.',
+        description: 'Debe indicar cooperativa (catálogo o nombre), solicitante y número de carnet.',
         color: 'warning',
         icon: 'i-lucide-alert-triangle',
       })
@@ -535,10 +545,6 @@ const handleSave = async (event?: FormSubmitEvent<CorrespondenciaSchemaType>) =>
         cooperativa: buildCooperativaPayload(),
         entidades: buildEntidadesPayload(),
       }
-      if (!pendienteNumeracion.value && data.cite_origen?.trim()) {
-        payload.cite_origen = data.cite_origen.trim()
-      }
-
       await backendService.patch<Correspondencia>('correspondencia', props.correspondencia.id, payload)
       toast.add({
         title: 'Correspondencia actualizada',
@@ -618,10 +624,11 @@ const handleAsignarCiteHr = async () => {
       nro_hr: tipoHr.value === 'existente' ? Number(nroHrInput.value) : undefined,
     })
     const data = (res as { data?: Correspondencia })?.data ?? (res as Correspondencia)
+    const cite = citeOrigenCorrespondencia(data)
     toast.add({
       title: 'CITE y numeración asignados',
-      description: data.cite_origen
-        ? `Correlativo ${data.nro}/${data.gestion} · ${data.cite_origen}`
+      description: cite
+        ? `Correlativo ${data.nro}/${data.gestion} · ${cite}`
         : 'La correspondencia fue numerada correctamente.',
       color: 'success',
       icon: 'i-lucide-check-circle',
@@ -818,7 +825,11 @@ const handleAsignarCiteHr = async () => {
             </div>
           </div>
 
-          <EntidadSelect v-model="entidadId" v-model:remitente-entidad="remitenteEntidad" />
+          <EntidadSelect
+            v-model="entidadId"
+            v-model:remitente-entidad="remitenteEntidad"
+            v-model:cite-origen="citeOrigenEntidad"
+          />
         </div>
 
         <!-- Cargo destinatario (plantilla / trámite) -->
@@ -833,19 +844,6 @@ const handleAsignarCiteHr = async () => {
             endpoint="comun/codificador/cargos"
             placeholder="Seleccione el cargo destinatario..."
             class="w-full"
-          />
-        </UFormField>
-
-        <UFormField
-          v-if="isEditing && correspondencia && correspondenciaTieneCite(correspondencia)"
-          label="CITE asignado"
-          name="cite_origen"
-        >
-          <UInput
-            v-model="form.cite_origen"
-            icon="i-lucide-file-code"
-            class="w-full font-mono"
-            disabled
           />
         </UFormField>
 

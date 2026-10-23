@@ -10,6 +10,7 @@ interface EntidadOpcion {
 
 const modelValue = defineModel<number | undefined>()
 const remitenteEntidad = defineModel<string>('remitenteEntidad', { default: '' })
+const citeOrigen = defineModel<string>('citeOrigen', { default: '' })
 
 const loading = ref(false)
 const items = ref<EntidadOpcion[]>([])
@@ -47,6 +48,7 @@ watch(
 watch(modelValue, (id) => {
   if (id == null) {
     remitenteEntidad.value = ''
+    citeOrigen.value = ''
   }
 })
 
@@ -95,6 +97,21 @@ onMounted(() => {
           </div>
         </template>
       </USelectMenu>
+    </UFormField>
+
+    <UFormField
+      label="CITE de origen"
+      name="entidad_cite_origen"
+      help="CITE del documento de la entidad. Si numera en el sistema, se completará automáticamente."
+    >
+      <UInput
+        v-model="citeOrigen"
+        :disabled="modelValue == null"
+        placeholder="Ej. CITE del documento externo"
+        icon="i-lucide-file-code"
+        class="w-full font-mono"
+        maxlength="200"
+      />
     </UFormField>
 
     <UFormField

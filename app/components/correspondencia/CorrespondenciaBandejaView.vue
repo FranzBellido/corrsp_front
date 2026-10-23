@@ -12,6 +12,7 @@ import CorAcciones from '~/components/correspondencia/CorAcciones.vue'
 import CorTable from '~/components/CorTable.vue'
 import BandejaViewHeader from '~/components/BandejaViewHeader.vue'
 import {
+  citeOrigenCorrespondencia,
   correspondenciaPuedeDerivar,
   correspondenciaSinNumerar,
   etiquetaNumeroCorrespondencia,
@@ -120,7 +121,9 @@ const columns = computed<TableColumn<Correspondencia>[]>(() => {
             correspondenciaSinNumerar(c) ? 'text-muted italic' : 'text-primary-600 dark:text-primary-400',
           ],
         }, etiquetaNumeroCorrespondencia(c)),
-        c.cite_origen ? h('span', { class: 'text-[11px] text-gray-400 font-mono' }, c.cite_origen) : null,
+        citeOrigenCorrespondencia(c)
+          ? h('span', { class: 'text-[11px] text-gray-400 font-mono' }, citeOrigenCorrespondencia(c))
+          : null,
       ])
     },
   },

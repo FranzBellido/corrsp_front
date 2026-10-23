@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import type { TabsItem } from '@nuxt/ui'
+import type { CorrespCooperativa, CorrespEntidad } from '~/types/correspondencia'
 import type { CorrespondenciaDetalle, Derivacion } from '~/types/derivacion'
 import type { RespuestaApi } from '~/types/respuestas'
 import { backendService } from '~/services/backend.service'
 import {
+  citeOrigenCorrespondencia,
   correspondenciaTieneDocumentoOficial,
   etiquetaNumeroCorrespondencia,
 } from '~/utils/correspondencia'
@@ -89,6 +91,31 @@ const etiquetaDerivacion = (d: Derivacion) =>
   d.nombre || d.codificador?.nombre || 'Derivación'
 
 const totalDerivaciones = computed(() => detalle.value?.derivaciones?.length ?? 0)
+
+const muestraTabEntidad = computed(() => {
+  const d = detalle.value
+  if (!d) return false
+  return Boolean(d.proceso?.requiere_entidad || (d.corresp_entidad?.length ?? 0) > 0)
+})
+
+const muestraTabCooperativa = computed(() => {
+  const d = detalle.value
+  if (!d) return false
+  return Boolean(d.proceso?.requiere_cooperativa || (d.corresp_cooperativa?.length ?? 0) > 0)
+})
+
+const citeEnTabExtension = computed(
+  () => muestraTabEntidad.value || muestraTabCooperativa.value,
+)
+
+const nombreCooperativaDetalle = (c: CorrespCooperativa): string =>
+  c.nombre_cooperativa?.trim()
+  || c.cooperativa?.denominacion?.trim()
+  || c.cooperativa?.razon_social?.trim()
+  || '—'
+
+const nombreEntidadDetalle = (e: CorrespEntidad): string =>
+  e.entidad?.nombre_ent?.trim() || `Entidad #${e.entidad_id}`
 
 const tieneDocumentoOficial = computed(() =>
   detalle.value ? correspondenciaTieneDocumentoOficial(detalle.value) : false,
@@ -197,27 +224,54 @@ const descargarDocumentoOficial = async () => {
   }
 }
 
-const tabItems = computed<TabsItem[]>(() => [
-  {
-    label: 'Información',
-    icon: 'i-lucide-file-text',
-    value: 'info',
-    slot: 'info',
-  },
-  {
-    label: 'Adjuntos',
-    icon: 'i-lucide-paperclip',
-    value: 'adjuntos',
-    slot: 'adjuntos',
-  },
-  {
-    label: 'Derivaciones',
-    icon: 'i-lucide-git-branch',
-    value: 'derivaciones',
-    slot: 'derivaciones',
-    badge: totalDerivaciones.value > 0 ? totalDerivaciones.value : undefined,
-  },
-])
+const tabItems = computed<TabsItem[]>(() => {
+  const items: TabsItem[] = [
+    {
+      label: 'Información',
+      icon: 'i-lucide-file-text',
+      value: 'info',
+      slot: 'info',
+    },
+  ]
+
+  if (muestraTabEntidad.value) {
+    items.push({
+      label: 'Entidad externa',
+      icon: 'i-lucide-building-2',
+      value: 'entidad',
+      slot: 'entidad',
+      badge: detalle.value?.corresp_entidad?.length || undefined,
+    })
+  }
+
+  if (muestraTabCooperativa.value) {
+    items.push({
+      label: 'Cooperativa',
+      icon: 'i-lucide-handshake',
+      value: 'cooperativa',
+      slot: 'cooperativa',
+      badge: detalle.value?.corresp_cooperativa?.length || undefined,
+    })
+  }
+
+  items.push(
+    {
+      label: 'Adjuntos',
+      icon: 'i-lucide-paperclip',
+      value: 'adjuntos',
+      slot: 'adjuntos',
+    },
+    {
+      label: 'Derivaciones',
+      icon: 'i-lucide-git-branch',
+      value: 'derivaciones',
+      slot: 'derivaciones',
+      badge: totalDerivaciones.value > 0 ? totalDerivaciones.value : undefined,
+    },
+  )
+
+  return items
+})
 </script>
 
 <template>
@@ -309,11 +363,110 @@ const tabItems = computed<TabsItem[]>(() => [
                 <p class="text-default">{{ formatFecha(detalle.fecha_plazo) }}</p>
               </div>
               <div
-                v-if="detalle.cite_origen"
+                v-if="detalle && !citeEnTabExtension && citeOrigenCorrespondencia(detalle)"
                 class="p-3 rounded-md bg-elevated/50 border border-default sm:col-span-2"
               >
                 <p class="text-[11px] font-bold uppercase tracking-wider text-muted mb-1">CITE origen</p>
-                <p class="font-mono text-xs text-default">{{ detalle.cite_origen }}</p>
+                <p class="font-mono text-xs text-default">{{ citeOrigenCorrespondencia(detalle) }}</p>
+              </div>
+            </div>
+          </template>
+
+          <template #entidad>
+            <div class="pt-4">
+              <div
+                v-if="detalle.corresp_entidad?.length"
+                class="space-y-3 max-h-[min(22rem,50vh)] overflow-y-auto pr-1"
+              >
+                <div
+                  v-for="(row, idx) in detalle.corresp_entidad"
+                  :key="`${row.entidad_id}-${idx}`"
+                  class="p-4 rounded-md border border-sky-200/80 dark:border-sky-900/40 bg-sky-50/40 dark:bg-sky-950/20 space-y-3"
+                >
+                  <div class="flex items-start gap-2">
+                    <UIcon name="i-lucide-building-2" class="size-4 text-sky-600 shrink-0 mt-0.5" />
+                    <p class="text-sm font-semibold text-highlighted">
+                      {{ nombreEntidadDetalle(row) }}
+                    </p>
+                  </div>
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <p class="text-[11px] font-bold uppercase tracking-wider text-muted mb-1">Remitente</p>
+                      <p class="text-default">{{ row.remitente_entidad || '—' }}</p>
+                    </div>
+                    <div class="sm:col-span-2">
+                      <p class="text-[11px] font-bold uppercase tracking-wider text-muted mb-1">CITE origen</p>
+                      <p class="font-mono text-xs text-default">{{ row.cite_origen || citeOrigenCorrespondencia(detalle) || '—' }}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div v-else class="py-10 text-center">
+                <UIcon name="i-lucide-building-2" class="size-10 text-dimmed mx-auto mb-2" />
+                <p class="text-sm text-muted">Sin datos de entidad externa registrados.</p>
+              </div>
+            </div>
+          </template>
+
+          <template #cooperativa>
+            <div class="pt-4">
+              <div
+                v-if="detalle.corresp_cooperativa?.length"
+                class="space-y-3 max-h-[min(22rem,50vh)] overflow-y-auto pr-1"
+              >
+                <div
+                  v-for="(row, idx) in detalle.corresp_cooperativa"
+                  :key="row.corresp_id || idx"
+                  class="p-4 rounded-md border border-amber-200/80 dark:border-amber-900/40 bg-amber-50/40 dark:bg-amber-950/20 space-y-3"
+                >
+                  <div class="flex items-start justify-between gap-2">
+                    <div class="min-w-0">
+                      <p class="text-sm font-semibold text-highlighted truncate">
+                        {{ nombreCooperativaDetalle(row) }}
+                      </p>
+                      <p
+                        v-if="row.cooperativa?.nro_registro"
+                        class="text-xs text-muted mt-0.5"
+                      >
+                        Registro {{ row.cooperativa.nro_registro }}
+                      </p>
+                    </div>
+                  </div>
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <p class="text-[11px] font-bold uppercase tracking-wider text-muted mb-1">Solicitante</p>
+                      <p class="text-default">{{ row.solicitante || '—' }}</p>
+                    </div>
+                    <div>
+                      <p class="text-[11px] font-bold uppercase tracking-wider text-muted mb-1">Nro. carnet</p>
+                      <p class="text-default">{{ row.nro_carnet || '—' }}</p>
+                    </div>
+                    <div>
+                      <p class="text-[11px] font-bold uppercase tracking-wider text-muted mb-1">Cargo</p>
+                      <p class="text-default">{{ row.cargo_solicitante || '—' }}</p>
+                    </div>
+                    <div>
+                      <p class="text-[11px] font-bold uppercase tracking-wider text-muted mb-1">Teléfono</p>
+                      <p class="text-default">{{ row.telefono || '—' }}</p>
+                    </div>
+                    <div class="sm:col-span-2">
+                      <p class="text-[11px] font-bold uppercase tracking-wider text-muted mb-1">Correo</p>
+                      <p class="text-default break-all">{{ row.correo_solicitante || '—' }}</p>
+                    </div>
+                    <div>
+                      <p class="text-[11px] font-bold uppercase tracking-wider text-muted mb-1">Nro. poder</p>
+                      <p class="text-default">{{ row.nro_poder || '—' }}</p>
+                    </div>
+                    <div class="sm:col-span-2">
+                      <p class="text-[11px] font-bold uppercase tracking-wider text-muted mb-1">CITE origen</p>
+                      <p class="font-mono text-xs text-default">{{ row.cite_origen || citeOrigenCorrespondencia(detalle) || '—' }}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div v-else class="py-10 text-center">
+                <UIcon name="i-lucide-handshake" class="size-10 text-dimmed mx-auto mb-2" />
+                <p class="text-sm text-muted">Sin datos de cooperativa registrados.</p>
               </div>
             </div>
           </template>
