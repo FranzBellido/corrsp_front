@@ -70,6 +70,8 @@ export interface UpdateDerivacionPayload {
 
 export interface FiltroDerivacion {
   criterio?: string
+  /** Nº HR o formato numero/anio (ej. 142 o 142/2025) */
+  hoja_ruta?: string
   modo: 'salida' | 'ingreso' | 'con_copia'
   cargo_id?: string
   pagina?: number

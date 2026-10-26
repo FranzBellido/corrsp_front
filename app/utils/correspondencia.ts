@@ -42,16 +42,23 @@ export function correspondenciaTieneDocumentoOficial(
   return Boolean((c.url_documento || c.contenido)?.trim())
 }
 
-/** Correspondencia de proceso externo (entrante/saliente); no exige .docx institucional para derivar. */
+/** Correspondencia de proceso externo (entrante/saliente). */
 export function correspondenciaEsProcesoExterno(
   c: Pick<Correspondencia, 'proceso'>,
 ): boolean {
   return c.proceso?.interna === false
 }
 
+/** Exige documento OnlyOffice antes de derivar (flag del proceso o compat. procesos internos). */
 export function correspondenciaRequiereDocumentoParaDerivar(
   c: Pick<Correspondencia, 'proceso'>,
 ): boolean {
+  if (c.proceso?.requiere_documento === true) {
+    return true
+  }
+  if (c.proceso?.requiere_documento === false) {
+    return false
+  }
   return !correspondenciaEsProcesoExterno(c)
 }
 
@@ -79,7 +86,7 @@ export const MENSAJE_ELIMINAR_CORRELATIVO =
   'Solo se puede eliminar si es el último número de correspondencia del proceso/área/gestión y, si tiene Hoja de Ruta, la HR es la última del área/año. No se permiten huecos en los correlativos.'
 
 export const MENSAJE_SIN_DOCUMENTO_OFICIAL =
-  'Debe generar el documento  antes de derivar esta correspondencia.'
+  'Debe registrar el documento en OnlyOffice antes de derivar esta correspondencia.'
 
 /** Mensaje de validación al bloquear derivación (borrador / modal). */
 export function mensajeNoDerivarCorrespondencia(

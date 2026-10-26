@@ -12,7 +12,7 @@ export function useAuth() {
       useState<boolean>('access-denied', () => false).value = false
 
       $keycloak.logout({
-        redirectUri: window.location.origin
+        redirectUri: `${window.location.origin}/`
       })
     }
   }

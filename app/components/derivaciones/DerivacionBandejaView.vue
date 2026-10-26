@@ -51,6 +51,7 @@ const total = ref(0)
 const page = ref(1)
 const pageSize = ref(10)
 const searchCriterio = ref('')
+const searchHojaRuta = ref('')
 
 const isDetalleOpen = ref(false)
 const detalleDocumentoId = ref<string | null>(null)
@@ -731,6 +732,7 @@ const fetchItems = async () => {
       pagina: page.value,
       limite: pageSize.value,
       criterio: searchCriterio.value.trim() || undefined,
+      hoja_ruta: searchHojaRuta.value.trim() || undefined,
       cargo_id: resolveCargoOrigenId() || undefined,
     }
     const res = await backendService.post<RespuestaBusquedaDerivacion>('derivaciones/buscar', filtro)
@@ -771,6 +773,16 @@ onMounted(() => {
     <BandejaViewHeader :titulo="props.titulo" :descripcion="props.descripcion" :icono="props.icono" />
 
     <div class="p-4 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-xs flex flex-col sm:flex-row items-center gap-3">
+      <div class="w-full sm:w-44 shrink-0">
+        <UInput
+          v-model="searchHojaRuta"
+          placeholder="Hoja de Ruta (142/2025)"
+          icon="i-lucide-file-stack"
+          class="w-full"
+          @update:model-value="onSearchInput"
+        />
+      </div>
+
       <div class="w-full sm:flex-1 relative">
         <UInput
           v-model="searchCriterio"

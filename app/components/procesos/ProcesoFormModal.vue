@@ -35,6 +35,19 @@ const procesoSchema = z.object({
   requiere_cooperativa: z.boolean().default(false),
   interna: z.boolean().default(true),
   requiere_entidad: z.boolean().default(false),
+  requiere_pago: z.boolean().default(false),
+  requiere_corelativo: z.boolean().default(false),
+  requiere_destinatario: z.boolean().default(true),
+  requiere_documento: z.boolean().default(false),
+  referencia: z
+    .string()
+    .trim()
+    .max(200, 'Máximo 200 caracteres')
+    .optional()
+    .refine(
+      (valor) => !valor || valor.length >= 3,
+      'La referencia por defecto debe tener al menos 3 caracteres',
+    ),
 })
 
 type ProcesoSchemaType = z.infer<typeof procesoSchema>
@@ -46,6 +59,11 @@ const form = ref<ProcesoSchemaType>({
   requiere_cooperativa: false,
   interna: true,
   requiere_entidad: false,
+  requiere_pago: false,
+  requiere_corelativo: false,
+  requiere_destinatario: true,
+  requiere_documento: false,
+  referencia: '',
 })
 
 const isEditing = computed(() => !!props.proceso?.id)
@@ -72,6 +90,11 @@ const aplicarProcesoAlFormulario = (val: Proceso | null | undefined) => {
       requiere_cooperativa: Boolean(val.requiere_cooperativa),
       interna: Boolean(val.interna),
       requiere_entidad: Boolean(val.requiere_entidad),
+      requiere_pago: Boolean(val.requiere_pago),
+      requiere_corelativo: Boolean(val.requiere_corelativo),
+      requiere_destinatario: val.requiere_destinatario !== false,
+      requiere_documento: Boolean(val.requiere_documento),
+      referencia: val.referencia?.trim() || '',
     }
     plantillaPathActual.value = val.plantilla || null
   } else {
@@ -82,6 +105,11 @@ const aplicarProcesoAlFormulario = (val: Proceso | null | undefined) => {
       requiere_cooperativa: false,
       interna: true,
       requiere_entidad: false,
+      requiere_pago: false,
+      requiere_corelativo: false,
+      requiere_destinatario: true,
+      requiere_documento: false,
+      referencia: '',
     }
     plantillaPathActual.value = null
   }
@@ -224,6 +252,11 @@ const handleSave = async (event?: FormSubmitEvent<ProcesoSchemaType>) => {
       requiere_cooperativa: Boolean(data.requiere_cooperativa),
       interna: Boolean(data.interna),
       requiere_entidad: Boolean(data.requiere_entidad),
+      requiere_pago: Boolean(data.requiere_pago),
+      requiere_corelativo: Boolean(data.requiere_corelativo),
+      requiere_destinatario: Boolean(data.requiere_destinatario),
+      requiere_documento: Boolean(data.requiere_documento),
+      referencia: data.referencia?.trim() || undefined,
     }
 
     let procesoId = props.proceso?.id
@@ -276,7 +309,7 @@ const handleSave = async (event?: FormSubmitEvent<ProcesoSchemaType>) => {
     v-model:open="open"
     :title="isEditing ? 'Editar Proceso' : 'Nuevo Proceso'"
     :description="isEditing ? 'Modifique la configuración del trámite o proceso.' : 'Registre un nuevo proceso del sistema de correspondencia.'"
-    :ui="{ content: 'sm:max-w-xl' }"
+    :ui="{ content: 'sm:max-w-2xl' }"
   >
     <template #body>
       <UForm
@@ -314,6 +347,20 @@ const handleSave = async (event?: FormSubmitEvent<ProcesoSchemaType>) => {
             placeholder="Ej. 15"
             icon="i-lucide-calendar-clock"
             class="w-full"
+          />
+        </UFormField>
+
+        <UFormField
+          label="Referencia por defecto"
+          name="referencia"
+          help="Texto sugerido al registrar correspondencia de este proceso (mín. 3 caracteres si se indica)."
+        >
+          <UTextarea
+            v-model="form.referencia"
+            placeholder="Ej. SOLICITUD DE INFORME TÉCNICO..."
+            class="w-full"
+            :rows="2"
+            maxlength="200"
           />
         </UFormField>
 
@@ -395,6 +442,26 @@ const handleSave = async (event?: FormSubmitEvent<ProcesoSchemaType>) => {
             v-model="form.requiere_entidad"
             label="Requiere entidad"
             description="Obliga a vincular una entidad externa."
+          />
+          <UCheckbox
+            v-model="form.requiere_pago"
+            label="Requiere pago (depósitos)"
+            description="Al registrar correspondencia, solicita boletas de depósito asociadas al trámite."
+          />
+          <UCheckbox
+            v-model="form.requiere_corelativo"
+            label="Requiere correlativo y HR"
+            description="Al registrar siempre numera con CITE y muestra el control de Hoja de Ruta (no permite borrador sin numerar)."
+          />
+          <UCheckbox
+            v-model="form.requiere_destinatario"
+            label="Requiere cargo destinatario"
+            description="Muestra y exige el cargo destinatario al crear la correspondencia."
+          />
+          <UCheckbox
+            v-model="form.requiere_documento"
+            label="Requiere documento (OnlyOffice)"
+            description="Obliga a generar o registrar el documento Word antes de poder derivar la correspondencia."
           />
         </div>
       </UForm>

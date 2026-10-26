@@ -53,6 +53,7 @@ const pageSize = ref(10)
 
 // Filtros de búsqueda
 const searchCriterio = ref('')
+const searchHojaRuta = ref('')
 const compartidosAlcance = ref<'todos' | 'recibidos' | 'enviados'>('todos')
 const compartidosAlcanceOptions = [
   { label: 'Todos', value: 'todos' },
@@ -259,6 +260,7 @@ const fetchCorrespondencias = async () => {
       pagina: page.value,
       limite: pageSize.value,
       criterio: searchCriterio.value.trim() || undefined,
+      hoja_ruta: searchHojaRuta.value.trim() || undefined,
     }
 
     if (props.modo === 'borrador') {
@@ -542,7 +544,7 @@ onMounted(() => {
     >
       <template #actions>
         <UButton
-          label="Nueva Correspondencia"
+          label="Nuevo Proceso"
           icon="i-lucide-plus"
           color="primary"
           class="rounded-md shadow-xs"
@@ -563,6 +565,16 @@ onMounted(() => {
           :items="[...compartidosAlcanceOptions]"
           value-key="value"
           class="w-full"
+        />
+      </div>
+
+      <div class="w-full sm:w-44 shrink-0">
+        <UInput
+          v-model="searchHojaRuta"
+          placeholder="Hoja de Ruta (142/2025)"
+          icon="i-lucide-file-stack"
+          class="w-full"
+          @update:model-value="onSearchInput"
         />
       </div>
 

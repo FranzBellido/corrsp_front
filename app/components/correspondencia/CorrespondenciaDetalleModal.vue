@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import type { TabsItem } from '@nuxt/ui'
-import type { CorrespCooperativa, CorrespEntidad } from '~/types/correspondencia'
+import type { CorrespCooperativa, CorrespEntidad, RecDeposito } from '~/types/correspondencia'
 import type { CorrespondenciaDetalle, Derivacion } from '~/types/derivacion'
 import type { RespuestaApi } from '~/types/respuestas'
 import { backendService } from '~/services/backend.service'
@@ -46,6 +46,24 @@ const formatFecha = (valor?: string | null) => {
   } catch {
     return valor
   }
+}
+
+const formatFechaSolo = (valor?: string | null) => {
+  if (!valor) return '—'
+  try {
+    return new Date(valor).toLocaleDateString('es-BO', { dateStyle: 'medium' })
+  } catch {
+    return valor
+  }
+}
+
+const formatImporteBs = (valor?: number | null) => {
+  if (valor == null || Number.isNaN(Number(valor))) return '—'
+  return new Intl.NumberFormat('es-BO', {
+    style: 'currency',
+    currency: 'BOB',
+    minimumFractionDigits: 2,
+  }).format(Number(valor))
 }
 
 const cargarDetalle = async (id: string) => {
@@ -103,6 +121,14 @@ const muestraTabCooperativa = computed(() => {
   if (!d) return false
   return Boolean(d.proceso?.requiere_cooperativa || (d.corresp_cooperativa?.length ?? 0) > 0)
 })
+
+const depositosDetalle = computed((): RecDeposito[] => detalle.value?.depositos ?? [])
+
+const muestraTabDepositos = computed(() => depositosDetalle.value.length > 0)
+
+const totalImporteDepositos = computed(() =>
+  depositosDetalle.value.reduce((sum, d) => sum + (Number(d.importe) || 0), 0),
+)
 
 const citeEnTabExtension = computed(
   () => muestraTabEntidad.value || muestraTabCooperativa.value,
@@ -251,6 +277,16 @@ const tabItems = computed<TabsItem[]>(() => {
       value: 'cooperativa',
       slot: 'cooperativa',
       badge: detalle.value?.corresp_cooperativa?.length || undefined,
+    })
+  }
+
+  if (muestraTabDepositos.value) {
+    items.push({
+      label: 'Depósitos',
+      icon: 'i-lucide-receipt',
+      value: 'depositos',
+      slot: 'depositos',
+      badge: depositosDetalle.value.length,
     })
   }
 
@@ -467,6 +503,59 @@ const tabItems = computed<TabsItem[]>(() => {
               <div v-else class="py-10 text-center">
                 <UIcon name="i-lucide-handshake" class="size-10 text-dimmed mx-auto mb-2" />
                 <p class="text-sm text-muted">Sin datos de cooperativa registrados.</p>
+              </div>
+            </div>
+          </template>
+
+          <template #depositos>
+            <div class="pt-4 space-y-3">
+              <div
+                class="flex flex-wrap items-center justify-between gap-2 p-3 rounded-md border border-default bg-elevated/40"
+              >
+                <p class="text-xs text-muted">
+                  {{ depositosDetalle.length }} boleta(s) registrada(s)
+                </p>
+                <p class="text-sm font-semibold text-highlighted">
+                  Total: {{ formatImporteBs(totalImporteDepositos) }}
+                </p>
+              </div>
+
+              <div class="space-y-2 max-h-[min(22rem,50vh)] overflow-y-auto pr-1">
+                <div
+                  v-for="(dep, idx) in depositosDetalle"
+                  :key="dep.id || `${dep.numero}-${idx}`"
+                  class="p-4 rounded-md border border-default bg-elevated/30 space-y-3"
+                >
+                  <div class="flex items-start justify-between gap-2">
+                    <div class="flex items-center gap-2 min-w-0">
+                      <UIcon name="i-lucide-receipt" class="size-4 text-primary shrink-0" />
+                      <p class="text-sm font-semibold text-highlighted font-mono truncate">
+                        {{ dep.numero || '—' }}
+                      </p>
+                    </div>
+                    <UBadge
+                      :color="dep.verificado ? 'success' : 'warning'"
+                      variant="subtle"
+                      size="xs"
+                    >
+                      {{ dep.verificado ? 'Verificado' : 'Pendiente' }}
+                    </UBadge>
+                  </div>
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <p class="text-[11px] font-bold uppercase tracking-wider text-muted mb-1">Importe</p>
+                      <p class="text-default font-medium">{{ formatImporteBs(dep.importe) }}</p>
+                    </div>
+                    <div>
+                      <p class="text-[11px] font-bold uppercase tracking-wider text-muted mb-1">Fecha depósito</p>
+                      <p class="text-default">{{ formatFechaSolo(dep.fecha_deposito) }}</p>
+                    </div>
+                    <div v-if="dep.observacion?.trim()" class="sm:col-span-2">
+                      <p class="text-[11px] font-bold uppercase tracking-wider text-muted mb-1">Observación</p>
+                      <p class="text-default whitespace-pre-wrap">{{ dep.observacion }}</p>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </template>

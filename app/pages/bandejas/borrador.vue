@@ -9,8 +9,8 @@ useHead({
 <template>
   <CorrespondenciaBandejaView
     modo="borrador"
-    titulo="Bandeja de Borrador"
-    descripcion="Correspondencias registradas por su cargo activo que aún no han sido derivadas."
+    titulo="Bandeja de Principal"
+    descripcion="Procesos registradas por su cargo activo que aún no han sido derivadas."
     icono="i-lucide-file-edit"
   />
 </template>

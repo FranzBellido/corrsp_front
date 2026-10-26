@@ -13,8 +13,9 @@ export default defineNuxtPlugin(async (nuxtApp) => {
   })
 
   try {
-    const authenticated = await keycloak.init({
-      onLoad: 'login-required',
+    await keycloak.init({
+      onLoad: 'check-sso',
+      silentCheckSsoRedirectUri: `${window.location.origin}/silent-check-sso.html`,
       checkLoginIframe: false,
       responseMode: 'query',
       pkceMethod: false,

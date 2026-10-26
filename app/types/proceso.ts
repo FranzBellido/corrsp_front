@@ -7,6 +7,11 @@ export interface Proceso {
   plantilla?: string | null
   interna: boolean
   requiere_entidad: boolean
+  requiere_pago: boolean
+  requiere_corelativo: boolean
+  requiere_destinatario: boolean
+  referencia?: string | null
+  requiere_documento?: boolean | null
   _count?: {
     correspondencia?: number
     area_proceso?: number
@@ -21,6 +26,11 @@ export interface CreateProcesoPayload {
   plantilla?: string
   interna?: boolean
   requiere_entidad?: boolean
+  requiere_pago?: boolean
+  requiere_corelativo?: boolean
+  requiere_destinatario?: boolean
+  referencia?: string
+  requiere_documento?: boolean
 }
 
 export interface UpdateProcesoPayload extends Partial<CreateProcesoPayload> {}

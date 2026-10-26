@@ -67,6 +67,18 @@ const columns = computed<TableColumn<Proceso>[]>(() => [
       if (p.requiere_entidad) {
         badges.push(h(UBadge, { color: 'secondary', variant: 'subtle', size: 'xs' }, () => 'Entidad'))
       }
+      if (p.requiere_pago) {
+        badges.push(h(UBadge, { color: 'success', variant: 'subtle', size: 'xs' }, () => 'Depósito'))
+      }
+      if (p.requiere_corelativo) {
+        badges.push(h(UBadge, { color: 'primary', variant: 'subtle', size: 'xs' }, () => 'Correlativo'))
+      }
+      if (p.requiere_destinatario === false) {
+        badges.push(h(UBadge, { color: 'neutral', variant: 'subtle', size: 'xs' }, () => 'Sin dest.'))
+      }
+      if (p.requiere_documento) {
+        badges.push(h(UBadge, { color: 'info', variant: 'subtle', size: 'xs' }, () => 'OnlyOffice'))
+      }
       return h('div', { class: 'flex flex-wrap gap-1' }, badges)
     },
   },

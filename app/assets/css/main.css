@@ -3,6 +3,10 @@
 
 @theme {
   --font-sans: 'Figtree', sans-serif;
+  --color-brand-navy: #1a3673;
+  --color-brand-dark: #0f224b;
+  --color-brand-green: #00845a;
+  --color-brand-teal: #007953;
 }
 
 @layer base {

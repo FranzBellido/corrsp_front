@@ -31,14 +31,14 @@ const defaultNavItems: NavItem[] = [
   {
     label: 'Inicio',
     icon: 'i-lucide-house',
-    to: '/'
+    to: '/dashboard'
   },
   {
     label: 'Bandejas',
     icon: 'i-lucide-inbox',
     children: [
       {
-        label: 'Borrador',
+        label: 'Principal',
         to: '/bandejas/borrador',
         icon: 'i-lucide-file-edit'
       },
@@ -72,7 +72,11 @@ const defaultNavItems: NavItem[] = [
       }
     ]
   },
- 
+  {
+    label: 'Recaudaciones',
+    icon: 'i-lucide-banknote',
+    to: '/recaudaciones',
+  },
   {
     label: 'Administración',
     icon: 'i-lucide-folder-cog',

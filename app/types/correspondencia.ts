@@ -43,6 +43,7 @@ export interface Correspondencia {
   cite_origen?: string | null;
   prioridad_id: number;
   hoja_ruta?: HojaRuta | null;
+  codigo_unico?: string;
   proceso?: {
     id: number;
     nombre: string;
@@ -51,9 +52,15 @@ export interface Correspondencia {
     interna?: boolean;
     requiere_cooperativa?: boolean;
     requiere_entidad?: boolean;
+    requiere_pago?: boolean;
+    requiere_corelativo?: boolean;
+    requiere_destinatario?: boolean;
+    referencia?: string | null;
+    requiere_documento?: boolean | null;
   } | null;
   corresp_cooperativa?: CorrespCooperativa[];
   corresp_entidad?: CorrespEntidad[];
+  depositos?: RecDeposito[];
   codificador?: {
     codificadorId: number;
     nombre?: string;
@@ -156,6 +163,27 @@ export interface CorrespEntidadPayload {
   cite_origen?: string;
 }
 
+export interface RecDeposito {
+  id?: string;
+  numero: string;
+  importe: number;
+  fecha_deposito: string;
+  observacion?: string | null;
+  verificado?: boolean;
+}
+
+export interface RecDepositoPayload {
+  id?: string;
+  numero: string;
+  importe: number;
+  fecha_deposito: string;
+  observacion?: string;
+}
+
+export interface RecDepositosPayload {
+  items: RecDepositoPayload[];
+}
+
 export interface CreateCorrespondenciaPayload {
   referencia: string;
   proc_id: number;
@@ -164,7 +192,7 @@ export interface CreateCorrespondenciaPayload {
   area_origen_id: string;
   cargo_origen_id: string;
   remitente_id?: string;
-  destinatario_id: string;
+  destinatario_id?: string;
   es_nueva_hr?: boolean;
   /** Si es false, no se genera HR ni correlativo/CITE al crear. */
   asignar_cite_hr?: boolean;
@@ -172,6 +200,7 @@ export interface CreateCorrespondenciaPayload {
   hr_id?: string;
   cooperativa?: CorrespCooperativaPayload;
   entidades?: CorrespEntidadPayload;
+  depositos?: RecDepositosPayload;
   codigo_unico: string;   // para validar si ya existe la correspondencia
 }
 
@@ -189,10 +218,13 @@ export interface UpdateCorrespondenciaPayload {
   destinatario_id?: string;
   cooperativa?: CorrespCooperativaPayload;
   entidades?: CorrespEntidadPayload;
+  depositos?: RecDepositosPayload;
 }
 
 export interface FiltroCorrespondencia {
   criterio?: string;
+  /** Nº HR o formato numero/anio (ej. 142 o 142/2025) */
+  hoja_ruta?: string;
   remitente_id?: string;
   cargo_origen_id?: string;
   area_origen_id?: string;
