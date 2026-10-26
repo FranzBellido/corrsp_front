@@ -486,7 +486,9 @@ const tabItems = computed<TabsItem[]>(() => {
                     </div>
                     <div>
                       <p class="text-[11px] font-bold uppercase tracking-wider text-muted mb-1">Cargo</p>
-                      <p class="text-default">{{ row.cargo_solicitante || '—' }}</p>
+                      <p class="text-default">
+                        {{ row.cargo_solicitante || row.codificador?.nombre?.trim() || '—' }}
+                      </p>
                     </div>
                     <div>
                       <p class="text-[11px] font-bold uppercase tracking-wider text-muted mb-1">Teléfono</p>

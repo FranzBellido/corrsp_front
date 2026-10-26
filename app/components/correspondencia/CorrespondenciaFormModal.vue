@@ -69,7 +69,7 @@ const emptyCooperativa = (): CorrespCooperativaFormState => ({
   nombre_cooperativa: '',
   solicitante: '',
   nro_carnet: '',
-  cargo_solicitante: '',
+  cargo_solicitante_id: undefined,
   correo_solicitante: '',
   nro_poder: '',
   telefono: '',
@@ -98,7 +98,7 @@ const cooperativaSchema = z
       .trim()
       .min(5, 'El número de carnet es obligatorio')
       .max(20, 'El número de carnet no puede exceder 20 caracteres'),
-    cargo_solicitante: z.string().optional(),
+    cargo_solicitante_id: z.number().optional(),
     correo_solicitante: z
       .string()
       .trim()
@@ -311,7 +311,7 @@ const mapCooperativaExistente = (val: Correspondencia): CorrespCooperativaFormSt
       '',
     solicitante: existente.solicitante || '',
     nro_carnet: existente.nro_carnet || '',
-    cargo_solicitante: existente.cargo_solicitante || '',
+    cargo_solicitante_id: existente.cargo_solicitante_id ?? undefined,
     correo_solicitante: existente.correo_solicitante || '',
     nro_poder: existente.nro_poder || '',
     telefono: existente.telefono || '',
@@ -342,7 +342,8 @@ const buildCooperativaPayload = (): CorrespCooperativaPayload | undefined => {
     nombre_cooperativa: coop.nombre_cooperativa?.trim() || undefined,
     solicitante: coop.solicitante.trim(),
     nro_carnet: coop.nro_carnet.trim(),
-    cargo_solicitante: coop.cargo_solicitante?.trim() || undefined,
+    cargo_solicitante_id:
+      coop.cargo_solicitante_id != null ? Number(coop.cargo_solicitante_id) : undefined,
     correo_solicitante: coop.correo_solicitante?.trim() || undefined,
     nro_poder: coop.nro_poder?.trim() || undefined,
     telefono: coop.telefono?.trim() || undefined,

@@ -36,6 +36,30 @@ export function correspondenciaTieneHojaRuta(
   return Boolean(c.hr_id?.trim() || c.hoja_ruta?.id)
 }
 
+type HojaRutaEtiqueta = Pick<
+  NonNullable<Correspondencia['hoja_ruta']>,
+  'numero' | 'anio'
+>
+
+export function hojaRutaTieneNumero(hr?: HojaRutaEtiqueta | null): boolean {
+  return Boolean(hr?.numero && hr.numero > 0)
+}
+
+/** Texto de la columna HR en bandejas (alineado con etiquetaNumeroCorrespondencia). */
+export function etiquetaHojaRuta(hr?: HojaRutaEtiqueta | null): string {
+  if (!hojaRutaTieneNumero(hr)) {
+    return 'Sin HR'
+  }
+  return `HR ${hr!.numero}/${hr!.anio}`
+}
+
+/** Mismas clases que el Nº correlativo en bandeja borrador. */
+export function clasesEtiquetaHojaRuta(hr?: HojaRutaEtiqueta | null): string {
+  return hojaRutaTieneNumero(hr)
+    ? 'font-bold text-primary-600 dark:text-primary-400'
+    : 'font-bold text-muted italic'
+}
+
 export function correspondenciaTieneDocumentoOficial(
   c: Pick<Correspondencia, 'url_documento' | 'contenido'>,
 ): boolean {

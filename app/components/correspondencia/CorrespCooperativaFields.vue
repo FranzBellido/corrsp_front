@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import CooperativaAutocomplete from '~/components/correspondencia/CooperativaAutocomplete.vue'
+import CodificadorSelect from '~/components/codificador/CodificadorSelect.vue'
+import { TipoCodificadorEnum } from '~/types/correspondencia'
 
 export interface CorrespCooperativaFormState {
   cooperativa_id: number | undefined
   nombre_cooperativa: string
   solicitante: string
   nro_carnet: string
-  cargo_solicitante: string
+  cargo_solicitante_id: number | undefined
   correo_solicitante: string
   nro_poder: string
   telefono: string
@@ -33,7 +35,7 @@ const model = defineModel<CorrespCooperativaFormState>({ required: true })
     <UFormField
       label="Cooperativa"
       name="cooperativa.cooperativa_id"
-      help="Busque en el catálogo o indique el nombre manualmente si no está registrada."
+    
     >
       <CooperativaAutocomplete v-model="model.cooperativa_id" />
     </UFormField>
@@ -52,21 +54,7 @@ const model = defineModel<CorrespCooperativaFormState>({ required: true })
       />
     </UFormField>
 
-    <UFormField
-      label="CITE de origen"
-      name="cooperativa.cite_origen"
-      help="CITE del documento externo. Si numera en el sistema, se completará automáticamente."
-    >
-      <UInput
-        v-model="model.cite_origen"
-        placeholder="Ej. CITE institucional o del documento recibido"
-        icon="i-lucide-file-code"
-        class="w-full font-mono"
-        maxlength="200"
-      />
-    </UFormField>
-
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+    <div class="grid grid-cols-1 sm:grid-cols-1 gap-4">
       <UFormField
         label="Solicitante"
         name="cooperativa.solicitante"
@@ -81,6 +69,9 @@ const model = defineModel<CorrespCooperativaFormState>({ required: true })
         />
       </UFormField>
 
+    </div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
       <UFormField
         label="Nro. de carnet"
         name="cooperativa.nro_carnet"
@@ -93,17 +84,36 @@ const model = defineModel<CorrespCooperativaFormState>({ required: true })
           class="w-full"
         />
       </UFormField>
+      
+    <UFormField
+      label="CITE de origen"
+      name="cooperativa.cite_origen"
+      help="CITE del documento externo."
+    >
+      <UInput
+        v-model="model.cite_origen"
+        placeholder="Ej. CITE institucional o del documento recibido"
+        icon="i-lucide-file-code"
+        class="w-full font-mono"
+        maxlength="200"
+      />
+    </UFormField>
     </div>
+
+
+
 
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <UFormField
         label="Cargo del solicitante"
-        name="cooperativa.cargo_solicitante"
+        name="cooperativa.cargo_solicitante_id"
+        help="Seleccione el cargo desde el catálogo institucional (tipo 4)."
       >
-        <UInput
-          v-model="model.cargo_solicitante"
-          placeholder="Ej. Representante legal"
-          icon="i-lucide-briefcase"
+        <CodificadorSelect
+          v-model="model.cargo_solicitante_id"
+          endpoint="comun/codificador"
+          :params="{ tipo_id: TipoCodificadorEnum.CARGO_SOLICITANTE_COOPERATIVA }"
+          placeholder="Seleccione el cargo del solicitante..."
           class="w-full"
         />
       </UFormField>
@@ -120,7 +130,7 @@ const model = defineModel<CorrespCooperativaFormState>({ required: true })
         />
       </UFormField>
     </div>
-
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
     <UFormField
       label="Correo del solicitante"
       name="cooperativa.correo_solicitante"
@@ -144,5 +154,6 @@ const model = defineModel<CorrespCooperativaFormState>({ required: true })
         class="w-full"
       />
     </UFormField>
+    </div>
   </div>
 </template>

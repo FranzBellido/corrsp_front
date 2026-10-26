@@ -152,7 +152,7 @@ const saludo = computed(() => {
 <template>
   <div class="space-y-8">
     <PageHeader
-      :title="saludo"
+      :title="'Panel de control'",
       description="Resumen de Procesos y derivaciones según su cargo y área."
     >
       <template #actions>

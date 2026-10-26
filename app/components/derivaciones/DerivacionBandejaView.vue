@@ -21,6 +21,8 @@ import CorTable from '~/components/CorTable.vue'
 import BandejaViewHeader from '~/components/BandejaViewHeader.vue'
 import {
   correspondenciaPuedeDerivar,
+  etiquetaHojaRuta,
+  clasesEtiquetaHojaRuta,
   mensajeNoDerivarCorrespondencia,
 } from '~/utils/correspondencia'
 import {
@@ -490,13 +492,21 @@ const columns = computed<TableColumn<Derivacion | DestinatarioCopiaConDerivacion
               leido ? 'border-transparent' : 'border-primary-600',
             ],
           },
-          hr
-            ? h(
-                UBadge,
-                { color: 'neutral', variant: 'subtle', size: 'xs' },
-                () => `HR ${hr.numero}/${hr.anio}`,
-              )
-            : h('span', { class: 'text-xs text-muted italic' }, 'Sin HR'),
+          h('div', { class: 'flex flex-col min-w-0' }, [
+            h('span', { class: clasesEtiquetaHojaRuta(hr) }, etiquetaHojaRuta(hr)),
+            hr?.referencia?.trim()
+              ? h(
+                  'span',
+                  {
+                    class: textoNoLeido(
+                      leido,
+                      'text-[11px] text-gray-400 font-mono truncate max-w-[10rem]',
+                    ),
+                  },
+                  hr.referencia.trim(),
+                )
+              : null,
+          ]),
         )
       },
     },

@@ -15,6 +15,8 @@ import {
   citeOrigenCorrespondencia,
   correspondenciaPuedeDerivar,
   correspondenciaSinNumerar,
+  etiquetaHojaRuta,
+  clasesEtiquetaHojaRuta,
   etiquetaNumeroCorrespondencia,
   mensajeNoDerivarCorrespondencia,
   MENSAJE_ELIMINAR_CORRELATIVO,
@@ -102,11 +104,15 @@ const columns = computed<TableColumn<Correspondencia>[]>(() => {
     header: 'Hoja de Ruta',
     cell: ({ row }) => {
       const hr = row.original.hoja_ruta
-      if (!hr) {
-        return h('span', { class: 'text-xs text-gray-400 italic' }, 'Sin HR')
-      }
-      return h('div', { class: 'flex items-center gap-1.5' }, [
-        h(UBadge, { color: 'neutral', variant: 'subtle', size: 'xs' }, () => `HR ${hr.numero}/${hr.anio}`),
+      return h('div', { class: 'flex flex-col min-w-0' }, [
+        h('span', { class: clasesEtiquetaHojaRuta(hr) }, etiquetaHojaRuta(hr)),
+        hr?.referencia?.trim()
+          ? h(
+              'span',
+              { class: 'text-[11px] text-gray-400 font-mono truncate max-w-[10rem]' },
+              hr.referencia.trim(),
+            )
+          : null,
       ])
     },
   },

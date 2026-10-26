@@ -2,6 +2,8 @@ export enum TipoCodificadorEnum {
   PRIORIDAD = 1,
   TIPO_INSTRUCCION = 2,
   TIPO_CARGO = 3,
+  /** Catálogo de cargos del solicitante (cooperativa). */
+  CARGO_SOLICITANTE_COOPERATIVA = 4,
 }
 
 export interface HojaRuta {
@@ -121,6 +123,8 @@ export interface CorrespCooperativa {
   cooperativa_id?: number | null;
   solicitante: string;
   nro_carnet: string;
+  cargo_solicitante_id?: number | null;
+  /** Nombre del cargo (mapeado desde codificador en API). */
   cargo_solicitante?: string | null;
   correo_solicitante?: string | null;
   nro_poder?: string | null;
@@ -133,13 +137,17 @@ export interface CorrespCooperativa {
     razon_social?: string | null;
     nro_registro?: string | null;
   };
+  codificador?: {
+    codificadorId?: number;
+    nombre?: string | null;
+  };
 }
 
 export interface CorrespCooperativaPayload {
   cooperativa_id?: number;
   solicitante: string;
   nro_carnet: string;
-  cargo_solicitante?: string;
+  cargo_solicitante_id?: number;
   correo_solicitante?: string;
   nro_poder?: string;
   telefono?: string;
