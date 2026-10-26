@@ -313,9 +313,13 @@ const tabItems = computed<TabsItem[]>(() => {
 <template>
   <UModal
     v-model:open="open"
-    title="Detalle de correspondencia"
+    title="Detalle del Proceso"
     description="Consulte datos del documento, adjuntos e historial de derivaciones."
-    :ui="{ content: 'sm:max-w-2xl' }"
+    :ui="{
+      content:
+        'w-[calc(100vw-1.5rem)] sm:max-w-5xl lg:max-w-6xl max-h-[min(92vh,56rem)] flex flex-col',
+      body: 'overflow-y-auto min-h-0 flex-1',
+    }"
   >
     <template #body>
       <div v-if="loading" class="flex flex-col items-center justify-center py-12 gap-3">
@@ -361,8 +365,11 @@ const tabItems = computed<TabsItem[]>(() => {
           :items="tabItems"
           variant="link"
           color="primary"
-          class="w-full"
-          :ui="{ list: 'border-b border-default' }"
+          class="w-full min-h-[min(28rem,55vh)]"
+          :ui="{
+            list: 'border-b border-default flex-wrap gap-x-1 gap-y-0.5 pb-px',
+            trigger: 'px-2.5 sm:px-3 text-sm whitespace-nowrap',
+          }"
         >
           <template #info>
             <div class="pt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
@@ -412,7 +419,7 @@ const tabItems = computed<TabsItem[]>(() => {
             <div class="pt-4">
               <div
                 v-if="detalle.corresp_entidad?.length"
-                class="space-y-3 max-h-[min(22rem,50vh)] overflow-y-auto pr-1"
+                class="space-y-3 max-h-[min(28rem,58vh)] overflow-y-auto pr-1"
               >
                 <div
                   v-for="(row, idx) in detalle.corresp_entidad"
@@ -448,7 +455,7 @@ const tabItems = computed<TabsItem[]>(() => {
             <div class="pt-4">
               <div
                 v-if="detalle.corresp_cooperativa?.length"
-                class="space-y-3 max-h-[min(22rem,50vh)] overflow-y-auto pr-1"
+                class="space-y-3 max-h-[min(28rem,58vh)] overflow-y-auto pr-1"
               >
                 <div
                   v-for="(row, idx) in detalle.corresp_cooperativa"
@@ -520,7 +527,7 @@ const tabItems = computed<TabsItem[]>(() => {
                 </p>
               </div>
 
-              <div class="space-y-2 max-h-[min(22rem,50vh)] overflow-y-auto pr-1">
+              <div class="space-y-2 max-h-[min(28rem,58vh)] overflow-y-auto pr-1">
                 <div
                   v-for="(dep, idx) in depositosDetalle"
                   :key="dep.id || `${dep.numero}-${idx}`"
@@ -573,7 +580,7 @@ const tabItems = computed<TabsItem[]>(() => {
 
           <template #derivaciones>
             <div class="pt-4">
-              <div v-if="detalle.derivaciones?.length" class="space-y-2 max-h-[min(22rem,50vh)] overflow-y-auto pr-1">
+              <div v-if="detalle.derivaciones?.length" class="space-y-2 max-h-[min(28rem,58vh)] overflow-y-auto pr-1">
                 <div
                   v-for="d in detalle.derivaciones"
                   :key="d.id"

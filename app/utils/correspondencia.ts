@@ -143,3 +143,16 @@ export function observacionesPendientesCorrespondencia(c: CorrespondenciaObserva
 export function textoTooltipObservacionesCorrespondencia(observaciones: string[]): string {
   return observaciones.map((o) => `• ${o}`).join('\n')
 }
+
+export const MENSAJE_ALERTA_DEPOSITO_PENDIENTE =
+  'El proceso requiere pago y hay boleta(s) de depósito pendiente(s) de verificación en recaudaciones.'
+
+export function correspondenciaTieneAlertaDepositoPendiente(
+  c: Pick<Correspondencia, 'alerta_deposito_pendiente' | 'proceso' | 'depositos'>,
+): boolean {
+  if (c.alerta_deposito_pendiente === true) return true
+  if (!c.proceso?.requiere_pago) return false
+  const depositos = c.depositos ?? []
+  if (!depositos.length) return false
+  return depositos.some((d) => d.verificado !== true)
+}

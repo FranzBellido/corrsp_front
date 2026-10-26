@@ -11,6 +11,7 @@ import {
   hMenuAccionesTabla,
 } from '~/utils/acciones-menu'
 import { getAccionesBandeja } from '~/utils/correpondenciaActions'
+import CorAlertaDepositoPendiente from '~/components/correspondencia/CorAlertaDepositoPendiente.vue'
 
 const props = defineProps<{
   correspondencia: Correspondencia
@@ -114,6 +115,11 @@ const menuItems = computed<DropdownMenuItem[]>(() => {
 
     <!-- Alerta condicional -->
     <component :is="renderAlertaPendientes()" v-if="renderAlertaPendientes()" />
+
+    <CorAlertaDepositoPendiente
+      v-if="modo === 'archivo'"
+      :correspondencia="correspondencia"
+    />
 
     <!-- Menú desplegable encapsulado -->
     <component

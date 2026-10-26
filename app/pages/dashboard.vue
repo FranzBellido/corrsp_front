@@ -100,7 +100,7 @@ const bandejasCards = computed<MetricaCard[]>(() => {
   return [
     {
       key: 'borrador',
-      label: 'Borrador',
+      label: 'Principal',
       value: b.borrador,
       icon: 'i-lucide-file-edit',
       to: '/bandejas/borrador',
@@ -153,7 +153,7 @@ const saludo = computed(() => {
   <div class="space-y-8">
     <PageHeader
       :title="saludo"
-      description="Resumen de correspondencia y derivaciones según su cargo y área."
+      description="Resumen de Procesos y derivaciones según su cargo y área."
     >
       <template #actions>
         <USelect

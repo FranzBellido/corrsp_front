@@ -12,6 +12,7 @@ import type {
 import { EstadoDerivacionEnum, estadoPermite } from '~/types/estado'
 import { backendService } from '~/services/backend.service'
 import CorrespondenciaDetalleModal from '~/components/correspondencia/CorrespondenciaDetalleModal.vue'
+import CorAlertaDepositoPendiente from '~/components/correspondencia/CorAlertaDepositoPendiente.vue'
 import CorrespondenciaFormModal from '~/components/correspondencia/CorrespondenciaFormModal.vue'
 import DerivacionFormModal from '~/components/derivaciones/DerivacionFormModal.vue'
 import CambioEstadoDerivacionModal from '~/components/derivaciones/CambioEstadoDerivacionModal.vue'
@@ -700,6 +701,12 @@ const columns = computed<TableColumn<Derivacion | DestinatarioCopiaConDerivacion
         const original = row.original
         const docId = documentoIdDeFila(original)
 
+        const corresp = correspondenciaDeFila(original)
+        const alertaDeposito =
+          corresp && (props.modo === 'ingreso' || props.modo === 'salida')
+            ? h(CorAlertaDepositoPendiente, { correspondencia: corresp })
+            : null
+
         return h('div', { class: CLASE_CONTENEDOR_ACCIONES_CELDA }, [
           h(UButton, {
             icon: 'i-lucide-eye',
@@ -715,6 +722,7 @@ const columns = computed<TableColumn<Derivacion | DestinatarioCopiaConDerivacion
               isDetalleOpen.value = true
             },
           }),
+          alertaDeposito,
           hMenuAccionesTabla(UDropdownMenu, UButton, buildDerivacionAccionesMenu(original)),
         ])
       },

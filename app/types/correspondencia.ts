@@ -61,6 +61,8 @@ export interface Correspondencia {
   corresp_cooperativa?: CorrespCooperativa[];
   corresp_entidad?: CorrespEntidad[];
   depositos?: RecDeposito[];
+  /** Backend: proceso con pago y boleta(s) sin verificar en rec_depositos */
+  alerta_deposito_pendiente?: boolean;
   codificador?: {
     codificadorId: number;
     nombre?: string;
