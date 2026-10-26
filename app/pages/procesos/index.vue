@@ -79,6 +79,9 @@ const columns = computed<TableColumn<Proceso>[]>(() => [
       if (p.requiere_documento) {
         badges.push(h(UBadge, { color: 'info', variant: 'subtle', size: 'xs' }, () => 'OnlyOffice'))
       }
+      if (p.requiere_legalizacion) {
+        badges.push(h(UBadge, { color: 'warning', variant: 'subtle', size: 'xs' }, () => 'Legalización'))
+      }
       return h('div', { class: 'flex flex-wrap gap-1' }, badges)
     },
   },

@@ -39,6 +39,7 @@ const procesoSchema = z.object({
   requiere_corelativo: z.boolean().default(false),
   requiere_destinatario: z.boolean().default(true),
   requiere_documento: z.boolean().default(false),
+  requiere_legalizacion: z.boolean().default(false),
   referencia: z
     .string()
     .trim()
@@ -63,6 +64,7 @@ const form = ref<ProcesoSchemaType>({
   requiere_corelativo: false,
   requiere_destinatario: true,
   requiere_documento: false,
+  requiere_legalizacion: false,
   referencia: '',
 })
 
@@ -94,6 +96,7 @@ const aplicarProcesoAlFormulario = (val: Proceso | null | undefined) => {
       requiere_corelativo: Boolean(val.requiere_corelativo),
       requiere_destinatario: val.requiere_destinatario !== false,
       requiere_documento: Boolean(val.requiere_documento),
+      requiere_legalizacion: Boolean(val.requiere_legalizacion),
       referencia: val.referencia?.trim() || '',
     }
     plantillaPathActual.value = val.plantilla || null
@@ -109,6 +112,7 @@ const aplicarProcesoAlFormulario = (val: Proceso | null | undefined) => {
       requiere_corelativo: false,
       requiere_destinatario: true,
       requiere_documento: false,
+      requiere_legalizacion: false,
       referencia: '',
     }
     plantillaPathActual.value = null
@@ -256,6 +260,7 @@ const handleSave = async (event?: FormSubmitEvent<ProcesoSchemaType>) => {
       requiere_corelativo: Boolean(data.requiere_corelativo),
       requiere_destinatario: Boolean(data.requiere_destinatario),
       requiere_documento: Boolean(data.requiere_documento),
+      requiere_legalizacion: Boolean(data.requiere_legalizacion),
       referencia: data.referencia?.trim() || undefined,
     }
 
@@ -462,6 +467,11 @@ const handleSave = async (event?: FormSubmitEvent<ProcesoSchemaType>) => {
             v-model="form.requiere_documento"
             label="Requiere documento (OnlyOffice)"
             description="Obliga a generar o registrar el documento Word antes de poder derivar la correspondencia."
+          />
+          <UCheckbox
+            v-model="form.requiere_legalizacion"
+            label="Requiere legalización"
+            description="Indica que el trámite está sujeto a flujo o requisitos de legalización cooperativa."
           />
         </div>
       </UForm>

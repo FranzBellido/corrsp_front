@@ -73,6 +73,7 @@ function reiniciarAutoPlay() {
 
 function ingresar() {
   if (isAuthenticated.value) {
+    useState<boolean>('profile-session-synced', () => false).value = false
     navigateTo(postLoginPath)
     return
   }
@@ -86,10 +87,6 @@ function ingresar() {
 }
 
 onMounted(() => {
-  if (isAuthenticated.value) {
-    navigateTo(postLoginPath)
-    return
-  }
   reiniciarAutoPlay()
 })
 

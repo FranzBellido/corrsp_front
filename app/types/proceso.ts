@@ -12,6 +12,7 @@ export interface Proceso {
   requiere_destinatario: boolean
   referencia?: string | null
   requiere_documento?: boolean | null
+  requiere_legalizacion?: boolean | null
   _count?: {
     correspondencia?: number
     area_proceso?: number
@@ -31,6 +32,7 @@ export interface CreateProcesoPayload {
   requiere_destinatario?: boolean
   referencia?: string
   requiere_documento?: boolean
+  requiere_legalizacion?: boolean
 }
 
 export interface UpdateProcesoPayload extends Partial<CreateProcesoPayload> {}

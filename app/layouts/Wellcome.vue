@@ -6,6 +6,7 @@ const logoUrl = '/logo_afcoop1.png'
 
 function ingresar() {
   if (isAuthenticated.value) {
+    useState<boolean>('profile-session-synced', () => false).value = false
     navigateTo(postLoginPath)
     return
   }

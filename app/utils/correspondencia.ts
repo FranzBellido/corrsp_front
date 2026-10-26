@@ -107,7 +107,7 @@ export const MENSAJE_SIN_NUMERACION_HR =
 
 /** Aviso al eliminar: el backend exige último correlativo de correspondencia y de HR. */
 export const MENSAJE_ELIMINAR_CORRELATIVO =
-  'Solo se puede eliminar si es el último número de correspondencia del proceso/área/gestión y, si tiene Hoja de Ruta, la HR es la última del área/año. No se permiten huecos en los correlativos.'
+  'Solo se puede eliminar si es el último número de correspondencia del proceso/área/gestión y, si tiene Hoja de Ruta, la HR es la última de la gestión (correlativo global). No se permiten huecos en los correlativos.'
 
 export const MENSAJE_SIN_DOCUMENTO_OFICIAL =
   'Debe registrar el documento en OnlyOffice antes de derivar esta correspondencia.'

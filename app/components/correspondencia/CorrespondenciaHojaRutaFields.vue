@@ -37,7 +37,9 @@ const emit = defineEmits<{
         <UIcon name="i-lucide-plus-circle" class="size-5 shrink-0 text-primary mt-0.5" />
         <div>
           <div class="font-semibold text-xs">Nueva Hoja de Ruta</div>
-          <div class="text-[11px] text-muted">Crear nuevo correlativo HR con la misma referencia</div>
+          <div class="text-[11px] text-muted">
+            Asigna el siguiente número HR global de la gestión (único en toda la institución).
+          </div>
         </div>
       </button>
 

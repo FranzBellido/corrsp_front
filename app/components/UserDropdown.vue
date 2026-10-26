@@ -1,13 +1,13 @@
 <script setup lang="ts">
 const { user, login, logout, isAuthenticated } = useAuth()
-const { profile, cargoActivo, fetchProfile, loadProfileFromStorage } = useProfile()
+const { profile, cargoActivo, fetchProfile } = useProfile()
 
 onMounted(() => {
-  if (isAuthenticated.value) {
-    loadProfileFromStorage()
-    if (!profile.value) {
-      fetchProfile()
-    }
+  if (!isAuthenticated.value) return
+  const accessDenied = useState<boolean>('access-denied', () => false)
+  if (accessDenied.value) return
+  if (!profile.value) {
+    fetchProfile()
   }
 })
 

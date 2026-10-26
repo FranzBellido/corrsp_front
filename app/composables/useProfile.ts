@@ -1,6 +1,10 @@
 import type { ProfileDto } from '~/types/profile'
 import type { RespuestaApi } from '~/types/respuestas'
 import { backendService } from '~/services/backend.service'
+import {
+  extractHttpStatus,
+  isUsuarioNoRegistradoEnSistema,
+} from '~/utils/auth-access'
 
 const PROFILE_STORAGE_KEY = 'user_profile_data'
 export const CARGO_ORIGEN_STORAGE_KEY = 'cargo_origen_id'
@@ -118,33 +122,32 @@ export const useProfile = () => {
    * - 1 cargo: backend lo persiste automáticamente
    * - N cargos sin cargo_id: muestra modal de selección
    */
-  const isUsuarioNoRegistradoError = (error: unknown): boolean => {
-    const err = error as {
-      statusCode?: number
-      status?: number
-      response?: { status?: number }
-      data?: { statusCode?: number; message?: string | string[] }
-      message?: string
-    }
-    const status = err?.statusCode ?? err?.status ?? err?.response?.status ?? err?.data?.statusCode
-    if (status === 404) return true
-
-    const msg = Array.isArray(err?.data?.message)
-      ? err.data.message.join(' ')
-      : err?.data?.message || err?.message || ''
-    return /no encontrado|not found/i.test(String(msg))
-  }
-
   const fetchProfile = async (): Promise<ProfileDto | null> => {
     if (!import.meta.client) return null
 
     loading.value = true
     const accessDenied = useState<boolean>('access-denied', () => false)
 
+    const nuxtApp = useNuxtApp() as {
+      $keycloak?: { tokenParsed?: { preferred_username?: string } }
+    }
+    const loginUsuario =
+      nuxtApp.$keycloak?.tokenParsed?.preferred_username?.trim().toLowerCase() || ''
+    const stored = loadProfileFromStorage()
+    if (
+      stored?.nombre_usuario
+      && loginUsuario
+      && stored.nombre_usuario.trim().toLowerCase() !== loginUsuario
+    ) {
+      clearProfile()
+    }
+
     try {
       const resp = await backendService.get<ProfileDto>('profile')
       if (!resp?.data) {
-        return loadProfileFromStorage()
+        accessDenied.value = true
+        clearProfile()
+        return null
       }
 
       accessDenied.value = false
@@ -164,12 +167,31 @@ export const useProfile = () => {
       return fullProfile
     } catch (error) {
       console.error('Error fetching profile from backend:', error)
-      if (isUsuarioNoRegistradoError(error)) {
+      if (isUsuarioNoRegistradoEnSistema(error)) {
         accessDenied.value = true
         clearProfile()
-        throw error
+        useState<boolean>('profile-session-synced', () => false).value = false
+        return null
       }
-      return loadProfileFromStorage()
+
+      const status = extractHttpStatus(error)
+      if (status === 401 || status === 403) {
+        accessDenied.value = true
+        clearProfile()
+        return null
+      }
+
+      const cached = loadProfileFromStorage()
+      if (
+        cached?.nombre_usuario
+        && loginUsuario
+        && cached.nombre_usuario.trim().toLowerCase() === loginUsuario
+      ) {
+        profile.value = cached
+        return cached
+      }
+
+      return null
     } finally {
       loading.value = false
     }

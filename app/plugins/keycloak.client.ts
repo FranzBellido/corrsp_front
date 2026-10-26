@@ -4,6 +4,9 @@ import { ensureCryptoRandomUuid } from '~/utils/crypto-random-uuid-polyfill'
 export default defineNuxtPlugin(async (nuxtApp) => {
   ensureCryptoRandomUuid()
 
+  const keycloakReady = useState<boolean>('keycloak-ready', () => false)
+  keycloakReady.value = false
+
   const config = useRuntimeConfig()
 
   const keycloak = new Keycloak({
@@ -32,6 +35,8 @@ export default defineNuxtPlugin(async (nuxtApp) => {
       })
     }
 
+    keycloakReady.value = true
+
     return {
       provide: {
         keycloak
@@ -39,6 +44,7 @@ export default defineNuxtPlugin(async (nuxtApp) => {
     }
   } catch (error) {
     console.error('Keycloak initialization failed', error)
+    keycloakReady.value = true
     return {
       provide: {
         keycloak
