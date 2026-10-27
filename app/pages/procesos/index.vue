@@ -119,6 +119,14 @@ const columns = computed<TableColumn<Proceso>[]>(() => [
       const tienePlantilla = Boolean(item.plantilla?.trim())
       return h('div', { class: 'flex items-center justify-end gap-1.5' }, [
         h(UButton, {
+          icon: 'i-lucide-git-branch',
+          color: 'info',
+          variant: 'ghost',
+          size: 'xs',
+          title: 'Acciones de flujo del proceso',
+          to: `/procesos/${item.id}`,
+        }),
+        h(UButton, {
           icon: 'i-lucide-file-output',
           color: 'primary',
           variant: 'ghost',

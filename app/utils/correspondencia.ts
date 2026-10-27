@@ -23,6 +23,14 @@ export function correspondenciaSinNumerar(c: Pick<Correspondencia, 'nro'>): bool
   return !c.nro || c.nro <= 0
 }
 
+/** CITE correlativo (API bandeja) o vacío. */
+export function etiquetaCiteCorrespondencia(
+  c: Pick<Correspondencia, 'cite'>,
+): string {
+  const t = c.cite?.trim()
+  return t || '—'
+}
+
 export function etiquetaNumeroCorrespondencia(c: Pick<Correspondencia, 'nro' | 'gestion'>): string {
   if (correspondenciaSinNumerar(c)) {
     return 'Sin numerar'

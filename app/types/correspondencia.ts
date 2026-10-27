@@ -43,6 +43,8 @@ export interface Correspondencia {
   proc_id: number;
   gestion: number;
   cite_origen?: string | null;
+  /** Correlativo área.codigo.proceso.codigo.nro (bandeja derivaciones). */
+  cite?: string | null;
   prioridad_id: number;
   hoja_ruta?: HojaRuta | null;
   codigo_unico?: string;
@@ -60,6 +62,7 @@ export interface Correspondencia {
     referencia?: string | null;
     requiere_documento?: boolean | null;
     requiere_legalizacion?: boolean | null;
+    flujo_definido?: boolean | null;
   } | null;
   corresp_cooperativa?: CorrespCooperativa[];
   corresp_entidad?: CorrespEntidad[];

@@ -16,6 +16,7 @@ import CorAlertaDepositoPendiente from '~/components/correspondencia/CorAlertaDe
 import LegalizacionFormModal from '~/components/legalizacion/LegalizacionFormModal.vue'
 import CorrespondenciaFormModal from '~/components/correspondencia/CorrespondenciaFormModal.vue'
 import DerivacionFormModal from '~/components/derivaciones/DerivacionFormModal.vue'
+import DerivacionFlujoFormModal from '~/components/derivaciones/DerivacionFlujoFormModal.vue'
 import CambioEstadoDerivacionModal from '~/components/derivaciones/CambioEstadoDerivacionModal.vue'
 import EstadoLogTimelineModal from '~/components/derivaciones/EstadoLogTimelineModal.vue'
 import CorTable from '~/components/CorTable.vue'
@@ -24,6 +25,8 @@ import {
   correspondenciaPuedeDerivar,
   etiquetaHojaRuta,
   clasesEtiquetaHojaRuta,
+  etiquetaCiteCorrespondencia,
+  etiquetaNumeroCorrespondencia,
   mensajeNoDerivarCorrespondencia,
 } from '~/utils/correspondencia'
 import {
@@ -68,6 +71,7 @@ const legalizacionCorrespId = ref<string | null>(null)
 const legalizacionDerivacionId = ref<string | null>(null)
 
 const isDerivacionOpen = ref(false)
+const isDerivacionFlujoOpen = ref(false)
 const correspToDerivar = ref<Correspondencia | null>(null)
 
 const isEditDerivacionOpen = ref(false)
@@ -305,7 +309,11 @@ const abrirDerivar = (row: Derivacion | DestinatarioCopiaConDerivacion) => {
     return
   }
   correspToDerivar.value = corresp
-  isDerivacionOpen.value = true
+  if (corresp.proceso?.flujo_definido) {
+    isDerivacionFlujoOpen.value = true
+  } else {
+    isDerivacionOpen.value = true
+  }
 }
 
 const abrirCambioEstado = (
@@ -531,21 +539,7 @@ const columns = computed<TableColumn<Derivacion | DestinatarioCopiaConDerivacion
               leido ? 'border-transparent' : 'border-primary-600',
             ],
           },
-          h('div', { class: 'flex flex-col min-w-0' }, [
-            h('span', { class: clasesEtiquetaHojaRuta(hr) }, etiquetaHojaRuta(hr)),
-            hr?.referencia?.trim()
-              ? h(
-                  'span',
-                  {
-                    class: textoNoLeido(
-                      leido,
-                      'text-[11px] text-gray-400 font-mono truncate max-w-[10rem]',
-                    ),
-                  },
-                  hr.referencia.trim(),
-                )
-              : null,
-          ]),
+          h('span', { class: clasesEtiquetaHojaRuta(hr) }, etiquetaHojaRuta(hr)),
         )
       },
     },
@@ -566,8 +560,13 @@ const columns = computed<TableColumn<Derivacion | DestinatarioCopiaConDerivacion
           [
             h(
               'span',
-              { class: textoNoLeido(leido, 'text-[11px] font-mono') },
-              `Nº ${corresp.nro}/${corresp.gestion}`,
+              {
+                class: textoNoLeido(leido, 'text-[11px] font-mono'),
+                title: corresp.cite?.trim() || etiquetaNumeroCorrespondencia(corresp),
+              },
+              corresp.cite?.trim()
+                ? etiquetaCiteCorrespondencia(corresp)
+                : etiquetaNumeroCorrespondencia(corresp),
             ),
             h(
               'span',
@@ -904,6 +903,12 @@ onMounted(() => {
 
     <DerivacionFormModal
       v-model:open="isDerivacionOpen"
+      :correspondencia="correspToDerivar"
+      @derivado="fetchItems"
+    />
+
+    <DerivacionFlujoFormModal
+      v-model:open="isDerivacionFlujoOpen"
       :correspondencia="correspToDerivar"
       @derivado="fetchItems"
     />

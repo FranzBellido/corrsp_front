@@ -6,6 +6,7 @@ import { backendService } from '~/services/backend.service'
 import CorrespondenciaFormModal from '~/components/correspondencia/CorrespondenciaFormModal.vue'
 import CorrespondenciaCompartirModal from '~/components/correspondencia/CorrespondenciaCompartirModal.vue'
 import DerivacionFormModal from '~/components/derivaciones/DerivacionFormModal.vue'
+import DerivacionFlujoFormModal from '~/components/derivaciones/DerivacionFlujoFormModal.vue'
 import CorrespondenciaDetalleModal from '~/components/correspondencia/CorrespondenciaDetalleModal.vue'
 import CorrespondenciaAdjuntosModal from '~/components/correspondencia/CorrespondenciaAdjuntosModal.vue'
 import CorAcciones from '~/components/correspondencia/CorAcciones.vue'
@@ -71,6 +72,7 @@ const isCompartirOpen = ref(false)
 const correspToCompartir = ref<Correspondencia | null>(null)
 
 const isDerivacionOpen = ref(false)
+const isDerivacionFlujoOpen = ref(false)
 const correspToDerivar = ref<Correspondencia | null>(null)
 
 const isDetalleOpen = ref(false)
@@ -357,7 +359,11 @@ const handleDerivar = (corresp: Correspondencia) => {
     return
   }
   correspToDerivar.value = corresp
-  isDerivacionOpen.value = true
+  if (corresp.proceso?.flujo_definido) {
+    isDerivacionFlujoOpen.value = true
+  } else {
+    isDerivacionOpen.value = true
+  }
 }
 
 const handleVerDetalle = (corresp: Correspondencia) => {
@@ -642,6 +648,12 @@ onMounted(() => {
 
     <DerivacionFormModal
       v-model:open="isDerivacionOpen"
+      :correspondencia="correspToDerivar"
+      @derivado="fetchCorrespondencias"
+    />
+
+    <DerivacionFlujoFormModal
+      v-model:open="isDerivacionFlujoOpen"
       :correspondencia="correspToDerivar"
       @derivado="fetchCorrespondencias"
     />

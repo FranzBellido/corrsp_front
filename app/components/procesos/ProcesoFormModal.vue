@@ -40,6 +40,7 @@ const procesoSchema = z.object({
   requiere_destinatario: z.boolean().default(true),
   requiere_documento: z.boolean().default(false),
   requiere_legalizacion: z.boolean().default(false),
+  flujo_definido: z.boolean().default(false),
   referencia: z
     .string()
     .trim()
@@ -65,6 +66,7 @@ const form = ref<ProcesoSchemaType>({
   requiere_destinatario: true,
   requiere_documento: false,
   requiere_legalizacion: false,
+  flujo_definido: false,
   referencia: '',
 })
 
@@ -97,6 +99,7 @@ const aplicarProcesoAlFormulario = (val: Proceso | null | undefined) => {
       requiere_destinatario: val.requiere_destinatario !== false,
       requiere_documento: Boolean(val.requiere_documento),
       requiere_legalizacion: Boolean(val.requiere_legalizacion),
+      flujo_definido: Boolean(val.flujo_definido),
       referencia: val.referencia?.trim() || '',
     }
     plantillaPathActual.value = val.plantilla || null
@@ -113,6 +116,7 @@ const aplicarProcesoAlFormulario = (val: Proceso | null | undefined) => {
       requiere_destinatario: true,
       requiere_documento: false,
       requiere_legalizacion: false,
+      flujo_definido: false,
       referencia: '',
     }
     plantillaPathActual.value = null
@@ -261,6 +265,7 @@ const handleSave = async (event?: FormSubmitEvent<ProcesoSchemaType>) => {
       requiere_destinatario: Boolean(data.requiere_destinatario),
       requiere_documento: Boolean(data.requiere_documento),
       requiere_legalizacion: Boolean(data.requiere_legalizacion),
+      flujo_definido: Boolean(data.flujo_definido),
       referencia: data.referencia?.trim() || undefined,
     }
 
@@ -433,6 +438,24 @@ const handleSave = async (event?: FormSubmitEvent<ProcesoSchemaType>) => {
         </div>
 
         <div class="space-y-3 rounded-md border border-default p-3">
+          <UCheckbox
+            v-model="form.flujo_definido"
+            label="Flujo definido"
+            description="El trámite usa acciones de flujo preconfiguradas (origen, destino e instrucción por estado)."
+          />
+          <p
+            v-if="form.flujo_definido && isEditing && proceso?.id"
+            class="text-[11px] text-muted -mt-1 pl-7"
+          >
+            Configure las acciones en
+            <NuxtLink
+              :to="`/procesos/${proceso.id}`"
+              class="text-primary font-semibold hover:underline"
+              @click="open = false"
+            >
+              Flujo del proceso
+            </NuxtLink>.
+          </p>
           <UCheckbox
             v-model="form.interna"
             label="Proceso interno"
