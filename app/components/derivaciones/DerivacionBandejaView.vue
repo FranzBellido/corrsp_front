@@ -13,6 +13,7 @@ import { EstadoDerivacionEnum, estadoPermite } from '~/types/estado'
 import { backendService } from '~/services/backend.service'
 import CorrespondenciaDetalleModal from '~/components/correspondencia/CorrespondenciaDetalleModal.vue'
 import CorAlertaDepositoPendiente from '~/components/correspondencia/CorAlertaDepositoPendiente.vue'
+import LegalizacionFormModal from '~/components/legalizacion/LegalizacionFormModal.vue'
 import CorrespondenciaFormModal from '~/components/correspondencia/CorrespondenciaFormModal.vue'
 import DerivacionFormModal from '~/components/derivaciones/DerivacionFormModal.vue'
 import CambioEstadoDerivacionModal from '~/components/derivaciones/CambioEstadoDerivacionModal.vue'
@@ -61,6 +62,10 @@ const detalleDocumentoId = ref<string | null>(null)
 
 const isRespuestaCorrespOpen = ref(false)
 const correspOrigenRespuesta = ref<Correspondencia | null>(null)
+
+const isLegalizacionOpen = ref(false)
+const legalizacionCorrespId = ref<string | null>(null)
+const legalizacionDerivacionId = ref<string | null>(null)
 
 const isDerivacionOpen = ref(false)
 const correspToDerivar = ref<Correspondencia | null>(null)
@@ -459,6 +464,8 @@ const buildDerivacionAccionesMenu = (
     permiteEditar: estadoPermite(estado, 'permite_editar'),
     permiteEliminar: estadoPermite(estado, 'permite_eliminar'),
     tieneHojaRuta: Boolean(correspDerivar?.hoja_ruta?.numero || correspDerivar?.hr_id),
+    requiereLegalizacion: Boolean(correspDerivar?.proceso?.requiere_legalizacion),
+    onLegalizacion: () => abrirLegalizacion(original),
     onResponderCorrespondencia: () => abrirResponderCorrespondencia(original),
     onHistorial: () => abrirEstadoLog(original),
     onRecepcionar: () => abrirRecepcionar(original),
@@ -469,6 +476,32 @@ const buildDerivacionAccionesMenu = (
     onEditar: () => abrirEditarDerivacion(original),
     onEliminar: () => abrirConfirmarEliminarDerivacion(original),
   })
+}
+
+function abrirLegalizacion(original: Derivacion | DestinatarioCopiaConDerivacion) {
+  const d = derivacionDeFila(original)
+  const corresp = correspondenciaDeFila(original)
+  if (!corresp?.id) {
+    toast.add({
+      title: 'Sin documento',
+      description: 'No se encontró la correspondencia asociada.',
+      color: 'warning',
+      icon: 'i-lucide-triangle-alert',
+    })
+    return
+  }
+  if (!d?.id) {
+    toast.add({
+      title: 'Sin derivación',
+      description: 'No se encontró la derivación asociada.',
+      color: 'warning',
+      icon: 'i-lucide-triangle-alert',
+    })
+    return
+  }
+  legalizacionCorrespId.value = corresp.id
+  legalizacionDerivacionId.value = d.id
+  isLegalizacionOpen.value = true
 }
 
 const columns = computed<TableColumn<Derivacion | DestinatarioCopiaConDerivacion>[]>(() => {
@@ -853,6 +886,13 @@ onMounted(() => {
     <CorrespondenciaFormModal
       v-model:open="isRespuestaCorrespOpen"
       :correspondencia-origen-respuesta="correspOrigenRespuesta"
+      @guardado="fetchItems"
+    />
+
+    <LegalizacionFormModal
+      v-model:open="isLegalizacionOpen"
+      :correspondencia-id="legalizacionCorrespId"
+      :derivacion-id="legalizacionDerivacionId"
       @guardado="fetchItems"
     />
 

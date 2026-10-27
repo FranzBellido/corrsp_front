@@ -5,6 +5,7 @@ export enum EstadoDerivacionEnum {
   ARCHIVADO = 3,
   TRANSFERIDO_BAJA = 4,
   RECHAZADO = 5,
+  LEGALIZADO = 7,
 }
 
 export const ENTIDAD_ESTADO_LOG_CORRESPONDENCIA = 'correspondencia'

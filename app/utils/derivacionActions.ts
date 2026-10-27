@@ -26,6 +26,8 @@ export interface DerivacionActionContext {
   onEliminar: () => void
   tieneHojaRuta: boolean
   onResponderCorrespondencia: () => void
+  requiereLegalizacion?: boolean
+  onLegalizacion?: () => void
 }
 
 /**
@@ -37,6 +39,7 @@ export const DERIVACION_ACTION_ORDER = {
   RECEPCIONAR: 10,
   RECHAZAR: 15,
   RESPONDER: 25,
+  LEGALIZACION: 28,
   DERIVAR: 30,
   ARCHIVAR: 40,
   TRANSFERIR_BAJA: 50,
@@ -102,6 +105,15 @@ export function getAccionesDerivacionBandeja(ctx: DerivacionActionContext): Drop
           ? 'El documento no tiene Hoja de Ruta. No se puede registrar una respuesta asociada.'
           : undefined,
       )
+    }
+
+    if (ctx.requiereLegalizacion && ctx.onLegalizacion) {
+      agregarAccion(items, {
+        label: 'Registrar legalización',
+        icon: 'i-lucide-stamp',
+        order: DERIVACION_ACTION_ORDER.LEGALIZACION,
+        onSelect: ctx.onLegalizacion,
+      })
     }
 
     if (ctx.permiteDerivar) {

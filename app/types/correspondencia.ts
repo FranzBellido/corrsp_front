@@ -59,6 +59,7 @@ export interface Correspondencia {
     requiere_destinatario?: boolean;
     referencia?: string | null;
     requiere_documento?: boolean | null;
+    requiere_legalizacion?: boolean | null;
   } | null;
   corresp_cooperativa?: CorrespCooperativa[];
   corresp_entidad?: CorrespEntidad[];
