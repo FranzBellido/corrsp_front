@@ -4,10 +4,10 @@ import type { EstadoDerivacion } from '~/types/estado'
 export interface DerivacionCargo {
   id: string
   nombre: string
-  usuarios?: {
+  usuarios?: Array<{
     id: string
     nombre_completo: string
-  } | null
+  }>
 }
 
 export interface DestinatarioCopia {

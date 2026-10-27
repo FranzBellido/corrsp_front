@@ -193,7 +193,13 @@ const correspondenciaDeFila = (
 
 const etiquetaPersonaCargo = (cargo?: DerivacionCargo | null): string => {
   if (!cargo) return ''
-  const persona = cargo.usuarios?.nombre_completo?.trim()
+  const nombres = (cargo.usuarios ?? [])
+    .map((u) => u.nombre_completo?.trim())
+    .filter(Boolean)
+  const persona =
+    nombres.length <= 2
+      ? nombres.join(', ')
+      : `${nombres.slice(0, 2).join(', ')} (+${nombres.length - 2})`
   return persona ? `${persona} — ${cargo.nombre}` : cargo.nombre
 }
 

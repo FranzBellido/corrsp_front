@@ -1,9 +1,17 @@
+export interface CargoUsuarioVinculo {
+  id: string;
+  nombre_completo: string;
+  email: string;
+  nombre_usuario: string;
+}
+
 export interface Cargo {
   id: string;
   nombre: string;
   id_anterior?: number;
   cargos_cod_depto?: string | null;
   area_id?: string | null;
+  /** @deprecated Use usuarios[] via cargo_usuario */
   usuario_id?: string | null;
   tipo_id?: number | null;
   activa_transferencia?: boolean | null;
@@ -12,12 +20,7 @@ export interface Cargo {
     nombre: string;
     codigo: string;
   } | null;
-  usuarios?: {
-    id: string;
-    nombre_completo: string;
-    email: string;
-    nombre_usuario: string;
-  } | null;
+  usuarios?: CargoUsuarioVinculo[];
   codificador?: {
     codificadorId: number;
     nombre?: string | null;
@@ -29,7 +32,9 @@ export interface CreateCargoPayload {
   id_anterior?: number;
   cargos_cod_depto?: string;
   area_id?: string;
+  /** @deprecated Use usuarios_ids */
   usuario_id?: string;
+  usuarios_ids?: string[];
   tipo_id?: number;
   activa_transferencia?: boolean;
 }

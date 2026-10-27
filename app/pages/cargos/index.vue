@@ -59,19 +59,26 @@ const columns: TableColumn<Cargo>[] = [
   },
   {
     accessorKey: 'usuarios',
-    header: 'Funcionario Asignado',
+    header: 'Funcionarios',
     cell: ({ row }) => {
-      const usuario = row.original.usuarios
-      if (!usuario) {
+      const lista = row.original.usuarios ?? []
+      if (lista.length === 0) {
         return h(
           UBadge,
           { color: 'neutral', variant: 'subtle', size: 'xs' },
           () => 'Vacante',
         )
       }
-      return h('div', { class: 'flex flex-col' }, [
-        h('span', { class: 'font-medium text-xs text-gray-800 dark:text-gray-200' }, usuario.nombre_completo),
-        h('span', { class: 'text-[11px] text-gray-400' }, usuario.email || `@${usuario.nombre_usuario}`),
+      if (lista.length === 1) {
+        const usuario = lista[0]
+        return h('div', { class: 'flex flex-col' }, [
+          h('span', { class: 'font-medium text-xs text-gray-800 dark:text-gray-200' }, usuario.nombre_completo),
+          h('span', { class: 'text-[11px] text-gray-400' }, usuario.email || `@${usuario.nombre_usuario}`),
+        ])
+      }
+      return h('div', { class: 'flex flex-col gap-0.5' }, [
+        h('span', { class: 'font-medium text-xs text-gray-800 dark:text-gray-200' }, lista.map((u) => u.nombre_completo).join(', ')),
+        h('span', { class: 'text-[11px] text-gray-400' }, `${lista.length} funcionarios`),
       ])
     },
   },
