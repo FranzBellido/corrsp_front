@@ -36,6 +36,8 @@ export interface Derivacion {
   nombre?: string | null
   estado_id?: number | null
   estado?: EstadoDerivacion | null
+  /** Códigos de acciones visibles (matriz backend). */
+  acciones?: string[]
   fecha_plazo?: string | null
   correspondencia?: Correspondencia | null
   codificador?: {

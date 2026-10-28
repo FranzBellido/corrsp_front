@@ -9,7 +9,7 @@ import type {
   FiltroDerivacion,
   RespuestaBusquedaDerivacion,
 } from '~/types/derivacion'
-import { EstadoDerivacionEnum, estadoPermite } from '~/types/estado'
+import { EstadoDerivacionEnum } from '~/types/estado'
 import { backendService } from '~/services/backend.service'
 import CorrespondenciaDetalleModal from '~/components/correspondencia/CorrespondenciaDetalleModal.vue'
 import CorAlertaDepositoPendiente from '~/components/correspondencia/CorAlertaDepositoPendiente.vue'
@@ -455,23 +455,27 @@ const handleEliminarDerivacion = async () => {
   }
 }
 
+const accionesDeFila = (
+  original: Derivacion | DestinatarioCopiaConDerivacion,
+): string[] => {
+  if (props.modo === 'con_copia') {
+    const copia = original as DestinatarioCopiaConDerivacion
+    return copia.derivaciones?.acciones ?? []
+  }
+  return (original as Derivacion).acciones ?? []
+}
+
 const buildDerivacionAccionesMenu = (
   original: Derivacion | DestinatarioCopiaConDerivacion,
 ): DropdownMenuItem[] => {
   const docId = documentoIdDeFila(original)
   const d = derivacionDeFila(original)
   const correspDerivar = correspondenciaDeFila(original)
-  const estado = d?.estado
   const puedeDerivar = Boolean(correspDerivar && correspondenciaPuedeDerivar(correspDerivar))
 
   return getAccionesDerivacionBandeja({
-    modo: props.modo,
+    accionesDisponibles: accionesDeFila(original),
     tieneDocumento: Boolean(docId),
-    permiteRecepcionar: estadoPermite(estado, 'permite_recepcionar'),
-    permiteRechazar: estadoPermite(estado, 'permite_recepcionar'),
-    permiteDerivar: estadoPermite(estado, 'permite_derivar'),
-    permiteArchivar: estadoPermite(estado, 'permite_archivar'),
-    permiteAsociar: estadoPermite(estado, 'permite_asociar'),
     puedeTransferirPorBaja: puedeTransferirPorBaja.value,
     yaTransferidoBaja: d?.estado_id === EstadoDerivacionEnum.TRANSFERIDO_BAJA,
     puedeDerivarCorresp: puedeDerivar,
@@ -479,10 +483,7 @@ const buildDerivacionAccionesMenu = (
       !puedeDerivar && correspDerivar
         ? mensajeNoDerivarCorrespondencia(correspDerivar)
         : undefined,
-    permiteEditar: estadoPermite(estado, 'permite_editar'),
-    permiteEliminar: estadoPermite(estado, 'permite_eliminar'),
     tieneHojaRuta: Boolean(correspDerivar?.hoja_ruta?.numero || correspDerivar?.hr_id),
-    requiereLegalizacion: Boolean(correspDerivar?.proceso?.requiere_legalizacion),
     onLegalizacion: () => abrirLegalizacion(original),
     onResponderCorrespondencia: () => abrirResponderCorrespondencia(original),
     onHistorial: () => abrirEstadoLog(original),
