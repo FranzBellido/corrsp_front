@@ -965,7 +965,7 @@ const handleAsignarCiteHr = async () => {
             v-if="esUltimoPaso"
             type="submit"
             form="corresp-form"
-            :label="isEditing ? 'Guardar cambios' : 'Registrar correspondencia'"
+            :label="isEditing ? 'Guardar cambios' : 'Registrar proceso'"
             icon="i-lucide-save"
             color="primary"
             :loading="saving"

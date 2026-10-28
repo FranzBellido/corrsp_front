@@ -64,7 +64,7 @@ export function getAccionesBandeja(ctx: ActionContext): ActionMenuItem[] {
 
     // 2. Derivar correspondencia
     items.push({
-      label: 'Derivar correspondencia',
+      label: 'Derivar proceso',
       icon: 'i-lucide-send',
       order: ACTION_ORDER.DERIVAR,
       onSelect: ctx.onDerivar,

@@ -28,7 +28,6 @@ const schema = z.object({
   observaciones: z
     .string()
     .trim()
-    .min(3, 'Indique al menos 3 caracteres')
     .max(500, 'No puede exceder 500 caracteres'),
 })
 
@@ -37,7 +36,7 @@ type FormState = z.infer<typeof schema>
 const form = ref<FormState>({ observaciones: '' })
 
 const canSubmit = computed(
-  () => Boolean(props.derivacionId && props.estadoId && form.value.observaciones.trim().length >= 3),
+  () => Boolean(props.derivacionId && props.estadoId),
 )
 
 watch(open, (isOpen) => {
@@ -90,7 +89,7 @@ const onSubmit = async (event: FormSubmitEvent<FormState>) => {
   >
     <template #body>
       <UForm :schema="schema" :state="form" class="space-y-4" @submit="onSubmit">
-        <UFormField label="Observaciones" name="observaciones" required>
+        <UFormField label="Observaciones" name="observaciones" optional>
           <UTextarea
             v-model="form.observaciones"
             :rows="4"
