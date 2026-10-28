@@ -111,12 +111,8 @@ const defaultNavItems: NavItem[] = [
         label: 'Entidades',
         to: '/entidades',
         icon: 'i-lucide-landmark'
-      },
-      {
-        label: 'Clientes',
-        to: '/customers',
-        icon: 'i-lucide-building-2'
       }
+  
     ]
   },
   {
