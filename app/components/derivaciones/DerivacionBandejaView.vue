@@ -73,6 +73,7 @@ const legalizacionDerivacionId = ref<string | null>(null)
 const isDerivacionOpen = ref(false)
 const isDerivacionFlujoOpen = ref(false)
 const correspToDerivar = ref<Correspondencia | null>(null)
+const derivacionEstadoIdParaFlujo = ref<number | null>(null)
 
 const isEditDerivacionOpen = ref(false)
 const derivacionToEdit = ref<Derivacion | null>(null)
@@ -308,6 +309,9 @@ const abrirDerivar = (row: Derivacion | DestinatarioCopiaConDerivacion) => {
     })
     return
   }
+  const d = derivacionDeFila(row)
+  derivacionEstadoIdParaFlujo.value =
+    d?.estado_id ?? d?.estado?.id ?? null
   correspToDerivar.value = corresp
   if (corresp.proceso?.flujo_definido) {
     isDerivacionFlujoOpen.value = true
@@ -910,6 +914,7 @@ onMounted(() => {
     <DerivacionFlujoFormModal
       v-model:open="isDerivacionFlujoOpen"
       :correspondencia="correspToDerivar"
+      :derivacion-estado-id="derivacionEstadoIdParaFlujo"
       @derivado="fetchItems"
     />
 

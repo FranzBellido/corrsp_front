@@ -14,6 +14,8 @@ import {
 
 const props = defineProps<{
   correspondencia?: Correspondencia | null
+  /** Estado de la derivación en bandeja (flujo_acciones.id_estado se compara con este valor). */
+  derivacionEstadoId?: number | null
 }>()
 
 const open = defineModel<boolean>('open', { default: false })
@@ -71,10 +73,23 @@ const cargoOrigenId = computed(
   () => resolveCargoOrigenId() || cargoActivo.value?.id || null,
 )
 
-/** Acciones activas del proceso, filtradas por cargo origen del usuario y estado del documento. */
+const procIdCorrespondencia = computed(
+  () =>
+    props.correspondencia?.proc_id ?? props.correspondencia?.proceso?.id ?? null,
+)
+
+/** Estado para filtrar flujo: derivación en bandeja; si no hay, estado del documento (bandeja correspondencia). */
+const estadoIdParaFlujo = computed(
+  () =>
+    props.derivacionEstadoId ??
+    props.correspondencia?.estado_id ??
+    null,
+)
+
+/** Acciones activas del proceso, filtradas por cargo origen y estado de la derivación/documento. */
 const accionesDisponibles = computed(() => {
   const cargoId = cargoOrigenId.value
-  const estadoId = props.correspondencia?.estado_id
+  const estadoId = estadoIdParaFlujo.value
   return acciones.value.filter((a) => {
     if (!a.activo) return false
     if (cargoId && a.cargo_origen_id !== cargoId) return false
@@ -103,7 +118,7 @@ const seleccionarAccion = (accion: FlujoAccion) => {
 }
 
 const cargarAcciones = async () => {
-  const procId = props.correspondencia?.proc_id
+  const procId = procIdCorrespondencia.value
   if (!procId) {
     acciones.value = []
     return
@@ -317,7 +332,9 @@ const handleSave = async (event?: FormSubmitEvent<FormState>) => {
           <template v-if="cargoActivo?.nombre">
             («{{ cargoActivo.nombre }}»)
           </template>
-          en el estado actual del documento. Revise la configuración de flujo del proceso.
+          en el estado actual
+          {{ derivacionEstadoId != null ? 'de la derivación' : 'del documento' }}.
+          Revise la configuración de flujo del proceso.
         </p>
       </div>
 
