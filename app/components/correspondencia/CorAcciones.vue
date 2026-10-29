@@ -81,6 +81,7 @@ const menuItems = computed<DropdownMenuItem[]>(() => {
 
   return getAccionesBandeja({
     modo: props.modo,
+    flujoDefinido: Boolean(c.proceso?.flujo_definido),
     tieneDocumento,
     tienePlantilla,
     tieneDerivaciones: (c._count?.derivaciones ?? 0) > 0,

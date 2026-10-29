@@ -8,6 +8,8 @@ export interface ActionMenuItem extends DropdownMenuItem {
 
 export interface ActionContext {
   modo: 'borrador' | 'archivo' | 'compartidos'
+  /** Proceso con flujo_acciones definido: oculta compartir y documento OnlyOffice en borrador. */
+  flujoDefinido: boolean
   tieneDocumento: boolean
   tienePlantilla: boolean
   tieneDerivaciones: boolean
@@ -42,25 +44,27 @@ export function getAccionesBandeja(ctx: ActionContext): ActionMenuItem[] {
   const items: ActionMenuItem[] = []
 
   if (ctx.modo === 'borrador') {
-    // 1. Acción de Documento
-    const docLabel = ctx.isBusyGenerar
-      ? 'Generando documento…'
-      : ctx.isBusyEditor
-        ? 'Abriendo editor…'
-        : ctx.tieneDocumento
-          ? 'Editar contenido del documento'
-          : 'Generar documento'
+    // 1. Acción de Documento (no aplica si el trámite usa flujo definido)
+    if (!ctx.flujoDefinido) {
+      const docLabel = ctx.isBusyGenerar
+        ? 'Generando documento…'
+        : ctx.isBusyEditor
+          ? 'Abriendo editor…'
+          : ctx.tieneDocumento
+            ? 'Editar contenido del documento'
+            : 'Generar documento'
 
-    items.push({
-      label: docLabel,
-      icon: ctx.tieneDocumento ? 'i-lucide-file-pen-line' : 'i-lucide-file-output',
-      disabled: (!ctx.tieneDocumento && !ctx.tienePlantilla) || ctx.isBusyGenerar || ctx.isBusyEditor,
-      order: ACTION_ORDER.DOCUMENTO,
-      onSelect: () => {
-        if (ctx.tieneDocumento) ctx.onEditarDoc()
-        else ctx.onGenerarDoc()
-      },
-    })
+      items.push({
+        label: docLabel,
+        icon: ctx.tieneDocumento ? 'i-lucide-file-pen-line' : 'i-lucide-file-output',
+        disabled: (!ctx.tieneDocumento && !ctx.tienePlantilla) || ctx.isBusyGenerar || ctx.isBusyEditor,
+        order: ACTION_ORDER.DOCUMENTO,
+        onSelect: () => {
+          if (ctx.tieneDocumento) ctx.onEditarDoc()
+          else ctx.onGenerarDoc()
+        },
+      })
+    }
 
     // 2. Derivar correspondencia
     items.push({
@@ -70,15 +74,17 @@ export function getAccionesBandeja(ctx: ActionContext): ActionMenuItem[] {
       onSelect: ctx.onDerivar,
     })
 
-    // 3. Compartir documento
-    items.push({
-      label: ctx.compartidosCount > 0 
-        ? `Compartir (${ctx.compartidosCount} usuario${ctx.compartidosCount === 1 ? '' : 's'})` 
-        : 'Compartir documento',
-      icon: 'i-lucide-share-2',
-      order: ACTION_ORDER.COMPARTIR,
-      onSelect: ctx.onCompartir,
-    })
+    // 3. Compartir documento (no en procesos con flujo definido)
+    if (!ctx.flujoDefinido) {
+      items.push({
+        label: ctx.compartidosCount > 0 
+          ? `Compartir (${ctx.compartidosCount} usuario${ctx.compartidosCount === 1 ? '' : 's'})` 
+          : 'Compartir documento',
+        icon: 'i-lucide-share-2',
+        order: ACTION_ORDER.COMPARTIR,
+        onSelect: ctx.onCompartir,
+      })
+    }
 
     // 4. Ver / Gestionar Adjuntos
     items.push({
