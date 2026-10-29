@@ -475,6 +475,7 @@ const buildDerivacionAccionesMenu = (
 
   return getAccionesDerivacionBandeja({
     accionesDisponibles: accionesDeFila(original),
+    omitHistorialDelMenu: props.modo === 'ingreso' || props.modo === 'salida',
     tieneDocumento: Boolean(docId),
     puedeTransferirPorBaja: puedeTransferirPorBaja.value,
     yaTransferidoBaja: d?.estado_id === EstadoDerivacionEnum.TRANSFERIDO_BAJA,
@@ -731,22 +732,6 @@ const columns = computed<TableColumn<Derivacion | DestinatarioCopiaConDerivacion
       },
     },
     {
-      id: 'leido',
-      header: auxCompacto ? 'Lect.' : 'Lectura',
-      cell: ({ row }) => {
-        const leido = leidoDeFila(row.original)
-        return h(
-          UBadge,
-          {
-            color: leido ? 'success' : 'neutral',
-            variant: leido ? 'subtle' : 'solid',
-            size: 'xs',
-          },
-          () => (auxCompacto ? (leido ? 'Sí' : 'No') : (leido ? 'Leído' : 'No leído')),
-        )
-      },
-    },
-    {
       id: 'acciones',
       header: '',
       meta: META_COLUMNA_ACCIONES_TABLA,
@@ -760,7 +745,22 @@ const columns = computed<TableColumn<Derivacion | DestinatarioCopiaConDerivacion
             ? h(CorAlertaDepositoPendiente, { correspondencia: corresp })
             : null
 
+        const mostrarHistorialIcono = props.modo === 'ingreso' || props.modo === 'salida'
+        const botonHistorial = mostrarHistorialIcono
+          ? h(UButton, {
+              icon: 'i-lucide-history',
+              color: 'neutral',
+              variant: 'ghost',
+              size: 'xs',
+              class: 'shrink-0',
+              title: 'Historial de estados',
+              disabled: !docId,
+              onClick: () => abrirEstadoLog(original),
+            })
+          : null
+
         return h('div', { class: CLASE_CONTENEDOR_ACCIONES_CELDA }, [
+          alertaDeposito,
           h(UButton, {
             icon: 'i-lucide-eye',
             color: 'neutral',
@@ -775,7 +775,7 @@ const columns = computed<TableColumn<Derivacion | DestinatarioCopiaConDerivacion
               isDetalleOpen.value = true
             },
           }),
-          alertaDeposito,
+          botonHistorial,
           hMenuAccionesTabla(UDropdownMenu, UButton, buildDerivacionAccionesMenu(original)),
         ])
       },

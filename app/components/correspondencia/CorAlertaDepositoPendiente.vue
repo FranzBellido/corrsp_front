@@ -27,7 +27,7 @@ const visible = computed(() =>
       class="inline-flex size-7 items-center justify-center shrink-0"
       aria-label="Depósito pendiente de verificación"
     >
-      <UIcon name="i-lucide-banknote" class="size-4 text-warning" />
+      <UIcon name="i-lucide-triangle-alert" class="size-4 text-error" />
     </span>
   </UTooltip>
 </template>

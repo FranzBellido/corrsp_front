@@ -23,7 +23,9 @@ export interface DerivacionActionContext {
   puedeDerivarCorresp: boolean
   mensajeNoDerivar?: string
   tieneHojaRuta: boolean
-  onHistorial: () => void
+  /** Si false, HISTORIAL no va en el menú ⋮ (p. ej. botón dedicado en ingreso/salida). */
+  omitHistorialDelMenu?: boolean
+  onHistorial?: () => void
   onRecepcionar: () => void
   onRechazar: () => void
   onDerivar: () => void
@@ -154,7 +156,7 @@ export function getAccionesDerivacionBandeja(ctx: DerivacionActionContext): Drop
     })
   }
 
-  if (tieneAccion(disponibles, 'HISTORIAL')) {
+  if (!ctx.omitHistorialDelMenu && tieneAccion(disponibles, 'HISTORIAL') && ctx.onHistorial) {
     const meta = CATALOGO_ACCIONES_DERIVACION.HISTORIAL
     agregarAccion(
       items,
