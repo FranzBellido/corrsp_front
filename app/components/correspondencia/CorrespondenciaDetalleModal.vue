@@ -116,11 +116,9 @@ const muestraTabEntidad = computed(() => {
   return Boolean(d.proceso?.requiere_entidad || (d.corresp_entidad?.length ?? 0) > 0)
 })
 
-const muestraTabCooperativa = computed(() => {
-  const d = detalle.value
-  if (!d) return false
-  return Boolean(d.proceso?.requiere_cooperativa || (d.corresp_cooperativa?.length ?? 0) > 0)
-})
+const muestraTabCooperativa = computed(
+  () => (detalle.value?.corresp_cooperativa?.length ?? 0) > 0,
+)
 
 const depositosDetalle = computed((): RecDeposito[] => detalle.value?.depositos ?? [])
 

@@ -8,6 +8,8 @@ export type AccionDerivacionCodigo =
   | 'HISTORIAL'
   | 'ASOCIAR'
   | 'LEGALIZAR'
+  | 'EDIT_LEGALIZACION'
+  | 'REPORTE_LEGALIZACION'
   | 'DERIVAR'
   | 'ARCHIVAR'
   | 'TRANSFERIR_BAJA'
@@ -35,6 +37,8 @@ export interface DerivacionActionContext {
   onEliminar: () => void
   onResponderCorrespondencia: () => void
   onLegalizacion?: () => void
+  onEditarLegalizacion?: () => void
+  onReporteLegalizacion?: () => void
 }
 
 /**
@@ -75,10 +79,20 @@ export const CATALOGO_ACCIONES_DERIVACION: Record<
     icon: 'i-lucide-stamp',
     order: 28,
   },
+  EDIT_LEGALIZACION: {
+    label: 'Editar legalización',
+    icon: 'i-lucide-file-pen-line',
+    order: 29,
+  },
   DERIVAR: {
     label: 'Derivar',
     icon: 'i-lucide-share-2',
     order: 30,
+  },
+  REPORTE_LEGALIZACION: {
+    label: 'Reporte de legalización',
+    icon: 'i-lucide-file-text',
+    order: 31,
   },
   ARCHIVAR: {
     label: 'Archivar',
@@ -195,6 +209,26 @@ export function getAccionesDerivacionBandeja(ctx: DerivacionActionContext): Drop
       icon: meta.icon,
       order: meta.order,
       onSelect: ctx.onLegalizacion,
+    })
+  }
+
+  if (tieneAccion(disponibles, 'EDIT_LEGALIZACION') && ctx.onEditarLegalizacion) {
+    const meta = CATALOGO_ACCIONES_DERIVACION.EDIT_LEGALIZACION
+    agregarAccion(items, {
+      label: meta.label,
+      icon: meta.icon,
+      order: meta.order,
+      onSelect: ctx.onEditarLegalizacion,
+    })
+  }
+
+  if (tieneAccion(disponibles, 'REPORTE_LEGALIZACION') && ctx.onReporteLegalizacion) {
+    const meta = CATALOGO_ACCIONES_DERIVACION.REPORTE_LEGALIZACION
+    agregarAccion(items, {
+      label: meta.label,
+      icon: meta.icon,
+      order: meta.order,
+      onSelect: ctx.onReporteLegalizacion,
     })
   }
 

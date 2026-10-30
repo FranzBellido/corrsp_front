@@ -166,10 +166,14 @@ export async function get<T>(
 /**
  * Descarga binaria (PDF, archivos adjuntos, etc.)
  */
-export async function descargarBlob(endpoint: string): Promise<Blob> {
+export async function descargarBlob(
+  endpoint: string,
+  params?: Record<string, unknown>,
+): Promise<Blob> {
   const api = getApi();
   const response = await api(endpoint, {
     method: "GET",
+    params,
     responseType: "blob",
   });
   return response as Blob;

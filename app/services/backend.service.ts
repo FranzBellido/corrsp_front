@@ -170,16 +170,84 @@ export async function get<T>(
   });
 }
 
+type DescargarBlobOptions = {
+  /** Exige cabecera %PDF- y normaliza application/pdf (reportes legalización). */
+  expectPdf?: boolean;
+};
+
+async function rechazarBlobSiEsErrorApi(blob: Blob): Promise<Blob> {
+  if (!blob.size) {
+    throw { data: { message: "El servidor devolvió un archivo vacío." } };
+  }
+
+  const first = await blob.slice(0, 1).text();
+  if (first !== "{" && first !== "[") {
+    return blob;
+  }
+
+  try {
+    const json = JSON.parse(await blob.text()) as {
+      message?: string | string[];
+      statusCode?: number;
+    };
+    const msg = Array.isArray(json.message)
+      ? json.message.join(", ")
+      : json.message;
+    throw {
+      data: { message: msg || "No se pudo descargar el archivo." },
+      message: msg,
+    };
+  } catch (error: unknown) {
+    if (error && typeof error === "object" && "data" in error) {
+      throw error;
+    }
+    return blob;
+  }
+}
+
+async function normalizarBlobPdf(blob: Blob): Promise<Blob> {
+  const header = new Uint8Array(await blob.slice(0, 5).arrayBuffer());
+  const esPdf =
+    header[0] === 0x25
+    && header[1] === 0x50
+    && header[2] === 0x44
+    && header[3] === 0x46;
+
+  if (!esPdf) {
+    throw {
+      data: {
+        message:
+          "La respuesta no es un PDF válido. Reinicie el backend si acaba de actualizar el servidor.",
+      },
+    };
+  }
+
+  if (blob.type === "application/pdf") {
+    return blob;
+  }
+
+  return new Blob([await blob.arrayBuffer()], { type: "application/pdf" });
+}
+
 /**
  * Descarga binaria (PDF, archivos adjuntos, etc.)
  */
-export async function descargarBlob(endpoint: string): Promise<Blob> {
+export async function descargarBlob(
+  endpoint: string,
+  params?: Record<string, unknown>,
+  options?: DescargarBlobOptions,
+): Promise<Blob> {
   const api = getApi();
   const response = await api(endpoint, {
     method: "GET",
+    params,
     responseType: "blob",
   });
-  return response as Blob;
+  let blob = await rechazarBlobSiEsErrorApi(response as Blob);
+  if (options?.expectPdf) {
+    blob = await normalizarBlobPdf(blob);
+  }
+  return blob;
 }
 
 /**

@@ -9,8 +9,9 @@ import type {
   FiltroDerivacion,
   RespuestaBusquedaDerivacion,
 } from '~/types/derivacion'
+import type { RespuestaApi } from '~/types/respuestas'
 import { EstadoDerivacionEnum } from '~/types/estado'
-import { backendService } from '~/services/backend.service'
+import { backendService, get, descargarBlob } from '~/services/backend.service'
 import CorrespondenciaDetalleModal from '~/components/correspondencia/CorrespondenciaDetalleModal.vue'
 import CorAlertaDepositoPendiente from '~/components/correspondencia/CorAlertaDepositoPendiente.vue'
 import LegalizacionFormModal from '~/components/legalizacion/LegalizacionFormModal.vue'
@@ -60,6 +61,10 @@ const pageSize = ref(10)
 const searchCriterio = ref('')
 const searchHojaRuta = ref('')
 
+/** Acciones del menú ⋮ cargadas al abrir (evita datos obsoletos del listado). */
+const accionesMenuPorDerivacion = ref<Record<string, string[]>>({})
+const accionesMenuCargandoId = ref<string | null>(null)
+
 const isDetalleOpen = ref(false)
 const detalleDocumentoId = ref<string | null>(null)
 
@@ -69,6 +74,7 @@ const correspOrigenRespuesta = ref<Correspondencia | null>(null)
 const isLegalizacionOpen = ref(false)
 const legalizacionCorrespId = ref<string | null>(null)
 const legalizacionDerivacionId = ref<string | null>(null)
+const legalizacionModalTitulo = ref('Registrar legalización')
 
 const isDerivacionOpen = ref(false)
 const isDerivacionFlujoOpen = ref(false)
@@ -458,11 +464,50 @@ const handleEliminarDerivacion = async () => {
 const accionesDeFila = (
   original: Derivacion | DestinatarioCopiaConDerivacion,
 ): string[] => {
+  const d = derivacionDeFila(original)
+  const id = d?.id
+  if (id && Object.prototype.hasOwnProperty.call(accionesMenuPorDerivacion.value, id)) {
+    return accionesMenuPorDerivacion.value[id] ?? []
+  }
   if (props.modo === 'con_copia') {
     const copia = original as DestinatarioCopiaConDerivacion
     return copia.derivaciones?.acciones ?? []
   }
   return (original as Derivacion).acciones ?? []
+}
+
+async function refrescarAccionesMenu(derivacionId: string) {
+  if (!derivacionId) return
+  accionesMenuCargandoId.value = derivacionId
+  try {
+    const res = await get<{ acciones: string[] }>(
+      `derivaciones/${derivacionId}/acciones`,
+      {
+        modo: props.modo,
+        cargo_id: resolveCargoOrigenId() || undefined,
+      },
+    )
+    const payload =
+      (res as RespuestaApi<{ acciones: string[] }>)?.data
+      ?? (res as { acciones?: string[] })
+    const acciones = payload?.acciones ?? []
+    accionesMenuPorDerivacion.value = {
+      ...accionesMenuPorDerivacion.value,
+      [derivacionId]: acciones,
+    }
+  } catch (error: unknown) {
+    const err = error as { data?: { message?: string }; message?: string }
+    toast.add({
+      title: 'No se pudieron cargar las acciones',
+      description: err?.data?.message || err?.message || 'Intente de nuevo.',
+      color: 'warning',
+      icon: 'i-lucide-triangle-alert',
+    })
+  } finally {
+    if (accionesMenuCargandoId.value === derivacionId) {
+      accionesMenuCargandoId.value = null
+    }
+  }
 }
 
 const buildDerivacionAccionesMenu = (
@@ -485,7 +530,9 @@ const buildDerivacionAccionesMenu = (
         ? mensajeNoDerivarCorrespondencia(correspDerivar)
         : undefined,
     tieneHojaRuta: Boolean(correspDerivar?.hoja_ruta?.numero || correspDerivar?.hr_id),
-    onLegalizacion: () => abrirLegalizacion(original),
+    onLegalizacion: () => abrirLegalizacion(original, 'registrar'),
+    onEditarLegalizacion: () => abrirLegalizacion(original, 'editar'),
+    onReporteLegalizacion: () => void descargarReporteLegalizacion(original),
     onResponderCorrespondencia: () => abrirResponderCorrespondencia(original),
     onHistorial: () => abrirEstadoLog(original),
     onRecepcionar: () => abrirRecepcionar(original),
@@ -498,7 +545,10 @@ const buildDerivacionAccionesMenu = (
   })
 }
 
-function abrirLegalizacion(original: Derivacion | DestinatarioCopiaConDerivacion) {
+function abrirLegalizacion(
+  original: Derivacion | DestinatarioCopiaConDerivacion,
+  modo: 'registrar' | 'editar',
+) {
   const d = derivacionDeFila(original)
   const corresp = correspondenciaDeFila(original)
   if (!corresp?.id) {
@@ -519,9 +569,54 @@ function abrirLegalizacion(original: Derivacion | DestinatarioCopiaConDerivacion
     })
     return
   }
+  legalizacionModalTitulo.value =
+    modo === 'editar' ? 'Editar legalización' : 'Registrar legalización'
   legalizacionCorrespId.value = corresp.id
   legalizacionDerivacionId.value = d.id
   isLegalizacionOpen.value = true
+}
+
+async function descargarReporteLegalizacion(
+  original: Derivacion | DestinatarioCopiaConDerivacion,
+) {
+  const d = derivacionDeFila(original)
+  const corresp = correspondenciaDeFila(original)
+  if (!corresp?.id || !d?.id) {
+    toast.add({
+      title: 'Datos incompletos',
+      description: 'No se encontró correspondencia o derivación.',
+      color: 'warning',
+      icon: 'i-lucide-triangle-alert',
+    })
+    return
+  }
+  try {
+    const blob = await descargarBlob(`legalizacion/${corresp.id}/reporte`, {
+      derivacion_id: d.id,
+      modo: props.modo,
+      cargo_id: resolveCargoOrigenId() || undefined,
+    })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `legalizacion_${corresp.id.slice(0, 8)}.txt`
+    a.click()
+    URL.revokeObjectURL(url)
+    toast.add({
+      title: 'Reporte generado',
+      description: 'Se descargó el reporte de legalización.',
+      color: 'success',
+      icon: 'i-lucide-check',
+    })
+  } catch (error: unknown) {
+    const err = error as { data?: { message?: string }; message?: string }
+    toast.add({
+      title: 'No se pudo generar el reporte',
+      description: err?.data?.message || err?.message || 'Error al descargar.',
+      color: 'error',
+      icon: 'i-lucide-alert-circle',
+    })
+  }
 }
 
 const columns = computed<TableColumn<Derivacion | DestinatarioCopiaConDerivacion>[]>(() => {
@@ -738,6 +833,9 @@ const columns = computed<TableColumn<Derivacion | DestinatarioCopiaConDerivacion
       cell: ({ row }) => {
         const original = row.original
         const docId = documentoIdDeFila(original)
+        const derivacionId = derivacionDeFila(original)?.id ?? ''
+        void accionesMenuPorDerivacion.value
+        const menuAccionesLoading = accionesMenuCargandoId.value === derivacionId
 
         const corresp = correspondenciaDeFila(original)
         const alertaDeposito =
@@ -776,7 +874,17 @@ const columns = computed<TableColumn<Derivacion | DestinatarioCopiaConDerivacion
             },
           }),
           botonHistorial,
-          hMenuAccionesTabla(UDropdownMenu, UButton, buildDerivacionAccionesMenu(original)),
+          hMenuAccionesTabla(
+            UDropdownMenu,
+            UButton,
+            buildDerivacionAccionesMenu(original),
+            {
+              loading: menuAccionesLoading,
+              onOpenChange: (open: boolean) => {
+                if (open && derivacionId) void refrescarAccionesMenu(derivacionId)
+              },
+            },
+          ),
         ])
       },
     },
@@ -787,6 +895,8 @@ const columns = computed<TableColumn<Derivacion | DestinatarioCopiaConDerivacion
 
 const fetchItems = async () => {
   loading.value = true
+  accionesMenuPorDerivacion.value = {}
+  accionesMenuCargandoId.value = null
   try {
     const filtro: FiltroDerivacion = {
       modo: props.modo,
@@ -903,6 +1013,7 @@ onMounted(() => {
       v-model:open="isLegalizacionOpen"
       :correspondencia-id="legalizacionCorrespId"
       :derivacion-id="legalizacionDerivacionId"
+      :modal-title="legalizacionModalTitulo"
       @guardado="fetchItems"
     />
 

@@ -1,12 +1,109 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { z } from 'zod'
+import CorrespCooperativaFields, {
+  type CorrespCooperativaFormState,
+} from '~/components/correspondencia/CorrespCooperativaFields.vue'
+import type {
+  Correspondencia,
+  CorrespCooperativaPayload,
+  UpdateCorrespondenciaPayload,
+} from '~/types/correspondencia'
 import type {
   GuardarLegalizacionPayload,
   LeArancelTramite,
   LegalizacionResumen,
 } from '~/types/legalizacion'
 import type { RespuestaApi } from '~/types/respuestas'
-import { get, postGenerico } from '~/services/backend.service'
+import {
+  get,
+  obtenerPorIdGenerico,
+  patchGenerico,
+  postGenerico,
+  descargarBlob,
+} from '~/services/backend.service'
+
+type TabValue = 'legalizacion' | 'cooperativa'
+
+const cooperativaSchema = z
+  .object({
+    cooperativa_id: z.number().optional(),
+    nombre_cooperativa: z.string().optional(),
+    cite_origen: z.string().optional(),
+    solicitante: z
+      .string()
+      .trim()
+      .min(3, 'El nombre del solicitante debe tener al menos 3 caracteres'),
+    nro_carnet: z
+      .string()
+      .trim()
+      .min(5, 'El número de carnet es obligatorio')
+      .max(20, 'El número de carnet no puede exceder 20 caracteres'),
+    cargo_solicitante_id: z.number().optional(),
+    correo_solicitante: z
+      .string()
+      .trim()
+      .optional()
+      .refine(
+        (valor) => !valor || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(valor),
+        'El correo del solicitante no es válido',
+      ),
+    nro_poder: z.string().optional(),
+    telefono: z.string().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (!data.cooperativa_id && !data.nombre_cooperativa?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Seleccione una cooperativa o indique el nombre manualmente',
+        path: ['cooperativa_id'],
+      })
+    }
+  })
+
+function emptyCooperativa(): CorrespCooperativaFormState {
+  return {
+    cooperativa_id: undefined,
+    nombre_cooperativa: '',
+    solicitante: '',
+    nro_carnet: '',
+    cargo_solicitante_id: undefined,
+    correo_solicitante: '',
+    nro_poder: '',
+    telefono: '',
+    cite_origen: '',
+  }
+}
+
+function mapCooperativaExistente(val: Correspondencia): CorrespCooperativaFormState {
+  const existente = val.corresp_cooperativa?.[0]
+  if (!existente) return emptyCooperativa()
+
+  return {
+    cooperativa_id: existente.cooperativa_id ?? undefined,
+    nombre_cooperativa:
+      existente.nombre_cooperativa?.trim() ||
+      existente.cooperativa?.denominacion?.trim() ||
+      existente.cooperativa?.razon_social?.trim() ||
+      '',
+    solicitante: existente.solicitante || '',
+    nro_carnet: existente.nro_carnet || '',
+    cargo_solicitante_id: existente.cargo_solicitante_id ?? undefined,
+    correo_solicitante: existente.correo_solicitante || '',
+    nro_poder: existente.nro_poder || '',
+    telefono: existente.telefono || '',
+    cite_origen: existente.cite_origen || '',
+  }
+}
+
+/** GET/PATCH correspondencia devuelve el DTO plano o envuelto en { data }. */
+function unwrapCorrespondenciaRespuesta(
+  res: RespuestaApi<Correspondencia> | Correspondencia | null | undefined,
+): Correspondencia | null {
+  const payload =
+    (res as RespuestaApi<Correspondencia>)?.data ?? (res as Correspondencia)
+  return payload?.id ? payload : null
+}
 
 interface LineaForm {
   key: string
@@ -19,6 +116,7 @@ interface LineaForm {
 const props = defineProps<{
   correspondenciaId?: string | null
   derivacionId?: string | null
+  modalTitle?: string
 }>()
 
 const open = defineModel<boolean>('open', { default: false })
@@ -27,11 +125,58 @@ const emit = defineEmits<{
 }>()
 
 const toast = useToast()
+const { resolveCargoOrigenId } = useProfile()
 const loading = ref(false)
 const saving = ref(false)
+const savingCooperativa = ref(false)
+const descargandoPdf = ref(false)
+const activeTab = ref<TabValue>('legalizacion')
 const aranceles = ref<LeArancelTramite[]>([])
 const resumen = ref<LegalizacionResumen | null>(null)
+const correspondencia = ref<Correspondencia | null>(null)
+const cooperativa = ref<CorrespCooperativaFormState>(emptyCooperativa())
 const lineas = ref<LineaForm[]>([])
+
+/** Tab Cooperativa: solo si ya hay fila en corresp_cooperativa para esta correspondencia (corresp_id). */
+const muestraTabCooperativa = computed(
+  () => (correspondencia.value?.corresp_cooperativa?.length ?? 0) > 0,
+)
+
+const tabItems = computed(() => {
+  const items: { label: string; value: TabValue; slot: TabValue; icon: string }[] = [
+    {
+      label: 'Legalización',
+      value: 'legalizacion',
+      slot: 'legalizacion',
+      icon: 'i-lucide-stamp',
+    },
+  ]
+  if (muestraTabCooperativa.value) {
+    items.push({
+      label: 'Cooperativa',
+      value: 'cooperativa',
+      slot: 'cooperativa',
+      icon: 'i-lucide-building-2',
+    })
+  }
+  return items
+})
+
+function buildCooperativaPayload(): CorrespCooperativaPayload {
+  const coop = cooperativa.value
+  return {
+    cooperativa_id: coop.cooperativa_id != null ? Number(coop.cooperativa_id) : undefined,
+    nombre_cooperativa: coop.nombre_cooperativa?.trim() || undefined,
+    solicitante: coop.solicitante.trim(),
+    nro_carnet: coop.nro_carnet.trim(),
+    cargo_solicitante_id:
+      coop.cargo_solicitante_id != null ? Number(coop.cargo_solicitante_id) : undefined,
+    correo_solicitante: coop.correo_solicitante?.trim() || undefined,
+    nro_poder: coop.nro_poder?.trim() || undefined,
+    telefono: coop.telefono?.trim() || undefined,
+    cite_origen: coop.cite_origen?.trim() || undefined,
+  }
+}
 
 let keySeq = 0
 function nuevaKey() {
@@ -89,6 +234,10 @@ const depositosSuficientes = computed(() => {
   return totalDepositos.value + 0.01 >= totalLegalizacion.value
 })
 
+const tituloModal = computed(
+  () => props.modalTitle?.trim() || 'Registrar legalización',
+)
+
 const arancelOptions = computed(() =>
   aranceles.value.map((a) => ({
     label: `${a.nombre} — Bs ${formatImporte(a.costo_tramite)}${a.variable ? ' (variable)' : ''}`,
@@ -143,14 +292,20 @@ async function cargar() {
   if (!id) return
   loading.value = true
   try {
-    const [arancelRes, detalleRes] = await Promise.all([
+    const [arancelRes, detalleRes, correspRes] = await Promise.all([
       get<LeArancelTramite[]>('legalizacion/aranceles'),
       get<LegalizacionResumen>(`legalizacion/${id}`),
+      obtenerPorIdGenerico<Correspondencia>('correspondencia', id),
     ])
     aranceles.value =
       (arancelRes as RespuestaApi<LeArancelTramite[]>)?.data ?? []
     resumen.value =
       (detalleRes as RespuestaApi<LegalizacionResumen>)?.data ?? null
+    correspondencia.value = unwrapCorrespondenciaRespuesta(correspRes)
+    cooperativa.value = correspondencia.value
+      ? mapCooperativaExistente(correspondencia.value)
+      : emptyCooperativa()
+    activeTab.value = 'legalizacion'
 
     const items = resumen.value?.items ?? []
     if (items.length) {
@@ -235,6 +390,7 @@ async function guardar() {
   const payload: GuardarLegalizacionPayload = {
     corresp_id: id,
     derivacion_id: props.derivacionId,
+    cargo_id: resolveCargoOrigenId() || undefined,
     items: lineas.value.map((l) => ({
       id_arancel: l.id_arancel as number,
       cantidad: Number(l.cantidad),
@@ -267,23 +423,132 @@ async function guardar() {
   }
 }
 
+async function guardarCooperativa() {
+  const id = props.correspondenciaId
+  if (!id) return
+
+  const parsed = cooperativaSchema.safeParse(cooperativa.value)
+  if (!parsed.success) {
+    toast.add({
+      title: 'Datos incompletos',
+      description: parsed.error.issues[0]?.message || 'Revise los datos de cooperativa.',
+      color: 'warning',
+      icon: 'i-lucide-triangle-alert',
+    })
+    return
+  }
+
+  const payload: UpdateCorrespondenciaPayload = {
+    cooperativa: buildCooperativaPayload(),
+  }
+
+  savingCooperativa.value = true
+  try {
+    const res = await patchGenerico<Correspondencia>('correspondencia', id, payload)
+    const updated = unwrapCorrespondenciaRespuesta(res)
+    if (updated) {
+      correspondencia.value = updated
+    }
+    if (correspondencia.value) {
+      cooperativa.value = mapCooperativaExistente(correspondencia.value)
+    }
+    toast.add({
+      title: 'Cooperativa actualizada',
+      description: 'Los datos del solicitante y la cooperativa se guardaron.',
+      color: 'success',
+      icon: 'i-lucide-check',
+    })
+  } catch (error: unknown) {
+    const err = error as { data?: { message?: string }; message?: string }
+    toast.add({
+      title: 'No se pudo guardar',
+      description: err?.data?.message || err?.message || 'Error al actualizar cooperativa.',
+      color: 'error',
+      icon: 'i-lucide-alert-circle',
+    })
+  } finally {
+    savingCooperativa.value = false
+  }
+}
+
+async function descargarReportePdf() {
+  const id = props.correspondenciaId
+  const derivacionId = props.derivacionId
+  if (!id || !derivacionId) {
+    toast.add({
+      title: 'Datos incompletos',
+      description: 'Faltan correspondencia o derivación para generar el PDF.',
+      color: 'warning',
+      icon: 'i-lucide-triangle-alert',
+    })
+    return
+  }
+
+  descargandoPdf.value = true
+  try {
+    const blob = await descargarBlob(
+      `legalizacion/${id}/reporte/pdf`,
+      {
+        derivacion_id: derivacionId,
+        modo: 'ingreso',
+        cargo_id: resolveCargoOrigenId() || undefined,
+      },
+      { expectPdf: true },
+    )
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `legalizacion_${id.slice(0, 8)}.pdf`
+    a.click()
+    URL.revokeObjectURL(url)
+    toast.add({
+      title: 'Reporte PDF generado',
+      description: 'Hoja con QR 400×400 px en la esquina inferior derecha.',
+      color: 'success',
+      icon: 'i-lucide-check',
+    })
+  } catch (error: unknown) {
+    const err = error as { data?: { message?: string }; message?: string }
+    toast.add({
+      title: 'No se pudo generar el PDF',
+      description:
+        err?.data?.message
+        || err?.message
+        || 'Verifique URL_SEGUIMIENTO y código de verificación.',
+      color: 'error',
+      icon: 'i-lucide-alert-circle',
+    })
+  } finally {
+    descargandoPdf.value = false
+  }
+}
+
 watch(
   () => [open.value, props.correspondenciaId] as const,
   ([isOpen, id]) => {
     if (isOpen && id) void cargar()
     if (!isOpen) {
       resumen.value = null
+      correspondencia.value = null
+      cooperativa.value = emptyCooperativa()
+      activeTab.value = 'legalizacion'
       lineas.value = []
     }
   },
 )
+
+watch(muestraTabCooperativa, (visible) => {
+  if (!visible && activeTab.value === 'cooperativa') {
+    activeTab.value = 'legalizacion'
+  }
+})
 </script>
 
 <template>
   <UModal
     v-model:open="open"
-    title="Registrar legalización"
-    description="Aranceles del trámite. Los depósitos deben cubrir al menos el costo total."
+    :title="tituloModal"
+    description="Legalización (aranceles). La pestaña Cooperativa solo si existe registro en corresp_cooperativa."
     :ui="{
       content:
         'w-[calc(100vw-1rem)] sm:max-w-3xl lg:max-w-[52rem] max-h-[min(92vh,52rem)] flex flex-col',
@@ -310,6 +575,7 @@ watch(
             </span>
           </div>
           <UBadge
+            v-if="activeTab === 'legalizacion'"
             :color="depositosSuficientes ? 'success' : 'warning'"
             variant="subtle"
             size="sm"
@@ -318,161 +584,225 @@ watch(
           </UBadge>
         </div>
 
-        <div class="flex items-center justify-between gap-2">
-          <p class="text-xs font-medium text-muted">
-            Detalle de trámites
-            <span class="text-default">({{ lineas.length }})</span>
-          </p>
-          <UButton
-            label="Agregar"
-            icon="i-lucide-plus"
-            color="neutral"
-            variant="soft"
-            size="xs"
-            @click="agregarLinea"
-          />
-        </div>
+        <UAlert
+          v-if="!muestraTabCooperativa"
+          color="neutral"
+          variant="subtle"
+          icon="i-lucide-building-2"
+          title="Sin pestaña Cooperativa"
+          description="No hay filas en corresp_cooperativa para esta correspondencia. Regístrelas al crear o editar la correspondencia (paso Cooperativa); aquí solo se editan datos ya existentes."
+          class="text-left"
+        />
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-          <article
-            v-for="(linea, idx) in lineas"
-            :key="linea.key"
-            class="rounded-lg border border-default bg-default/30 p-2.5 space-y-2 min-w-0"
-          >
-            <div class="flex items-center justify-between gap-1">
-              <span
-                class="inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-elevated text-[10px] font-bold text-muted"
-              >
-                {{ idx + 1 }}
-              </span>
-              <UButton
-                icon="i-lucide-trash-2"
-                color="error"
-                variant="ghost"
-                size="xs"
-                square
-                :disabled="lineas.length <= 1"
-                aria-label="Quitar trámite"
-                @click="quitarLinea(linea.key)"
-              />
-            </div>
-
-            <UFormField label="Arancel" size="sm" class="min-w-0">
-              <USelect
-                v-model="linea.id_arancel"
-                :items="arancelesDisponiblesPara(linea)"
-                value-key="value"
-                placeholder="Seleccionar"
-                size="sm"
-                class="w-full min-w-0"
-                @update:model-value="onArancelChange(linea)"
-              />
-            </UFormField>
-
-            <UFormField label="Documento" size="sm">
-              <UInput
-                v-model="linea.documento"
-                placeholder="Documento a legalizar"
-                size="sm"
-                class="w-full"
-              />
-            </UFormField>
-
-            <div
-              class="grid gap-2"
-              :class="esVariable(linea) ? 'grid-cols-3' : 'grid-cols-2'"
-            >
-              <UFormField label="Cant." size="sm" class="min-w-0">
-                <UInput
-                  v-model.number="linea.cantidad"
-                  type="number"
-                  min="1"
-                  size="sm"
-                  class="w-full"
+        <UTabs
+          v-model="activeTab"
+          :items="tabItems"
+          variant="link"
+          color="primary"
+          class="w-full"
+          :ui="{
+            list: 'border-b border-default flex-wrap gap-x-1 gap-y-0.5 pb-px',
+            trigger: 'px-2.5 sm:px-3 text-sm whitespace-nowrap',
+          }"
+        >
+          <template #legalizacion>
+            <div class="pt-3 space-y-3">
+              <div class="flex items-center justify-between gap-2">
+                <p class="text-xs font-medium text-muted">
+                  Detalle de trámites
+                  <span class="text-default">({{ lineas.length }})</span>
+                </p>
+                <UButton
+                  label="Agregar"
+                  icon="i-lucide-plus"
+                  color="neutral"
+                  variant="soft"
+                  size="xs"
+                  @click="agregarLinea"
                 />
-              </UFormField>
+              </div>
 
-              <UFormField v-if="esVariable(linea)" label="Hojas" size="sm" class="min-w-0">
-                <UInput
-                  v-model.number="linea.n_hojas"
-                  type="number"
-                  min="1"
-                  size="sm"
-                  class="w-full"
-                />
-              </UFormField>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <article
+                  v-for="(linea, idx) in lineas"
+                  :key="linea.key"
+                  class="rounded-lg border border-default bg-default/30 p-2.5 space-y-2 min-w-0"
+                >
+                  <div class="flex items-center justify-between gap-1">
+                    <span
+                      class="inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-elevated text-[10px] font-bold text-muted"
+                    >
+                      {{ idx + 1 }}
+                    </span>
+                    <UButton
+                      icon="i-lucide-trash-2"
+                      color="error"
+                      variant="ghost"
+                      size="xs"
+                      square
+                      :disabled="lineas.length <= 1"
+                      aria-label="Quitar trámite"
+                      @click="quitarLinea(linea.key)"
+                    />
+                  </div>
+
+                  <UFormField label="Arancel" size="sm" class="min-w-0">
+                    <USelect
+                      v-model="linea.id_arancel"
+                      :items="arancelesDisponiblesPara(linea)"
+                      value-key="value"
+                      placeholder="Seleccionar"
+                      size="sm"
+                      class="w-full min-w-0"
+                      @update:model-value="onArancelChange(linea)"
+                    />
+                  </UFormField>
+
+                  <UFormField label="Documento" size="sm">
+                    <UInput
+                      v-model="linea.documento"
+                      placeholder="Documento a legalizar"
+                      size="sm"
+                      class="w-full"
+                    />
+                  </UFormField>
+
+                  <div
+                    class="grid gap-2"
+                    :class="esVariable(linea) ? 'grid-cols-3' : 'grid-cols-2'"
+                  >
+                    <UFormField label="Cant." size="sm" class="min-w-0">
+                      <UInput
+                        v-model.number="linea.cantidad"
+                        type="number"
+                        min="1"
+                        size="sm"
+                        class="w-full"
+                      />
+                    </UFormField>
+
+                    <UFormField v-if="esVariable(linea)" label="Hojas" size="sm" class="min-w-0">
+                      <UInput
+                        v-model.number="linea.n_hojas"
+                        type="number"
+                        min="1"
+                        size="sm"
+                        class="w-full"
+                      />
+                    </UFormField>
+
+                    <div
+                      class="flex flex-col justify-end rounded-md bg-elevated/60 px-2 py-1.5 text-end min-w-0"
+                      :class="esVariable(linea) ? '' : 'col-span-1'"
+                    >
+                      <span class="text-[10px] uppercase tracking-wide text-muted leading-none">
+                        Subtotal
+                      </span>
+                      <span class="text-sm font-semibold text-highlighted tabular-nums">
+                        Bs {{ formatImporte(costoLinea(linea)) }}
+                      </span>
+                    </div>
+                  </div>
+                </article>
+              </div>
 
               <div
-                class="flex flex-col justify-end rounded-md bg-elevated/60 px-2 py-1.5 text-end min-w-0"
-                :class="esVariable(linea) ? '' : 'col-span-1'"
+                class="grid grid-cols-3 gap-2 rounded-md border border-default bg-elevated/30 p-2.5 text-center sm:text-left"
               >
-                <span class="text-[10px] uppercase tracking-wide text-muted leading-none">
-                  Subtotal
-                </span>
-                <span class="text-sm font-semibold text-highlighted tabular-nums">
-                  Bs {{ formatImporte(costoLinea(linea)) }}
-                </span>
+                <div class="min-w-0">
+                  <p class="text-[10px] font-semibold uppercase tracking-wide text-muted">
+                    Depósitos
+                  </p>
+                  <p class="text-sm font-bold text-highlighted tabular-nums">
+                    Bs {{ formatImporte(totalDepositos) }}
+                  </p>
+                  <p class="text-[10px] text-muted hidden sm:block">
+                    {{ resumen?.depositos?.length || 0 }} boleta(s)
+                  </p>
+                </div>
+                <div class="min-w-0">
+                  <p class="text-[10px] font-semibold uppercase tracking-wide text-muted">
+                    Legalización
+                  </p>
+                  <p class="text-sm font-bold text-highlighted tabular-nums">
+                    Bs {{ formatImporte(totalLegalizacion) }}
+                  </p>
+                </div>
+                <div
+                  class="min-w-0 rounded-md px-1 py-0.5 sm:px-2"
+                  :class="
+                    depositosSuficientes
+                      ? 'bg-success/10 text-success'
+                      : 'bg-warning/10 text-warning'
+                  "
+                >
+                  <p class="text-[10px] font-semibold uppercase tracking-wide opacity-80">
+                    Saldo
+                  </p>
+                  <p class="text-sm font-bold tabular-nums">
+                    Bs {{ formatImporte(totalDepositos - totalLegalizacion) }}
+                  </p>
+                </div>
               </div>
             </div>
-          </article>
-        </div>
-
-        <div
-          class="grid grid-cols-3 gap-2 rounded-md border border-default bg-elevated/30 p-2.5 text-center sm:text-left"
-        >
-          <div class="min-w-0">
-            <p class="text-[10px] font-semibold uppercase tracking-wide text-muted">
-              Depósitos
-            </p>
-            <p class="text-sm font-bold text-highlighted tabular-nums">
-              Bs {{ formatImporte(totalDepositos) }}
-            </p>
-            <p class="text-[10px] text-muted hidden sm:block">
-              {{ resumen?.depositos?.length || 0 }} boleta(s)
-            </p>
-          </div>
-          <div class="min-w-0">
-            <p class="text-[10px] font-semibold uppercase tracking-wide text-muted">
-              Legalización
-            </p>
-            <p class="text-sm font-bold text-highlighted tabular-nums">
-              Bs {{ formatImporte(totalLegalizacion) }}
-            </p>
-          </div>
-          <div
-            class="min-w-0 rounded-md px-1 py-0.5 sm:px-2"
-            :class="
-              depositosSuficientes
-                ? 'bg-success/10 text-success'
-                : 'bg-warning/10 text-warning'
-            "
-          >
-            <p class="text-[10px] font-semibold uppercase tracking-wide opacity-80">
-              Saldo
-            </p>
-            <p class="text-sm font-bold tabular-nums">
-              Bs {{ formatImporte(totalDepositos - totalLegalizacion) }}
-            </p>
-          </div>
-        </div>
+          </template>
+          <template v-if="muestraTabCooperativa" #cooperativa>
+            <div class="pt-3">
+              <CorrespCooperativaFields v-model="cooperativa" />
+            </div>
+          </template>
+        </UTabs>
       </div>
     </template>
 
     <template #footer>
       <div class="flex w-full flex-wrap items-center justify-between gap-2">
-        <p class="text-xs text-muted hidden sm:block max-w-[14rem]">
-          Puede registrar varios aranceles; cada uno solo una vez.
+        <div
+          v-if="activeTab === 'legalizacion'"
+          class="flex flex-wrap items-center gap-2 min-w-0 flex-1"
+        >
+          <p class="text-xs text-muted hidden sm:block max-w-[14rem]">
+            Puede registrar varios aranceles; cada uno solo una vez.
+          </p>
+          <UButton
+            label="Reporte PDF (QR)"
+            icon="i-lucide-qr-code"
+            color="neutral"
+            variant="soft"
+            size="sm"
+            :loading="descargandoPdf"
+            :disabled="loading || saving || !correspondenciaId || !derivacionId"
+            @click="descargarReportePdf"
+          />
+        </div>
+        <p
+          v-else-if="activeTab === 'cooperativa'"
+          class="text-xs text-muted hidden sm:block max-w-[14rem] flex-1"
+        >
+          Los cambios se guardan en la correspondencia, sin cerrar la legalización.
         </p>
-        <div class="flex flex-1 justify-end gap-2">
+        <div v-else class="flex-1" />
+        <div class="flex flex-wrap justify-end gap-2">
           <UButton
             label="Cancelar"
             color="neutral"
             variant="outline"
             size="sm"
-            :disabled="saving"
+            :disabled="saving || savingCooperativa || descargandoPdf"
             @click="open = false"
           />
           <UButton
+            v-if="activeTab === 'cooperativa'"
+            label="Guardar cooperativa"
+            icon="i-lucide-building-2"
+            color="primary"
+            size="sm"
+            :loading="savingCooperativa"
+            :disabled="loading"
+            @click="guardarCooperativa"
+          />
+          <UButton
+            v-else
             label="Guardar"
             icon="i-lucide-stamp"
             color="primary"

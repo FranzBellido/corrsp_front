@@ -51,17 +51,30 @@ export const CONTENT_DROPDOWN_ACCIONES_TABLA = {
   class: 'min-w-[14rem] max-w-sm',
 }
 
+export interface MenuAccionesTablaOptions {
+  onOpenChange?: (open: boolean) => void
+  loading?: boolean
+}
+
 /** Menú ⋮ en celda de tabla (solo el botón en el DOM; ítems en portal). */
 export function hMenuAccionesTabla(
   UDropdownMenu: ComponentLike,
   UButton: ComponentLike,
   children: DropdownMenuItem[],
+  options?: MenuAccionesTablaOptions,
 ): VNode {
+  const menuItems = options?.loading
+    ? [[{ label: 'Cargando acciones…', disabled: true, icon: 'i-lucide-loader-circle' }]]
+    : children.length
+      ? [children]
+      : [[{ label: 'Sin acciones disponibles', disabled: true }]]
+
   return h(
     UDropdownMenu,
     {
-      items: children.length ? [children] : [[]],
+      items: menuItems,
       content: CONTENT_DROPDOWN_ACCIONES_TABLA,
+      'onUpdate:open': options?.onOpenChange,
     },
     () =>
       h(UButton, {
@@ -71,6 +84,8 @@ export function hMenuAccionesTabla(
         size: 'xs',
         class: 'shrink-0',
         title: 'Acciones',
+        loading: options?.loading,
+        disabled: options?.loading,
       }),
   )
 }
