@@ -11,7 +11,8 @@ export interface LeDetalleProcesoItem {
   id_arancel: number
   n_hojas?: number | null
   corresp_id: string
-  documento: string
+  observacion: string
+  resolucion?: string | null
   costo: number
   cantidad: number
   arancel?: LeArancelTramite | null
@@ -39,7 +40,8 @@ export interface LegalizacionDetallePayload {
   id_arancel: number
   n_hojas?: number | null
   cantidad: number
-  documento: string
+  observacion: string
+  resolucion?: string | null
 }
 
 export interface GuardarLegalizacionPayload {

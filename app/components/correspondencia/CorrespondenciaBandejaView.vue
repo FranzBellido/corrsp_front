@@ -23,6 +23,8 @@ import {
   MENSAJE_ELIMINAR_CORRELATIVO,
 } from '~/utils/correspondencia'
 import { META_COLUMNA_ACCIONES_TABLA } from '~/utils/acciones-menu'
+import CodificadorSelect from '~/components/codificador/CodificadorSelect.vue'
+import { useBandejaFiltros } from '~/composables/useBandejaFiltros'
 
 const props = withDefaults(
   defineProps<{
@@ -44,7 +46,7 @@ const UButton = resolveComponent('UButton')
 const UIcon = resolveComponent('UIcon')
 
 const toast = useToast()
-const { profile, cargoActivo, resolveCargoOrigenId } = useProfile()
+const { profile, cargoActivo, areaActiva, resolveCargoOrigenId } = useProfile()
 const { apiBaseUrl, apiPublicUrl } = useApiUrls()
 
 // Estado de listado y paginación
@@ -54,9 +56,23 @@ const total = ref(0)
 const page = ref(1)
 const pageSize = ref(10)
 
-// Filtros de búsqueda
-const searchCriterio = ref('')
-const searchHojaRuta = ref('')
+const {
+  criterio: searchCriterio,
+  hojaRuta: searchHojaRuta,
+  gestion: searchGestion,
+  procId: searchProcId,
+  persistir: persistirFiltros,
+  limpiar: limpiarFiltrosBase,
+  opcionesGestion,
+} = useBandejaFiltros(`correspondencia_${props.modo}`)
+
+const procesoParams = computed(() => {
+  const areaId = areaActiva.value?.id
+    || (import.meta.client ? sessionStorage.getItem('area_activa_id') : null)
+    || profile.value?.area_activa_id
+  return areaId ? { area_id: String(areaId) } : {}
+})
+
 const compartidosAlcance = ref<'todos' | 'recibidos' | 'enviados'>('todos')
 const compartidosAlcanceOptions = [
   { label: 'Todos', value: 'todos' },
@@ -263,12 +279,18 @@ const columns = computed<TableColumn<Correspondencia>[]>(() => {
 // Cargar correspondencias
 const fetchCorrespondencias = async () => {
   loading.value = true
+  persistirFiltros()
   try {
     const filtro: FiltroCorrespondencia = {
       pagina: page.value,
       limite: pageSize.value,
       criterio: searchCriterio.value.trim() || undefined,
       hoja_ruta: searchHojaRuta.value.trim() || undefined,
+      gestion: searchGestion.value || undefined,
+      proc_id:
+        searchProcId.value && searchProcId.value > 0
+          ? searchProcId.value
+          : undefined,
     }
 
     if (props.modo === 'borrador') {
@@ -317,14 +339,20 @@ watch(compartidosAlcance, () => {
   fetchCorrespondencias()
 })
 
-let debounceTimer: ReturnType<typeof setTimeout> | null = null
+const buscar = () => {
+  page.value = 1
+  void fetchCorrespondencias()
+}
 
-const onSearchInput = () => {
-  if (debounceTimer) clearTimeout(debounceTimer)
-  debounceTimer = setTimeout(() => {
-    page.value = 1
-    fetchCorrespondencias()
-  }, 350)
+const limpiarFiltros = () => {
+  limpiarFiltrosBase()
+  compartidosAlcance.value = 'todos'
+  page.value = 1
+  void fetchCorrespondencias()
+}
+
+const onFiltroEnter = (e: KeyboardEvent) => {
+  if (e.key === 'Enter') buscar()
 }
 
 const handleNuevo = () => {
@@ -566,50 +594,90 @@ onMounted(() => {
     </BandejaViewHeader>
 
     <!-- Barra de Filtros y Búsqueda -->
-    <div class="p-4 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-xs flex flex-col sm:flex-row items-center gap-3">
-      <div
-        v-if="props.modo === 'compartidos'"
-        class="w-full sm:w-52 shrink-0"
-      >
-       
-        <USelect
-          v-model="compartidosAlcance"
-          :items="[...compartidosAlcanceOptions]"
-          value-key="value"
-          class="w-full"
-        />
-      </div>
+    <div class="p-4 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-xs flex flex-col gap-3">
+      <div class="flex flex-col lg:flex-row lg:items-end gap-3">
+        <div
+          v-if="props.modo === 'compartidos'"
+          class="w-full lg:w-44 shrink-0"
+        >
+          <label class="mb-1 block text-xs font-medium text-muted">Alcance</label>
+          <USelect
+            v-model="compartidosAlcance"
+            :items="[...compartidosAlcanceOptions]"
+            value-key="value"
+            class="w-full"
+          />
+        </div>
 
-      <div class="w-full sm:w-44 shrink-0">
-        <UInput
-          v-model="searchHojaRuta"
-          placeholder="Hoja de Ruta (142/2025)"
-          icon="i-lucide-file-stack"
-          class="w-full"
-          @update:model-value="onSearchInput"
-        />
-      </div>
+        <div class="w-full lg:w-28 shrink-0">
+          <label class="mb-1 block text-xs font-medium text-muted">Gestión</label>
+          <USelect
+            v-model="searchGestion"
+            :items="opcionesGestion"
+            value-key="value"
+            class="w-full"
+          />
+        </div>
 
-      <div class="w-full sm:flex-1 relative">
-        <UInput
-          v-model="searchCriterio"
-          placeholder="Buscar por referencia, CITE, área o proceso..."
-          icon="i-lucide-search"
-          class="w-full"
-          @update:model-value="onSearchInput"
-        />
-      </div>
+        <div class="w-full lg:w-56 shrink-0">
+          <label class="mb-1 block text-xs font-medium text-muted">Proceso</label>
+          <CodificadorSelect
+            v-model="searchProcId"
+            endpoint="comun/codificador/procesos"
+            :params="procesoParams"
+            incluir-todos
+            placeholder="Todos los procesos"
+            class="w-full"
+          />
+        </div>
 
-      <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
-        <UButton
-          label="Actualizar"
-          icon="i-lucide-refresh-cw"
-          color="neutral"
-          variant="outline"
-          title="Volver a cargar la bandeja"
-          :loading="loading"
-          @click="fetchCorrespondencias"
-        />
+        <div class="w-full lg:w-44 shrink-0">
+          <label class="mb-1 block text-xs font-medium text-muted">Hoja de ruta</label>
+          <UInput
+            v-model="searchHojaRuta"
+            placeholder="142/2025"
+            icon="i-lucide-file-stack"
+            class="w-full"
+            @keydown="onFiltroEnter"
+          />
+        </div>
+
+        <div class="w-full lg:flex-1 min-w-0">
+          <label class="mb-1 block text-xs font-medium text-muted">Criterio</label>
+          <UInput
+            v-model="searchCriterio"
+            placeholder="Referencia, CITE, área o proceso..."
+            icon="i-lucide-search"
+            class="w-full"
+            @keydown="onFiltroEnter"
+          />
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2 w-full lg:w-auto justify-end shrink-0">
+          <UButton
+            label="Buscar"
+            icon="i-lucide-search"
+            color="primary"
+            :loading="loading"
+            @click="buscar"
+          />
+          <UButton
+            label="Limpiar"
+            icon="i-lucide-eraser"
+            color="neutral"
+            variant="outline"
+            :disabled="loading"
+            @click="limpiarFiltros"
+          />
+          <UButton
+            icon="i-lucide-refresh-cw"
+            color="neutral"
+            variant="ghost"
+            title="Actualizar con los filtros actuales"
+            :loading="loading"
+            @click="fetchCorrespondencias"
+          />
+        </div>
       </div>
     </div>
 

@@ -76,6 +76,10 @@ export interface FiltroDerivacion {
   hoja_ruta?: string
   modo: 'salida' | 'ingreso' | 'con_copia'
   cargo_id?: string
+  /** Gestión (año) de la correspondencia */
+  gestion?: number
+  /** Proceso de la correspondencia */
+  proc_id?: number
   pagina?: number
   limite?: number
 }

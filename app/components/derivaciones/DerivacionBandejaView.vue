@@ -36,6 +36,8 @@ import {
   META_COLUMNA_ACCIONES_TABLA,
 } from '~/utils/acciones-menu'
 import { getAccionesDerivacionBandeja } from '~/utils/derivacionActions'
+import CodificadorSelect from '~/components/codificador/CodificadorSelect.vue'
+import { useBandejaFiltros } from '~/composables/useBandejaFiltros'
 
 const props = defineProps<{
   modo: 'salida' | 'ingreso' | 'con_copia'
@@ -50,7 +52,7 @@ const UIcon = resolveComponent('UIcon')
 const UDropdownMenu = resolveComponent('UDropdownMenu')
 
 const toast = useToast()
-const { profile, cargoOrigen, resolveCargoOrigenId } = useProfile()
+const { profile, cargoOrigen, areaActiva, resolveCargoOrigenId } = useProfile()
 const { apiBaseUrl, apiPublicUrl } = useApiUrls()
 
 const loading = ref(false)
@@ -58,8 +60,23 @@ const items = ref<Array<Derivacion | DestinatarioCopiaConDerivacion>>([])
 const total = ref(0)
 const page = ref(1)
 const pageSize = ref(10)
-const searchCriterio = ref('')
-const searchHojaRuta = ref('')
+
+const {
+  criterio: searchCriterio,
+  hojaRuta: searchHojaRuta,
+  gestion: searchGestion,
+  procId: searchProcId,
+  persistir: persistirFiltros,
+  limpiar: limpiarFiltrosBase,
+  opcionesGestion,
+} = useBandejaFiltros(`derivacion_${props.modo}`)
+
+const procesoParams = computed(() => {
+  const areaId = areaActiva.value?.id
+    || (import.meta.client ? sessionStorage.getItem('area_activa_id') : null)
+    || profile.value?.area_activa_id
+  return areaId ? { area_id: String(areaId) } : {}
+})
 
 /** Acciones del menú ⋮ cargadas al abrir (evita datos obsoletos del listado). */
 const accionesMenuPorDerivacion = ref<Record<string, string[]>>({})
@@ -897,6 +914,7 @@ const fetchItems = async () => {
   loading.value = true
   accionesMenuPorDerivacion.value = {}
   accionesMenuCargandoId.value = null
+  persistirFiltros()
   try {
     const filtro: FiltroDerivacion = {
       modo: props.modo,
@@ -904,6 +922,11 @@ const fetchItems = async () => {
       limite: pageSize.value,
       criterio: searchCriterio.value.trim() || undefined,
       hoja_ruta: searchHojaRuta.value.trim() || undefined,
+      gestion: searchGestion.value || undefined,
+      proc_id:
+        searchProcId.value && searchProcId.value > 0
+          ? searchProcId.value
+          : undefined,
       cargo_id: resolveCargoOrigenId() || undefined,
     }
     const res = await backendService.post<RespuestaBusquedaDerivacion>('derivaciones/buscar', filtro)
@@ -925,13 +948,19 @@ const fetchItems = async () => {
   }
 }
 
-let debounceTimer: ReturnType<typeof setTimeout> | null = null
-const onSearchInput = () => {
-  if (debounceTimer) clearTimeout(debounceTimer)
-  debounceTimer = setTimeout(() => {
-    page.value = 1
-    fetchItems()
-  }, 350)
+const buscar = () => {
+  page.value = 1
+  void fetchItems()
+}
+
+const limpiarFiltros = () => {
+  limpiarFiltrosBase()
+  page.value = 1
+  void fetchItems()
+}
+
+const onFiltroEnter = (e: KeyboardEvent) => {
+  if (e.key === 'Enter') buscar()
 }
 
 onMounted(() => {
@@ -943,37 +972,77 @@ onMounted(() => {
   <div class="space-y-6">
     <BandejaViewHeader :titulo="props.titulo" :descripcion="props.descripcion" :icono="props.icono" />
 
-    <div class="p-4 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-xs flex flex-col sm:flex-row items-center gap-3">
-      <div class="w-full sm:w-44 shrink-0">
-        <UInput
-          v-model="searchHojaRuta"
-          placeholder="Hoja de Ruta (142/2025)"
-          icon="i-lucide-file-stack"
-          class="w-full"
-          @update:model-value="onSearchInput"
-        />
-      </div>
+    <div class="p-4 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-xs flex flex-col gap-3">
+      <div class="flex flex-col lg:flex-row lg:items-end gap-3">
+        <div class="w-full lg:w-28 shrink-0">
+          <label class="mb-1 block text-xs font-medium text-muted">Gestión</label>
+          <USelect
+            v-model="searchGestion"
+            :items="opcionesGestion"
+            value-key="value"
+            class="w-full"
+          />
+        </div>
 
-      <div class="w-full sm:flex-1 relative">
-        <UInput
-          v-model="searchCriterio"
-          placeholder="Buscar por referencia, instrucción..."
-          icon="i-lucide-search"
-          class="w-full"
-          @update:model-value="onSearchInput"
-        />
-      </div>
+        <div class="w-full lg:w-56 shrink-0">
+          <label class="mb-1 block text-xs font-medium text-muted">Proceso</label>
+          <CodificadorSelect
+            v-model="searchProcId"
+            endpoint="comun/codificador/procesos"
+            :params="procesoParams"
+            incluir-todos
+            placeholder="Todos los procesos"
+            class="w-full"
+          />
+        </div>
 
-      <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
-        <UButton
-          label="Actualizar"
-          icon="i-lucide-refresh-cw"
-          color="neutral"
-          variant="outline"
-          title="Volver a cargar la bandeja"
-          :loading="loading"
-          @click="fetchItems"
-        />
+        <div class="w-full lg:w-44 shrink-0">
+          <label class="mb-1 block text-xs font-medium text-muted">Hoja de ruta</label>
+          <UInput
+            v-model="searchHojaRuta"
+            placeholder="142/2025"
+            icon="i-lucide-file-stack"
+            class="w-full"
+            @keydown="onFiltroEnter"
+          />
+        </div>
+
+        <div class="w-full lg:flex-1 min-w-0">
+          <label class="mb-1 block text-xs font-medium text-muted">Criterio</label>
+          <UInput
+            v-model="searchCriterio"
+            placeholder="Referencia, instrucción, CITE..."
+            icon="i-lucide-search"
+            class="w-full"
+            @keydown="onFiltroEnter"
+          />
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2 w-full lg:w-auto justify-end shrink-0">
+          <UButton
+            label="Buscar"
+            icon="i-lucide-search"
+            color="primary"
+            :loading="loading"
+            @click="buscar"
+          />
+          <UButton
+            label="Limpiar"
+            icon="i-lucide-eraser"
+            color="neutral"
+            variant="outline"
+            :disabled="loading"
+            @click="limpiarFiltros"
+          />
+          <UButton
+            icon="i-lucide-refresh-cw"
+            color="neutral"
+            variant="ghost"
+            title="Actualizar con los filtros actuales"
+            :loading="loading"
+            @click="fetchItems"
+          />
+        </div>
       </div>
     </div>
 

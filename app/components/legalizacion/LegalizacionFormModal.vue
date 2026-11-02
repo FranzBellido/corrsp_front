@@ -108,7 +108,8 @@ function unwrapCorrespondenciaRespuesta(
 interface LineaForm {
   key: string
   id_arancel: number | null
-  documento: string
+  observacion: string
+  resolucion: string
   cantidad: number
   n_hojas: number | null
 }
@@ -130,6 +131,7 @@ const loading = ref(false)
 const saving = ref(false)
 const savingCooperativa = ref(false)
 const descargandoPdf = ref(false)
+const descargandoVerificadorPdf = ref(false)
 const activeTab = ref<TabValue>('legalizacion')
 const aranceles = ref<LeArancelTramite[]>([])
 const resumen = ref<LegalizacionResumen | null>(null)
@@ -188,7 +190,8 @@ function lineaVacia(): LineaForm {
   return {
     key: nuevaKey(),
     id_arancel: null,
-    documento: '',
+    observacion: '',
+    resolucion: '',
     cantidad: 1,
     n_hojas: null,
   }
@@ -312,7 +315,8 @@ async function cargar() {
       lineas.value = items.map((item) => ({
         key: nuevaKey(),
         id_arancel: item.id_arancel,
-        documento: item.documento || '',
+        observacion: item.observacion || '',
+        resolucion: item.resolucion?.trim() || '',
         cantidad: item.cantidad || 1,
         n_hojas: item.n_hojas ?? null,
       }))
@@ -347,10 +351,10 @@ async function guardar() {
       })
       return
     }
-    if (!linea.documento.trim()) {
+    if (!linea.observacion.trim()) {
       toast.add({
         title: 'Complete el detalle',
-        description: 'Indique el documento en cada fila.',
+        description: 'Indique la observación en cada fila.',
         color: 'warning',
         icon: 'i-lucide-triangle-alert',
       })
@@ -394,7 +398,8 @@ async function guardar() {
     items: lineas.value.map((l) => ({
       id_arancel: l.id_arancel as number,
       cantidad: Number(l.cantidad),
-      documento: l.documento.trim(),
+      observacion: l.observacion.trim(),
+      resolucion: l.resolucion.trim() || null,
       n_hojas: esVariable(l) ? Number(l.n_hojas) : null,
     })),
   }
@@ -520,6 +525,58 @@ async function descargarReportePdf() {
     })
   } finally {
     descargandoPdf.value = false
+  }
+}
+
+async function descargarReporteVerificadorCopias() {
+  const id = props.correspondenciaId
+  const derivacionId = props.derivacionId
+  if (!id || !derivacionId) {
+    toast.add({
+      title: 'Datos incompletos',
+      description: 'Faltan correspondencia o derivación para generar el PDF.',
+      color: 'warning',
+      icon: 'i-lucide-triangle-alert',
+    })
+    return
+  }
+
+  descargandoVerificadorPdf.value = true
+  try {
+    const blob = await descargarBlob(
+      `legalizacion/${id}/reporte/verificador-copias/pdf`,
+      {
+        derivacion_id: derivacionId,
+        modo: 'ingreso',
+        cargo_id: resolveCargoOrigenId() || undefined,
+      },
+      { expectPdf: true },
+    )
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `verificador_copias_${id.slice(0, 8)}.pdf`
+    a.click()
+    URL.revokeObjectURL(url)
+    toast.add({
+      title: 'Formulario verificador generado',
+      description: 'PDF con datos de legalización y encabezado institucional.',
+      color: 'success',
+      icon: 'i-lucide-check',
+    })
+  } catch (error: unknown) {
+    const err = error as { data?: { message?: string }; message?: string }
+    toast.add({
+      title: 'No se pudo generar el formulario',
+      description:
+        err?.data?.message
+        || err?.message
+        || 'Registre la legalización o verifique permisos y parámetros.',
+      color: 'error',
+      icon: 'i-lucide-alert-circle',
+    })
+  } finally {
+    descargandoVerificadorPdf.value = false
   }
 }
 
@@ -658,11 +715,22 @@ watch(muestraTabCooperativa, (visible) => {
                     />
                   </UFormField>
 
-                  <UFormField label="Documento" size="sm">
+                  <UFormField label="Observación" size="sm">
                     <UInput
-                      v-model="linea.documento"
-                      placeholder="Documento a legalizar"
+                      v-model="linea.observacion"
+                      placeholder="Detalle del trámite / documento"
                       size="sm"
+                      class="w-full"
+                      maxlength="1000"
+                    />
+                  </UFormField>
+
+                  <UFormField label="Resolución" size="sm">
+                    <UInput
+                      v-model="linea.resolucion"
+                      placeholder="Nº o referencia de resolución"
+                      size="sm"
+                      maxlength="80"
                       class="w-full"
                     />
                   </UFormField>
@@ -771,8 +839,30 @@ watch(muestraTabCooperativa, (visible) => {
             variant="soft"
             size="sm"
             :loading="descargandoPdf"
-            :disabled="loading || saving || !correspondenciaId || !derivacionId"
+            :disabled="
+              loading
+                || saving
+                || descargandoVerificadorPdf
+                || !correspondenciaId
+                || !derivacionId
+            "
             @click="descargarReportePdf"
+          />
+          <UButton
+            label="Verificador de copias"
+            icon="i-lucide-file-text"
+            color="neutral"
+            variant="soft"
+            size="sm"
+            :loading="descargandoVerificadorPdf"
+            :disabled="
+              loading
+                || saving
+                || descargandoPdf
+                || !correspondenciaId
+                || !derivacionId
+            "
+            @click="descargarReporteVerificadorCopias"
           />
         </div>
         <p
@@ -788,7 +878,7 @@ watch(muestraTabCooperativa, (visible) => {
             color="neutral"
             variant="outline"
             size="sm"
-            :disabled="saving || savingCooperativa || descargandoPdf"
+            :disabled="saving || savingCooperativa || descargandoPdf || descargandoVerificadorPdf"
             @click="open = false"
           />
           <UButton

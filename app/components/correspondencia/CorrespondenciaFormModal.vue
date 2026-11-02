@@ -44,6 +44,10 @@ const { profile, cargoActivo, cargoOrigen, cargoOrigenId, areaActiva, resolveCar
   useProfile()
 const saving = ref(false)
 const assigningNumeracion = ref(false)
+const depositosFieldsRef = ref<{
+  validarAntesDeGuardar: () => boolean
+  tieneErroresDuplicado: { value: boolean }
+} | null>(null)
 /** Al crear: si es true, genera HR, correlativo y CITE en el backend. */
 const asignarCiteHr = ref(true)
 
@@ -644,6 +648,9 @@ const validarPaso = (paso: StepValue): boolean => {
       toastValidacion(parsed.error.issues[0]?.message || 'Complete las boletas de depósito.')
       return false
     }
+    if (depositosFieldsRef.value && !depositosFieldsRef.value.validarAntesDeGuardar()) {
+      return false
+    }
     return true
   }
 
@@ -914,7 +921,11 @@ const handleAsignarCiteHr = async () => {
 
           <template #depositos>
             <div class="mt-5">
-              <CorrespDepositosFields v-model="form.depositos" />
+              <CorrespDepositosFields
+                ref="depositosFieldsRef"
+                v-model="form.depositos"
+                :exclude-codigo-unico="codigoUnico"
+              />
             </div>
           </template>
         </UStepper>
