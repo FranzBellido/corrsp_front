@@ -4,7 +4,12 @@ import { z } from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
 import type { Correspondencia } from '~/types/correspondencia'
 import { TipoCodificadorEnum } from '~/types/correspondencia'
-import type { CreateDerivacionPayload, Derivacion, UpdateDerivacionPayload } from '~/types/derivacion'
+import type {
+  CreateDerivacionPayload,
+  CreateDerivacionResultado,
+  Derivacion,
+  UpdateDerivacionPayload,
+} from '~/types/derivacion'
 import type { CodificadorDto } from '~/types/codificador'
 import { backendService } from '~/services/backend.service'
 import CodificadorSelect from '~/components/codificador/CodificadorSelect.vue'
@@ -30,12 +35,18 @@ const correspondenciaActiva = computed(
   () => props.correspondencia || props.derivacion?.correspondencia || null,
 )
 
+/** Multi-destino solo en creación libre (sin flujo definido). */
+const permiteMultiDestinos = computed(
+  () =>
+    !isEditing.value
+    && !Boolean(correspondenciaActiva.value?.proceso?.flujo_definido),
+)
+
 const toast = useToast()
 const { cargoActivo, cargoOrigen, areaActiva, resolveCargoOrigenId } = useProfile()
 const saving = ref(false)
 const conCopia = ref(false)
 
-/** Área origen para restringir cargos a la lista blanca (area_routing_rules). */
 const areaOrigenId = computed(
   () =>
     cargoOrigen.value?.area_id
@@ -70,11 +81,8 @@ const isoAFechaInput = (iso?: string | null): string => {
   return `${y}-${m}-${day}`
 }
 
-const schema = z.object({
-  cargo_destino_id: z
-    .string({ message: 'Debe seleccionar el cargo destino' })
-    .min(1, 'Debe seleccionar el cargo destino')
-    .uuid('Cargo destino inválido'),
+const schemaBase = z.object({
+  cargo_destino_id: z.string().optional(),
   tipo_instruccion_id: z.number({ message: 'Debe seleccionar el tipo de instrucción' }),
   instruccion: z
     .string()
@@ -91,7 +99,7 @@ const schema = z.object({
   copias: z.array(z.string().uuid()).optional(),
 })
 
-type FormState = z.infer<typeof schema>
+type FormState = z.infer<typeof schemaBase>
 
 const form = ref<FormState>({
   cargo_destino_id: '',
@@ -101,12 +109,33 @@ const form = ref<FormState>({
   copias: [],
 })
 
+const destinosSeleccionados = ref<{ id: string; nombre: string }[]>([])
+const destinoTempId = ref<string | null>(null)
 const copiasSeleccionadas = ref<{ id: string; nombre: string }[]>([])
+const copiaTempId = ref<string | null>(null)
 
 const tituloDoc = computed(() => {
   const c = correspondenciaActiva.value
   if (!c) return ''
   return `${etiquetaNumeroCorrespondencia(c)} — ${c.referencia?.slice(0, 80) || 'Sin referencia'}`
+})
+
+const descripcionModal = computed(() => {
+  if (isEditing.value) {
+    return 'Modifique destinatario, instrucción o plazo según el estado actual del trámite.'
+  }
+  if (permiteMultiDestinos.value) {
+    return 'Envíe el documento a uno o más cargos con la misma instrucción y plazo.'
+  }
+  return 'Envíe el documento a un cargo destinatario con instrucción (proveído).'
+})
+
+const labelBotonDerivar = computed(() => {
+  if (isEditing.value) return 'Guardar cambios'
+  const n = permiteMultiDestinos.value
+    ? destinosSeleccionados.value.length
+    : (form.value.cargo_destino_id ? 1 : 0)
+  return n > 1 ? `Derivar (${n})` : 'Derivar'
 })
 
 const resetForm = () => {
@@ -117,7 +146,10 @@ const resetForm = () => {
     fecha_plazo: '',
     copias: [],
   }
+  destinosSeleccionados.value = []
+  destinoTempId.value = null
   copiasSeleccionadas.value = []
+  copiaTempId.value = null
   conCopia.value = false
 }
 
@@ -134,7 +166,6 @@ watch(open, (isOpen) => {
       fecha_plazo: isoAFechaInput(d.fecha_plazo),
       copias: [],
     }
-    conCopia.value = false
     return
   }
 
@@ -164,13 +195,60 @@ const sincronizarCopiasForm = () => {
   form.value.copias = copiasSeleccionadas.value.map((c) => c.id)
 }
 
+const cargoOrigenActivoId = computed(
+  () => resolveCargoOrigenId() || cargoActivo.value?.id || null,
+)
+
+const agregarDestinoDesdeItem = (item: CodificadorDto | null) => {
+  if (!item?.id) return
+  const id = String(item.id)
+  if (cargoOrigenActivoId.value && id === cargoOrigenActivoId.value) {
+    toast.add({
+      title: 'No permitido',
+      description: 'No puede derivar hacia su propio cargo de origen.',
+      color: 'warning',
+      icon: 'i-lucide-alert-triangle',
+    })
+    destinoTempId.value = null
+    return
+  }
+  if (destinosSeleccionados.value.some((d) => d.id === id)) {
+    destinoTempId.value = null
+    return
+  }
+  if (copiasSeleccionadas.value.some((c) => c.id === id)) {
+    toast.add({
+      title: 'No permitido',
+      description: 'Ese cargo ya está en copia (CC). Quítelo de CC o elija otro destino.',
+      color: 'warning',
+      icon: 'i-lucide-alert-triangle',
+    })
+    destinoTempId.value = null
+    return
+  }
+  destinosSeleccionados.value = [
+    ...destinosSeleccionados.value,
+    { id, nombre: item.nombre || id },
+  ]
+  destinoTempId.value = null
+}
+
+const quitarDestino = (id: string) => {
+  destinosSeleccionados.value = destinosSeleccionados.value.filter((d) => d.id !== id)
+}
+
 const agregarCopiaDesdeItem = (item: CodificadorDto | null) => {
   if (!item?.id) return
   const id = String(item.id)
-  if (id === form.value.cargo_destino_id) {
+
+  const esDestinoPrincipal = permiteMultiDestinos.value
+    ? destinosSeleccionados.value.some((d) => d.id === id)
+    : id === form.value.cargo_destino_id
+
+  if (esDestinoPrincipal) {
     toast.add({
       title: 'No permitido',
-      description: 'El destinatario principal no puede ir también en copia.',
+      description: 'Un destinatario principal no puede ir también en copia.',
       color: 'warning',
       icon: 'i-lucide-alert-triangle',
     })
@@ -193,8 +271,6 @@ const quitarCopia = (id: string) => {
   copiasSeleccionadas.value = copiasSeleccionadas.value.filter((c) => c.id !== id)
   sincronizarCopiasForm()
 }
-
-const copiaTempId = ref<string | null>(null)
 
 const handleSave = async (event?: FormSubmitEvent<FormState>) => {
   const data = event?.data || form.value
@@ -264,9 +340,9 @@ const handleSave = async (event?: FormSubmitEvent<FormState>) => {
     } catch (error: unknown) {
       const err = error as { data?: { message?: string | string[] }; message?: string }
       const msg =
-        (Array.isArray(err?.data?.message) ? err.data.message.join(', ') : err?.data?.message) ||
-        err?.message ||
-        'No se pudo actualizar la derivación'
+        (Array.isArray(err?.data?.message) ? err.data.message.join(', ') : err?.data?.message)
+        || err?.message
+        || 'No se pudo actualizar la derivación'
       toast.add({
         title: 'Error al guardar',
         description: msg,
@@ -291,10 +367,16 @@ const handleSave = async (event?: FormSubmitEvent<FormState>) => {
     return
   }
 
-  if (!data.cargo_destino_id?.trim()) {
+  const destinoIds = permiteMultiDestinos.value
+    ? destinosSeleccionados.value.map((d) => d.id)
+    : (data.cargo_destino_id?.trim() ? [data.cargo_destino_id.trim()] : [])
+
+  if (!destinoIds.length) {
     toast.add({
       title: 'Validación',
-      description: 'Seleccione el cargo destinatario.',
+      description: permiteMultiDestinos.value
+        ? 'Agregue al menos un cargo destinatario.'
+        : 'Seleccione el cargo destinatario.',
       color: 'warning',
       icon: 'i-lucide-alert-triangle',
     })
@@ -311,8 +393,8 @@ const handleSave = async (event?: FormSubmitEvent<FormState>) => {
     return
   }
 
-  const cargoOrigen = resolveCargoOrigenId() || cargoActivo.value?.id
-  if (!cargoOrigen) {
+  const cargoOrigenId = resolveCargoOrigenId() || cargoActivo.value?.id
+  if (!cargoOrigenId) {
     toast.add({
       title: 'Sin cargo activo',
       description: 'Configure su cargo de trabajo antes de derivar.',
@@ -337,18 +419,30 @@ const handleSave = async (event?: FormSubmitEvent<FormState>) => {
 
     const payload: CreateDerivacionPayload = {
       documento_id: props.correspondencia.id,
-      cargo_destino_id: data.cargo_destino_id.trim(),
+      cargo_destino_ids: destinoIds,
       instruccion: data.instruccion.trim(),
       tipo_instruccion_id: Number(data.tipo_instruccion_id),
       copias: conCopia.value ? copiasSeleccionadas.value.map((c) => c.id) : undefined,
-      cargo_origen_id: cargoOrigen,
+      cargo_origen_id: cargoOrigenId,
       ...(fechaPlazo ? { fecha_plazo: fechaPlazo } : {}),
     }
 
-    await backendService.post<Derivacion>('derivaciones', payload)
+    const res = await backendService.post<CreateDerivacionResultado | Derivacion>(
+      'derivaciones',
+      payload,
+    )
+    const dataRes = (res as { data?: CreateDerivacionResultado })?.data || res
+    const total =
+      (dataRes as CreateDerivacionResultado)?.total
+      || (dataRes as CreateDerivacionResultado)?.items?.length
+      || destinoIds.length
+
     toast.add({
       title: 'Derivación enviada',
-      description: 'La correspondencia fue derivada correctamente.',
+      description:
+        total > 1
+          ? `Se derivó a ${total} cargos correctamente.`
+          : 'La correspondencia fue derivada correctamente.',
       color: 'success',
       icon: 'i-lucide-check-circle',
     })
@@ -357,9 +451,9 @@ const handleSave = async (event?: FormSubmitEvent<FormState>) => {
   } catch (error: unknown) {
     const err = error as { data?: { message?: string | string[] }; message?: string }
     const msg =
-      (Array.isArray(err?.data?.message) ? err.data.message.join(', ') : err?.data?.message) ||
-      err?.message ||
-      'No se pudo registrar la derivación'
+      (Array.isArray(err?.data?.message) ? err.data.message.join(', ') : err?.data?.message)
+      || err?.message
+      || 'No se pudo registrar la derivación'
     toast.add({
       title: 'Error al derivar',
       description: msg,
@@ -376,11 +470,7 @@ const handleSave = async (event?: FormSubmitEvent<FormState>) => {
   <UModal
     v-model:open="open"
     :title="isEditing ? 'Editar derivación' : 'Derivar correspondencia'"
-    :description="
-      isEditing
-        ? 'Modifique destinatario, instrucción o plazo según el estado actual del trámite.'
-        : 'Envíe el documento a un cargo destinatario con instrucción (previsto).'
-    "
+    :description="descripcionModal"
     :ui="{ content: 'sm:max-w-xl' }"
   >
     <template #body>
@@ -397,12 +487,59 @@ const handleSave = async (event?: FormSubmitEvent<FormState>) => {
 
       <UForm
         id="derivacion-form"
-        :schema="schema"
+        :schema="schemaBase"
         :state="form"
         class="space-y-4"
         @submit="handleSave"
       >
+        <!-- Multi destino (creación libre) -->
+        <div v-if="permiteMultiDestinos" class="space-y-2">
+          <UFormField
+            label="Cargos destinatarios"
+            name="cargo_destino_ids"
+            required
+            :help="
+              areaOrigenId
+                ? 'Puede agregar varios cargos. Misma instrucción y plazo para todos.'
+                : 'Configure su cargo/área activa para filtrar destinatarios permitidos.'
+            "
+          >
+            <CodificadorSelect
+              v-model="destinoTempId"
+              endpoint="comun/codificador/cargos"
+              :params="cargosWhitelistParams"
+              placeholder="Agregar cargo destino..."
+              class="w-full"
+              :disabled="!areaOrigenId"
+              @item-selected="agregarDestinoDesdeItem"
+            />
+          </UFormField>
+
+          <div v-if="destinosSeleccionados.length" class="flex flex-wrap gap-1.5">
+            <UBadge
+              v-for="destino in destinosSeleccionados"
+              :key="destino.id"
+              color="primary"
+              variant="subtle"
+              class="gap-1 pr-1 max-w-full"
+            >
+              <span class="truncate max-w-[220px]" :title="destino.nombre">{{ destino.nombre }}</span>
+              <UButton
+                icon="i-lucide-x"
+                size="xs"
+                color="neutral"
+                variant="ghost"
+                class="!p-0.5"
+                @click="quitarDestino(destino.id)"
+              />
+            </UBadge>
+          </div>
+          <p v-else class="text-[11px] text-muted">Aún no hay cargos destino.</p>
+        </div>
+
+        <!-- Destino único (edición o flujo definido) -->
         <UFormField
+          v-else
           label="Cargo destinatario"
           name="cargo_destino_id"
           required
@@ -472,7 +609,10 @@ const handleSave = async (event?: FormSubmitEvent<FormState>) => {
             description="Notificar a otros cargos institucionales."
           />
 
-          <div v-if="conCopia" class="space-y-2 p-3 rounded-md border border-gray-200 dark:border-gray-800">
+          <div
+            v-if="conCopia"
+            class="space-y-2 p-3 rounded-md border border-gray-200 dark:border-gray-800"
+          >
             <UFormField
               label="Agregar cargo en copia"
               name="copia_temp"
@@ -526,7 +666,7 @@ const handleSave = async (event?: FormSubmitEvent<FormState>) => {
         <UButton
           type="submit"
           form="derivacion-form"
-          :label="isEditing ? 'Guardar cambios' : 'Derivar'"
+          :label="labelBotonDerivar"
           :icon="isEditing ? 'i-lucide-save' : 'i-lucide-send'"
           color="primary"
           :loading="saving"

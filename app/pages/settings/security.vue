@@ -116,7 +116,7 @@ onMounted(() => {
           variant="subtle"
           icon="i-lucide-shield-check"
           title="Gestión centralizada"
-          :description="`Realm: ${realmLabel}. Se abrirá el formulario seguro de Keycloak; al terminar volverá a esta página.`"
+          :description="`Se abrirá el formulario seguro de Keycloak; al terminar volverá a esta página.`"
         />
 
         <div class="flex flex-wrap items-center gap-2">

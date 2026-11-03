@@ -124,6 +124,10 @@ const depositosDetalle = computed((): RecDeposito[] => detalle.value?.depositos 
 
 const muestraTabDepositos = computed(() => depositosDetalle.value.length > 0)
 
+const muestraTabLegalizacion = computed(
+  () => Boolean(detalle.value?.proceso?.requiere_legalizacion),
+)
+
 const totalImporteDepositos = computed(() =>
   depositosDetalle.value.reduce((sum, d) => sum + (Number(d.importe) || 0), 0),
 )
@@ -285,6 +289,15 @@ const tabItems = computed<TabsItem[]>(() => {
       value: 'depositos',
       slot: 'depositos',
       badge: depositosDetalle.value.length,
+    })
+  }
+
+  if (muestraTabLegalizacion.value) {
+    items.push({
+      label: 'Legalización',
+      icon: 'i-lucide-stamp',
+      value: 'legalizacion',
+      slot: 'legalizacion',
     })
   }
 
@@ -565,6 +578,14 @@ const tabItems = computed<TabsItem[]>(() => {
                 </div>
               </div>
             </div>
+          </template>
+
+          <template #legalizacion>
+            <LegalizacionDetallePanel
+              :correspondencia-id="detalle.id"
+              :derivaciones="detalle.derivaciones"
+              :active="activeTab === 'legalizacion'"
+            />
           </template>
 
           <template #adjuntos>

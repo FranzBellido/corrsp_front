@@ -555,11 +555,11 @@ async function descargarReporteVerificadorCopias() {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `verificador_copias_${id.slice(0, 8)}.pdf`
+    a.download = `formulario_01_${id.slice(0, 8)}.pdf`
     a.click()
     URL.revokeObjectURL(url)
     toast.add({
-      title: 'Formulario verificador generado',
+      title: 'Formulario 01 generado',
       description: 'PDF con datos de legalización y encabezado institucional.',
       color: 'success',
       icon: 'i-lucide-check',
@@ -849,7 +849,7 @@ watch(muestraTabCooperativa, (visible) => {
             @click="descargarReportePdf"
           />
           <UButton
-            label="Verificador de copias"
+            label="Formulario 01"
             icon="i-lucide-file-text"
             color="neutral"
             variant="soft"

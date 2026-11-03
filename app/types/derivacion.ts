@@ -52,7 +52,10 @@ export interface Derivacion {
 
 export interface CreateDerivacionPayload {
   documento_id: string
-  cargo_destino_id: string
+  /** Destino único (compatibilidad / flujo definido). */
+  cargo_destino_id?: string
+  /** Uno o más destinos (preferido en derivación libre multi). */
+  cargo_destino_ids?: string[]
   instruccion: string
   tipo_instruccion_id: number
   copias?: string[]
@@ -60,6 +63,13 @@ export interface CreateDerivacionPayload {
   cargo_origen_id?: string
   /** Límite para derivar, responder o archivar (ISO o YYYY-MM-DD). */
   fecha_plazo?: string
+}
+
+export interface CreateDerivacionResultado {
+  grupo_id?: string
+  items?: Derivacion[]
+  total?: number
+  id?: string
 }
 
 export interface UpdateDerivacionPayload {
