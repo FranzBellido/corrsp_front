@@ -173,10 +173,10 @@ const errorHr = defineModel<string | null>('errorHr', { default: null })
     </UFormField>
 
     <UFormField
-      v-if="requiereDestinatario"
+      v-if="requiereDestinatario || destinatarioId"
       label="Cargo destinatario"
       name="destinatario_id"
-      required
+      :required="requiereDestinatario"
       help="Cargo institucional al que va dirigida la correspondencia."
     >
       <CodificadorSelect
@@ -187,10 +187,13 @@ const errorHr = defineModel<string | null>('errorHr', { default: null })
       />
     </UFormField>
 
+    <!-- Documento confidencial: oculto por solicitud de negocio; el valor sigue en form.confidencial (false por defecto). -->
+    <!--
     <UCheckbox
       v-model="confidencial"
       label="Documento confidencial"
       description="Restringe la visualización a remitente y destinatarios autorizados."
     />
+    -->
   </div>
 </template>
