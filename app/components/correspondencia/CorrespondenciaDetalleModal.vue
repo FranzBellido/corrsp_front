@@ -35,6 +35,7 @@ const editorCallbackUrl = ref('')
 const editorTitle = ref('')
 const abriendoDocumento = ref(false)
 const descargandoDocumento = ref(false)
+const descargandoHr = ref(false)
 
 const formatFecha = (valor?: string | null) => {
   if (!valor) return '—'
@@ -249,6 +250,48 @@ const descargarDocumentoOficial = async () => {
     })
   } finally {
     descargandoDocumento.value = false
+  }
+}
+
+const descargarHojaRutaPdf = async () => {
+  const d = detalle.value
+  if (!d?.id) return
+
+  descargandoHr.value = true
+  try {
+    const blob = await backendService.descargarBlob(
+      `correspondencia/${d.id}/hoja-ruta/pdf`,
+      undefined,
+      { expectPdf: true },
+    )
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    const hr = d.hoja_ruta
+    const sufijo =
+      hr?.numero && hr.numero > 0
+        ? `${hr.numero}_${hr.anio}`
+        : d.id.slice(0, 8)
+    a.href = url
+    a.download = `hoja_ruta_${sufijo}.pdf`
+    a.rel = 'noopener'
+    a.click()
+    setTimeout(() => URL.revokeObjectURL(url), 60_000)
+    toast.add({
+      title: 'Hoja de Ruta generada',
+      description: 'Se descargó el PDF con los datos de la correspondencia.',
+      color: 'success',
+      icon: 'i-lucide-check',
+    })
+  } catch (error: unknown) {
+    const err = error as { data?: { message?: string }; message?: string }
+    toast.add({
+      title: 'No se pudo generar la HR',
+      description: err?.data?.message || err?.message || 'Error al generar el PDF.',
+      color: 'error',
+      icon: 'i-lucide-alert-circle',
+    })
+  } finally {
+    descargandoHr.value = false
   }
 }
 
@@ -654,6 +697,15 @@ const tabItems = computed<TabsItem[]>(() => {
 
     <template #footer>
       <div class="flex flex-wrap items-center justify-end gap-2 w-full">
+        <UButton
+          label="Generar HR"
+          icon="i-lucide-route"
+          color="primary"
+          variant="soft"
+          :loading="descargandoHr"
+          :disabled="!detalle?.id || loading"
+          @click="descargarHojaRutaPdf"
+        />
         <UButton
           v-if="tieneDocumentoOficial"
           label="Ver documento"
