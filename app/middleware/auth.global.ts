@@ -1,6 +1,10 @@
 import { useProfile } from '~/composables/useProfile'
 import {
+  esRutaAdministracion,
+  esRutaRecaudacion,
   isUsuarioNoRegistradoEnSistema,
+  ROLE_PROC_ADMIN,
+  ROLE_PROC_RECAUDACION,
   RUTA_ACCESO_DENEGADO,
 } from '~/utils/auth-access'
 
@@ -59,7 +63,11 @@ export default defineNuxtRouteMiddleware(async (to) => {
   await esperarKeycloakListo()
 
   const nuxtApp = useNuxtApp() as {
-    $keycloak?: { authenticated?: boolean; login: (o: { redirectUri: string }) => void }
+    $keycloak?: {
+      authenticated?: boolean
+      login: (o: { redirectUri: string }) => void
+      tokenParsed?: { realm_access?: { roles?: string[] } }
+    }
   }
   const $keycloak = nuxtApp.$keycloak
   const accessDenied = useState<boolean>('access-denied', () => false)
@@ -78,6 +86,20 @@ export default defineNuxtRouteMiddleware(async (to) => {
   const perfilOk = await asegurarPerfilSistema()
   if (!perfilOk || accessDenied.value) {
     return navigateTo(RUTA_ACCESO_DENEGADO)
+  }
+
+  if (esRutaAdministracion(to.path)) {
+    const roles = $keycloak.tokenParsed?.realm_access?.roles ?? []
+    if (!roles.includes(ROLE_PROC_ADMIN)) {
+      return navigateTo(RUTA_INICIO_APP)
+    }
+  }
+
+  if (esRutaRecaudacion(to.path)) {
+    const roles = $keycloak.tokenParsed?.realm_access?.roles ?? []
+    if (!roles.includes(ROLE_PROC_RECAUDACION)) {
+      return navigateTo(RUTA_INICIO_APP)
+    }
   }
 
   if (to.path === RUTA_BIENVENIDA) {

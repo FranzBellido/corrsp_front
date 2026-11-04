@@ -1,5 +1,36 @@
 export const RUTA_ACCESO_DENEGADO = '/acceso-denegado'
 
+/** Rol Keycloak (`realm_access.roles`) para el menú y APIs de administración. */
+export const ROLE_PROC_ADMIN = 'proc_admin'
+
+/** Rol Keycloak para el menú y gestión de recaudaciones. */
+export const ROLE_PROC_RECAUDACION = 'proc_recaudacion'
+
+/** Prefijos de rutas del menú Administración. */
+export const RUTAS_ADMINISTRACION = [
+  '/areas',
+  '/usuarios',
+  '/cargos',
+  '/procesos',
+  '/codificadores',
+  '/entidades',
+] as const
+
+export function esRutaAdministracion(path: string): boolean {
+  return RUTAS_ADMINISTRACION.some(
+    (ruta) => path === ruta || path.startsWith(`${ruta}/`),
+  )
+}
+
+/** Prefijos de rutas del menú Recaudaciones. */
+export const RUTAS_RECAUDACION = ['/recaudaciones'] as const
+
+export function esRutaRecaudacion(path: string): boolean {
+  return RUTAS_RECAUDACION.some(
+    (ruta) => path === ruta || path.startsWith(`${ruta}/`),
+  )
+}
+
 export function extractHttpStatus(error: unknown): number | undefined {
   const err = error as {
     statusCode?: number

@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { backendService } from '~/services/backend.service'
-
 defineProps<{
   collapsed?: boolean
 }>()
@@ -9,7 +7,7 @@ const emit = defineEmits<{
   (e: 'navigate'): void
 }>()
 
-const { isAuthenticated } = useAuth()
+const { isAuthenticated, isProcAdmin, isProcRecaudacion } = useAuth()
 const { profile, fetchProfile } = useProfile()
 const route = useRoute()
 
@@ -52,7 +50,6 @@ const defaultNavItems: NavItem[] = [
         to: '/bandejas/salida',
         icon: 'i-lucide-arrow-up-right'
       },
-      
       {
         label: 'Con copia',
         to: '/bandejas/con-copia',
@@ -63,8 +60,6 @@ const defaultNavItems: NavItem[] = [
         to: '/bandejas/compartidos',
         icon: 'i-lucide-share-2'
       },
-    
-   
       {
         label: 'Archivo',
         to: '/bandejas/archivo',
@@ -81,7 +76,7 @@ const defaultNavItems: NavItem[] = [
     label: 'Administración',
     icon: 'i-lucide-folder-cog',
     children: [
-    {
+      {
         label: 'Áreas / Unidades',
         to: '/areas',
         icon: 'i-lucide-building-2'
@@ -91,7 +86,6 @@ const defaultNavItems: NavItem[] = [
         to: '/usuarios',
         icon: 'i-lucide-users'
       },
-     
       {
         label: 'Cargos',
         to: '/cargos',
@@ -112,7 +106,6 @@ const defaultNavItems: NavItem[] = [
         to: '/entidades',
         icon: 'i-lucide-landmark'
       }
-  
     ]
   },
   {
@@ -122,7 +115,13 @@ const defaultNavItems: NavItem[] = [
   }
 ]
 
-const navItems = ref<NavItem[]>(defaultNavItems)
+const navItems = computed(() =>
+  defaultNavItems.filter((item) => {
+    if (item.label === 'Administración') return isProcAdmin.value
+    if (item.label === 'Recaudaciones') return isProcRecaudacion.value
+    return true
+  }),
+)
 
 onMounted(() => {
   if (isAuthenticated.value && !profile.value) {

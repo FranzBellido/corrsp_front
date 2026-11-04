@@ -1,3 +1,5 @@
+import { ROLE_PROC_ADMIN, ROLE_PROC_RECAUDACION } from '~/utils/auth-access'
+
 export function useAuth() {
   const nuxtApp = useNuxtApp() as any
   const $keycloak = nuxtApp.$keycloak
@@ -45,10 +47,18 @@ export function useAuth() {
     return user.value?.roles.includes(role) || false
   }
 
+  /** Acceso al menú y módulos de Administración (Keycloak realm role). */
+  const isProcAdmin = computed(() => hasRole(ROLE_PROC_ADMIN))
+
+  /** Acceso al menú Recaudaciones (Keycloak realm role). */
+  const isProcRecaudacion = computed(() => hasRole(ROLE_PROC_RECAUDACION))
+
   return {
     user,
     isAuthenticated,
     hasRole,
+    isProcAdmin,
+    isProcRecaudacion,
     login,
     logout
   }
