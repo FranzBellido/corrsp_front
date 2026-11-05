@@ -29,6 +29,30 @@ function formatImporte(n: number): string {
   }).format(Number(n) || 0)
 }
 
+function formatFechaLegalizacion(valor?: string | Date | null): string {
+  if (!valor) return '—'
+  const d = valor instanceof Date ? valor : new Date(valor)
+  if (Number.isNaN(d.getTime())) return '—'
+  return d.toLocaleString('es-BO', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+const coopLegalizacion = computed(() => resumen.value?.corresp_cooperativa ?? null)
+
+const muestraBloqueCooperativa = computed(
+  () =>
+    Boolean(
+      coopLegalizacion.value?.fecha_legalizacion
+      || coopLegalizacion.value?.doc_respaldo
+      || coopLegalizacion.value?.nombre_usuario_elabora,
+    ),
+)
+
 const tieneDetalle = computed(() => (resumen.value?.items?.length ?? 0) > 0)
 
 const derivacionParaReporte = computed(() => {
@@ -221,6 +245,41 @@ watch(
             "
             @click="descargarReporteVerificador"
           />
+        </div>
+      </div>
+
+      <div
+        v-if="muestraBloqueCooperativa && coopLegalizacion"
+        class="rounded-md border border-default bg-elevated/30 p-3 space-y-2"
+      >
+        <p class="text-[11px] font-bold uppercase tracking-wider text-muted">
+          Registro en cooperativa
+        </p>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+          <div>
+            <p class="text-[10px] font-semibold uppercase tracking-wide text-muted mb-0.5">
+              Fecha de legalización
+            </p>
+            <p class="text-default">
+              {{ formatFechaLegalizacion(coopLegalizacion.fecha_legalizacion) }}
+            </p>
+          </div>
+          <div>
+            <p class="text-[10px] font-semibold uppercase tracking-wide text-muted mb-0.5">
+              Documento de respaldo
+            </p>
+            <p class="text-default break-words">
+              {{ coopLegalizacion.doc_respaldo || '—' }}
+            </p>
+          </div>
+          <div>
+            <p class="text-[10px] font-semibold uppercase tracking-wide text-muted mb-0.5">
+              Elaborado por
+            </p>
+            <p class="text-default break-words">
+              {{ coopLegalizacion.nombre_usuario_elabora || '—' }}
+            </p>
+          </div>
         </div>
       </div>
 

@@ -557,8 +557,8 @@ const tabItems = computed<TabsItem[]>(() => {
                       <p class="text-default">{{ row.nro_poder || '—' }}</p>
                     </div>
                     <div class="sm:col-span-2">
-                      <p class="text-[11px] font-bold uppercase tracking-wider text-muted mb-1">CITE origen</p>
-                      <p class="font-mono text-xs text-default">{{ row.cite_origen || citeOrigenCorrespondencia(detalle) || '—' }}</p>
+                      <p class="text-[11px] font-bold uppercase tracking-wider text-muted mb-1">Documento de Respaldo</p>
+                      <p class="text-default">{{ row.doc_respaldo || '—' }}</p>
                     </div>
                   </div>
                 </div>

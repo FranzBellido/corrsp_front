@@ -11,7 +11,7 @@ export interface LeDetalleProcesoItem {
   id_arancel: number
   n_hojas?: number | null
   corresp_id: string
-  observacion: string
+  observacion: string | null
   resolucion?: string | null
   costo: number
   cantidad: number
@@ -25,6 +25,12 @@ export interface LegalizacionDepositoResumen {
   verificado: boolean
 }
 
+export interface LegalizacionCooperativaResumen {
+  fecha_legalizacion?: string | Date | null
+  doc_respaldo?: string | null
+  nombre_usuario_elabora?: string | null
+}
+
 export interface LegalizacionResumen {
   corresp_id: string
   referencia: string
@@ -34,6 +40,7 @@ export interface LegalizacionResumen {
   total_depositos: number
   montos_coinciden: boolean
   depositos: LegalizacionDepositoResumen[]
+  corresp_cooperativa?: LegalizacionCooperativaResumen | null
 }
 
 export interface LegalizacionDetallePayload {

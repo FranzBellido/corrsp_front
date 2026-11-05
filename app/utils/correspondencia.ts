@@ -1,20 +1,18 @@
 import type { Correspondencia } from '~/types/correspondencia'
 
-/** CITE almacenado en corresp_entidad o corresp_cooperativa (compat. con cite_origen mapeado en API). */
+/** CITE almacenado en corresp_entidad (o cite_origen mapeado en API). */
 export function citeOrigenCorrespondencia(
-  c: Pick<Correspondencia, 'cite_origen' | 'corresp_entidad' | 'corresp_cooperativa'>,
+  c: Pick<Correspondencia, 'cite_origen' | 'corresp_entidad'>,
 ): string {
   const directo = c.cite_origen?.trim()
   if (directo) return directo
   const citeEntidad = c.corresp_entidad?.[0]?.cite_origen?.trim()
   if (citeEntidad) return citeEntidad
-  const citeCoop = c.corresp_cooperativa?.[0]?.cite_origen?.trim()
-  if (citeCoop) return citeCoop
   return ''
 }
 
 export function correspondenciaTieneCite(
-  c: Pick<Correspondencia, 'cite_origen' | 'corresp_entidad' | 'corresp_cooperativa'>,
+  c: Pick<Correspondencia, 'cite_origen' | 'corresp_entidad'>,
 ): boolean {
   return Boolean(citeOrigenCorrespondencia(c))
 }

@@ -12,7 +12,7 @@ export interface CorrespCooperativaFormState {
   correo_solicitante: string
   nro_poder: string
   telefono: string
-  cite_origen: string
+  doc_respaldo: string
 }
 
 const model = defineModel<CorrespCooperativaFormState>({ required: true })
@@ -35,7 +35,6 @@ const model = defineModel<CorrespCooperativaFormState>({ required: true })
     <UFormField
       label="Cooperativa"
       name="cooperativa.cooperativa_id"
-    
     >
       <CooperativaAutocomplete v-model="model.cooperativa_id" />
     </UFormField>
@@ -68,10 +67,9 @@ const model = defineModel<CorrespCooperativaFormState>({ required: true })
           class="w-full"
         />
       </UFormField>
-
     </div>
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <UFormField
         label="Nro. de carnet"
         name="cooperativa.nro_carnet"
@@ -84,24 +82,21 @@ const model = defineModel<CorrespCooperativaFormState>({ required: true })
           class="w-full"
         />
       </UFormField>
-      
-    <UFormField
-      label="CITE de origen"
-      name="cooperativa.cite_origen"
-      help="CITE del documento externo."
-    >
-      <UInput
-        v-model="model.cite_origen"
-        placeholder="Ej. CITE institucional o del documento recibido"
-        icon="i-lucide-file-code"
-        class="w-full font-mono"
-        maxlength="200"
-      />
-    </UFormField>
+
+      <UFormField
+        label="Documento de Respaldo"
+        name="cooperativa.doc_respaldo"
+        help="Documento que respalda la solicitud."
+      >
+        <UInput
+          v-model="model.doc_respaldo"
+          placeholder="Ej. Poder notarial, resolución, nota..."
+          icon="i-lucide-file-text"
+          class="w-full"
+          maxlength="200"
+        />
+      </UFormField>
     </div>
-
-
-
 
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <UFormField
@@ -130,30 +125,31 @@ const model = defineModel<CorrespCooperativaFormState>({ required: true })
         />
       </UFormField>
     </div>
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-    <UFormField
-      label="Correo del solicitante"
-      name="cooperativa.correo_solicitante"
-    >
-      <UInput
-        v-model="model.correo_solicitante"
-        type="email"
-        placeholder="Ej. contacto@cooperativa.bo"
-        icon="i-lucide-mail"
-        class="w-full"
-      />
-    </UFormField>
 
-    <UFormField
-      label="Nro. de poder"
-      name="cooperativa.nro_poder"
-    >
-      <UInput
-        v-model="model.nro_poder"
-        placeholder="Opcional"
-        class="w-full"
-      />
-    </UFormField>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <UFormField
+        label="Correo del solicitante"
+        name="cooperativa.correo_solicitante"
+      >
+        <UInput
+          v-model="model.correo_solicitante"
+          type="email"
+          placeholder="Ej. contacto@cooperativa.bo"
+          icon="i-lucide-mail"
+          class="w-full"
+        />
+      </UFormField>
+
+      <UFormField
+        label="Nro. de poder"
+        name="cooperativa.nro_poder"
+      >
+        <UInput
+          v-model="model.nro_poder"
+          placeholder="Opcional"
+          class="w-full"
+        />
+      </UFormField>
     </div>
   </div>
 </template>

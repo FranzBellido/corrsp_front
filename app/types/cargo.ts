@@ -8,6 +8,7 @@ export interface CargoUsuarioVinculo {
 export interface Cargo {
   id: string;
   nombre: string;
+  nombre_firma?: string | null;
   id_anterior?: number;
   cargos_cod_depto?: string | null;
   area_id?: string | null;
@@ -29,6 +30,7 @@ export interface Cargo {
 
 export interface CreateCargoPayload {
   nombre: string;
+  nombre_firma?: string;
   id_anterior?: number;
   cargos_cod_depto?: string;
   area_id?: string;

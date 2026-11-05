@@ -58,6 +58,10 @@ const cargoSchema = z.object({
     .trim()
     .min(1, 'El nombre del cargo es obligatorio')
     .max(255, 'No puede exceder 255 caracteres'),
+  nombre_firma: z
+    .string()
+    .max(200, 'No puede exceder 200 caracteres')
+    .optional(),
   id_anterior: z.number().int().optional(),
   cargos_cod_depto: z.string().max(255, 'No puede exceder 255 caracteres').optional(),
   area_id: z.string().optional(),
@@ -70,6 +74,7 @@ type CargoSchemaType = z.infer<typeof cargoSchema>
 
 const emptyForm = (): CargoSchemaType => ({
   nombre: '',
+  nombre_firma: '',
   id_anterior: undefined,
   cargos_cod_depto: '',
   area_id: '',
@@ -114,6 +119,7 @@ watch(
         (val.usuario_id ? [val.usuario_id] : [])
       form.value = {
         nombre: val.nombre || '',
+        nombre_firma: val.nombre_firma || '',
         id_anterior: val.id_anterior,
         cargos_cod_depto: val.cargos_cod_depto || '',
         area_id: val.area_id || '',
@@ -144,6 +150,7 @@ const handleSave = async (event?: FormSubmitEvent<CargoSchemaType>) => {
     const usuariosIds = [...new Set((data.usuarios_ids || []).filter(Boolean))]
     const payload: CreateCargoPayload = {
       nombre: data.nombre.trim(),
+      nombre_firma: data.nombre_firma?.trim() || undefined,
       id_anterior: data.id_anterior !== undefined ? Number(data.id_anterior) : undefined,
       cargos_cod_depto: data.cargos_cod_depto?.trim() || undefined,
       area_id: data.area_id || undefined,
@@ -220,6 +227,20 @@ const handleSave = async (event?: FormSubmitEvent<CargoSchemaType>) => {
             icon="i-lucide-briefcase"
             class="w-full"
             autofocus
+          />
+        </UFormField>
+
+        <UFormField
+          label="Nombre en legalizaciones"
+          name="nombre_firma"
+          help="Texto de firma que se registra al legalizar (campo cargos.nombre_firma). Si queda vacío, se usará el nombre del cargo."
+        >
+          <UInput
+            v-model="form.nombre_firma"
+            placeholder="Ej. Lic. María López — Jefe de Archivo"
+            icon="i-lucide-signature"
+            class="w-full"
+            maxlength="200"
           />
         </UFormField>
 

@@ -133,7 +133,9 @@ export interface CorrespCooperativa {
   correo_solicitante?: string | null;
   nro_poder?: string | null;
   telefono?: string | null;
-  cite_origen?: string | null;
+  doc_respaldo?: string | null;
+  fecha_legalizacion?: string | null;
+  nombre_usuario_elabora?: string | null;
   nombre_cooperativa?: string | null;
   cooperativa?: {
     id: number;
@@ -155,7 +157,7 @@ export interface CorrespCooperativaPayload {
   correo_solicitante?: string;
   nro_poder?: string;
   telefono?: string;
-  cite_origen?: string;
+  doc_respaldo?: string;
   nombre_cooperativa?: string;
 }
 

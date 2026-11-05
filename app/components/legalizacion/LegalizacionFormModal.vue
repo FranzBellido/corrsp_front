@@ -29,7 +29,7 @@ const cooperativaSchema = z
   .object({
     cooperativa_id: z.number().optional(),
     nombre_cooperativa: z.string().optional(),
-    cite_origen: z.string().optional(),
+    doc_respaldo: z.string().optional(),
     solicitante: z
       .string()
       .trim()
@@ -71,7 +71,7 @@ function emptyCooperativa(): CorrespCooperativaFormState {
     correo_solicitante: '',
     nro_poder: '',
     telefono: '',
-    cite_origen: '',
+    doc_respaldo: '',
   }
 }
 
@@ -92,7 +92,7 @@ function mapCooperativaExistente(val: Correspondencia): CorrespCooperativaFormSt
     correo_solicitante: existente.correo_solicitante || '',
     nro_poder: existente.nro_poder || '',
     telefono: existente.telefono || '',
-    cite_origen: existente.cite_origen || '',
+    doc_respaldo: existente.doc_respaldo || '',
   }
 }
 
@@ -176,7 +176,7 @@ function buildCooperativaPayload(): CorrespCooperativaPayload {
     correo_solicitante: coop.correo_solicitante?.trim() || undefined,
     nro_poder: coop.nro_poder?.trim() || undefined,
     telefono: coop.telefono?.trim() || undefined,
-    cite_origen: coop.cite_origen?.trim() || undefined,
+    doc_respaldo: coop.doc_respaldo?.trim() || undefined,
   }
 }
 
