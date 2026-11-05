@@ -13,12 +13,11 @@ import CorAcciones from '~/components/correspondencia/CorAcciones.vue'
 import CorTable from '~/components/CorTable.vue'
 import BandejaViewHeader from '~/components/BandejaViewHeader.vue'
 import {
-  citeOrigenCorrespondencia,
   correspondenciaPuedeDerivar,
-  correspondenciaSinNumerar,
   etiquetaHojaRuta,
   clasesEtiquetaHojaRuta,
-  etiquetaNumeroCorrespondencia,
+  etiquetaCorrelativoBandeja,
+  clasesEtiquetaCorrelativoBandeja,
   mensajeNoDerivarCorrespondencia,
   MENSAJE_ELIMINAR_CORRELATIVO,
 } from '~/utils/correspondencia'
@@ -139,16 +138,9 @@ const columns = computed<TableColumn<Correspondencia>[]>(() => {
     header: 'Nº / Correlativo',
     cell: ({ row }) => {
       const c = row.original
-      return h('div', { class: 'flex flex-col' }, [
-        h('span', {
-          class: [
-            'font-bold',
-            correspondenciaSinNumerar(c) ? 'text-muted italic' : 'text-primary-600 dark:text-primary-400',
-          ],
-        }, etiquetaNumeroCorrespondencia(c)),
-        citeOrigenCorrespondencia(c)
-          ? h('span', { class: 'text-[11px] text-gray-400 font-mono' }, citeOrigenCorrespondencia(c))
-          : null,
+      const texto = etiquetaCorrelativoBandeja(c)
+      return h('div', { class: 'flex flex-col min-w-0 max-w-[6rem]' }, [
+        h('span', { class: clasesEtiquetaCorrelativoBandeja(c), title: texto }, texto),
       ])
     },
   },

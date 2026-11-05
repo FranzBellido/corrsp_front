@@ -38,6 +38,29 @@ export function etiquetaNumeroCorrespondencia(c: Pick<Correspondencia, 'nro' | '
   return `Nº ${c.nro}/${c.gestion}`
 }
 
+type CorrelativoBandejaPick = Pick<
+  Correspondencia,
+  'cite' | 'nro' | 'gestion' | 'cite_origen' | 'corresp_entidad' | 'corresp_cooperativa'
+>
+
+/** Texto único columna Nº / Correlativo (cite → CITE origen → Nº). */
+export function etiquetaCorrelativoBandeja(c: CorrelativoBandejaPick): string {
+  const cite = c.cite?.trim()
+  if (cite) return cite
+  const origen = citeOrigenCorrespondencia(c)
+  if (origen) return origen
+  return etiquetaNumeroCorrespondencia(c)
+}
+
+/** Estilo destacado de correlativo en bandeja correspondencia. */
+export function clasesEtiquetaCorrelativoBandeja(c: CorrelativoBandejaPick): string {
+  const base = 'block max-w-[6rem] truncate text-[11px] leading-tight font-bold'
+  if (c.cite?.trim() || citeOrigenCorrespondencia(c) || !correspondenciaSinNumerar(c)) {
+    return `${base} text-primary-600 dark:text-primary-400`
+  }
+  return `${base} text-muted italic`
+}
+
 export function correspondenciaTieneHojaRuta(
   c: Pick<Correspondencia, 'hr_id' | 'hoja_ruta'>,
 ): boolean {
