@@ -111,11 +111,11 @@ const ingresarLabel = computed(() =>
         <div class="flex flex-wrap items-center gap-2">
           <span class="text-xs text-muted hidden sm:inline">Sistema de Correspondencia</span>
           <UButton
-            to="mailto:contacto@afcoop.gob.bo"
+            to="/#modulos"
             variant="soft"
             color="neutral"
             size="sm"
-            label="Mesa de ayuda"
+            label="Guía de usuario"
           />
           <UButton
             to="mailto:contacto@afcoop.gob.bo"
