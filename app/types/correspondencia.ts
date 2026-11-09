@@ -19,6 +19,30 @@ export interface HojaRuta {
   };
 }
 
+export interface HojaRutaCorrespondenciaItem {
+  id: string;
+  nro: number;
+  gestion: number;
+  referencia: string;
+  cite_origen?: string | null;
+  fecha_emision?: string | null;
+  proceso?: {
+    id: number;
+    nombre: string;
+    codigo?: string;
+  } | null;
+  estado?: {
+    id: number;
+    nombre: string;
+  } | null;
+}
+
+export interface HojaRutaCorrespondenciasData {
+  hoja_ruta: HojaRuta;
+  correspondencias: HojaRutaCorrespondenciaItem[];
+  total: number;
+}
+
 export interface Correspondencia {
   id: string;
   hr_id?: string | null;

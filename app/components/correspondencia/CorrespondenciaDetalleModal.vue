@@ -1,7 +1,13 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import type { TabsItem } from '@nuxt/ui'
-import type { CorrespCooperativa, CorrespEntidad, RecDeposito } from '~/types/correspondencia'
+import type {
+  CorrespCooperativa,
+  CorrespEntidad,
+  HojaRutaCorrespondenciaItem,
+  HojaRutaCorrespondenciasData,
+  RecDeposito,
+} from '~/types/correspondencia'
 import type { CorrespondenciaDetalle, Derivacion } from '~/types/derivacion'
 import type { RespuestaApi } from '~/types/respuestas'
 import { backendService } from '~/services/backend.service'
@@ -27,6 +33,9 @@ const { apiBaseUrl, apiPublicUrl } = useApiUrls()
 const loading = ref(false)
 const detalle = ref<CorrespondenciaDetalle | null>(null)
 const activeTab = ref('info')
+
+const loadingHojaRuta = ref(false)
+const hojaRutaData = ref<HojaRutaCorrespondenciasData | null>(null)
 
 const showEditor = ref(false)
 const editorKey = ref('')
@@ -100,11 +109,72 @@ watch(
     }
     if (!isOpen) {
       detalle.value = null
+      hojaRutaData.value = null
       activeTab.value = 'info'
       cerrarEditorOnlyOffice()
     }
   },
 )
+
+const hrIdDetalle = computed(
+  () => detalle.value?.hr_id || detalle.value?.hoja_ruta?.id || null,
+)
+
+const muestraTabHojaRuta = computed(() => Boolean(hrIdDetalle.value))
+
+const totalCorrespHojaRuta = computed(
+  () => hojaRutaData.value?.total ?? (detalle.value?.hoja_ruta ? 1 : 0),
+)
+
+const cargarHojaRutaCorresp = async () => {
+  const hrId = hrIdDetalle.value
+  if (!hrId) {
+    hojaRutaData.value = null
+    return
+  }
+  loadingHojaRuta.value = true
+  try {
+    const res = await backendService.get<HojaRutaCorrespondenciasData>(
+      `correspondencia/hoja-ruta/${hrId}/correspondencias`,
+    )
+    hojaRutaData.value =
+      (res as RespuestaApi<HojaRutaCorrespondenciasData>)?.data ?? null
+  } catch (error: unknown) {
+    hojaRutaData.value = null
+    const err = error as { data?: { message?: string }; message?: string }
+    toast.add({
+      title: 'No se pudo cargar la hoja de ruta',
+      description: err?.data?.message || err?.message || 'Error al listar procesos de la HR.',
+      color: 'error',
+      icon: 'i-lucide-alert-circle',
+    })
+  } finally {
+    loadingHojaRuta.value = false
+  }
+}
+
+const abrirCorrespondenciaHr = (item: HojaRutaCorrespondenciaItem) => {
+  if (!item.id || item.id === detalle.value?.id) return
+  activeTab.value = 'info'
+  void cargarDetalle(item.id)
+}
+
+watch(
+  () => [detalle.value?.id, hrIdDetalle.value] as const,
+  () => {
+    if (hrIdDetalle.value) {
+      void cargarHojaRutaCorresp()
+    } else {
+      hojaRutaData.value = null
+    }
+  },
+)
+
+watch(activeTab, (tab) => {
+  if (tab === 'hoja_ruta' && hrIdDetalle.value && !hojaRutaData.value && !loadingHojaRuta.value) {
+    void cargarHojaRutaCorresp()
+  }
+})
 
 const etiquetaDerivacion = (d: Derivacion) =>
   d.nombre || d.codificador?.nombre || 'Derivación'
@@ -341,6 +411,16 @@ const tabItems = computed<TabsItem[]>(() => {
       icon: 'i-lucide-stamp',
       value: 'legalizacion',
       slot: 'legalizacion',
+    })
+  }
+
+  if (muestraTabHojaRuta.value) {
+    items.push({
+      label: 'Hoja de ruta',
+      icon: 'i-lucide-route',
+      value: 'hoja_ruta',
+      slot: 'hoja_ruta',
+      badge: totalCorrespHojaRuta.value > 0 ? totalCorrespHojaRuta.value : undefined,
     })
   }
 
@@ -629,6 +709,130 @@ const tabItems = computed<TabsItem[]>(() => {
               :derivaciones="detalle.derivaciones"
               :active="activeTab === 'legalizacion'"
             />
+          </template>
+
+          <template #hoja_ruta>
+            <div class="pt-4 space-y-4">
+              <div
+                v-if="hojaRutaData?.hoja_ruta || detalle.hoja_ruta"
+                class="p-4 rounded-md border border-default bg-elevated/40 space-y-3"
+              >
+                <div class="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p class="text-[11px] font-bold uppercase tracking-wider text-muted">
+                      Hoja de ruta
+                    </p>
+                    <p class="text-lg font-semibold text-highlighted tabular-nums mt-0.5">
+                      HR
+                      {{
+                        hojaRutaData?.hoja_ruta?.numero ?? detalle.hoja_ruta?.numero
+                      }}/{{
+                        hojaRutaData?.hoja_ruta?.anio ?? detalle.hoja_ruta?.anio
+                      }}
+                    </p>
+                  </div>
+                  <UBadge color="primary" variant="subtle" size="sm">
+                    {{ hojaRutaData?.total ?? '—' }} proceso(s)
+                  </UBadge>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <p class="text-[11px] font-bold uppercase tracking-wider text-muted mb-1">Área</p>
+                    <p class="text-default">
+                      {{
+                        hojaRutaData?.hoja_ruta?.areas?.nombre
+                          || detalle.hoja_ruta?.areas?.nombre
+                          || '—'
+                      }}
+                    </p>
+                  </div>
+                  <div class="sm:col-span-2">
+                    <p class="text-[11px] font-bold uppercase tracking-wider text-muted mb-1">Referencia HR</p>
+                    <p class="text-default line-clamp-3">
+                      {{
+                        hojaRutaData?.hoja_ruta?.referencia?.trim()
+                          || detalle.hoja_ruta?.referencia?.trim()
+                          || '—'
+                      }}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div v-if="loadingHojaRuta" class="space-y-2">
+                <USkeleton class="h-12 w-full" />
+                <USkeleton class="h-12 w-full" />
+                <USkeleton class="h-12 w-full" />
+              </div>
+
+              <div v-else-if="hojaRutaData?.correspondencias?.length" class="space-y-2">
+                <p class="text-xs font-semibold text-muted uppercase tracking-wider">
+                  Correspondencias en esta HR
+                </p>
+                <ul class="divide-y divide-default border border-default rounded-md overflow-hidden max-h-[min(28rem,58vh)] overflow-y-auto">
+                  <li
+                    v-for="item in hojaRutaData.correspondencias"
+                    :key="item.id"
+                    class="p-3 bg-default/30 hover:bg-elevated/50 transition-colors"
+                    :class="item.id === detalle.id ? 'ring-1 ring-inset ring-primary/40 bg-primary/5' : ''"
+                  >
+                    <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                      <div class="min-w-0 flex-1 space-y-1">
+                        <div class="flex flex-wrap items-center gap-2">
+                          <span class="text-xs font-mono text-primary-600 dark:text-primary-400 font-semibold">
+                            {{
+                              item.cite_origen?.trim()
+                                || `Nº ${item.nro}/${item.gestion}`
+                            }}
+                          </span>
+                          <UBadge
+                            v-if="item.id === detalle.id"
+                            color="primary"
+                            variant="subtle"
+                            size="xs"
+                          >
+                            Actual
+                          </UBadge>
+                          <UBadge
+                            v-if="item.estado?.nombre"
+                            color="neutral"
+                            variant="outline"
+                            size="xs"
+                          >
+                            {{ item.estado.nombre }}
+                          </UBadge>
+                        </div>
+                        <p class="text-sm font-medium text-highlighted line-clamp-2">
+                          {{ item.referencia }}
+                        </p>
+                        <p class="text-xs text-muted">
+                          <span class="font-medium">Proceso:</span>
+                          {{ item.proceso?.nombre || '—' }}
+                          <span v-if="item.proceso?.codigo" class="font-mono opacity-80">
+                            ({{ item.proceso.codigo }})
+                          </span>
+                          · Emisión: {{ formatFechaSolo(item.fecha_emision) }}
+                        </p>
+                      </div>
+                      <UButton
+                        v-if="item.id !== detalle.id"
+                        size="xs"
+                        color="neutral"
+                        variant="soft"
+                        icon="i-lucide-external-link"
+                        label="Ver"
+                        @click="abrirCorrespondenciaHr(item)"
+                      />
+                    </div>
+                  </li>
+                </ul>
+              </div>
+
+              <div v-else class="py-8 text-center">
+                <UIcon name="i-lucide-route" class="size-10 text-dimmed mx-auto mb-2" />
+                <p class="text-sm text-muted">No hay otros procesos vinculados a esta hoja de ruta.</p>
+              </div>
+            </div>
           </template>
 
           <template #adjuntos>

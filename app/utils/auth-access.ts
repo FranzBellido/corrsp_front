@@ -23,7 +23,7 @@ export function esRutaAdministracion(path: string): boolean {
 }
 
 /** Prefijos de rutas del menú Recaudaciones. */
-export const RUTAS_RECAUDACION = ['/recaudaciones'] as const
+export const RUTAS_RECAUDACION = ['/recaudaciones', '/rec_dashboard'] as const
 
 export function esRutaRecaudacion(path: string): boolean {
   return RUTAS_RECAUDACION.some(

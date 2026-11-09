@@ -281,7 +281,17 @@ onMounted(() => {
     <PageHeader
       title="Recaudaciones"
       description="Gestión y verificación de depósitos vinculados a correspondencia"
-    />
+    >
+      <template #actions>
+        <UButton
+          to="/rec_dashboard"
+          color="neutral"
+          variant="soft"
+          icon="i-lucide-chart-pie"
+          label="Dashboard"
+        />
+      </template>
+    </PageHeader>
 
     <AppFilter>
       <AppFilterItem label="Búsqueda" min-w="320px" flex1>

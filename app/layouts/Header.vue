@@ -52,6 +52,9 @@ defineEmits<{
     <div class="flex items-center gap-2 sm:gap-3">
       <!-- Toggle Dark/Light mode -->
       <UColorModeButton variant="ghost" color="neutral" />
+
+      <!-- Alertas del cargo / área -->
+      <AlertasHeaderButton />
       
       <!-- Notifications slideover toggle -->
       <NotificationBell />

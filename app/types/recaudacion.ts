@@ -45,3 +45,57 @@ export interface VistaRecDepositos {
 }
 
 export type RespuestaBusquedaRecDeposito = VistaRecDepositos
+
+export interface FiltroRecDashboard {
+  gestion: number
+  mes?: number
+  proc_id?: number
+}
+
+export interface RecDashboardResumen {
+  total_importe: number
+  total_boletas: number
+  verificados: number
+  pendientes: number
+}
+
+export interface RecDashboardPorMes {
+  mes: number
+  label: string
+  importe: number
+  cantidad: number
+  verificados: number
+}
+
+export interface RecDashboardPorProceso {
+  proc_id: number | null
+  proceso: string
+  codigo: string | null
+  importe: number
+  cantidad: number
+  verificados: number
+}
+
+export interface RecDashboardDetalle {
+  mes: number
+  mes_label: string
+  proc_id: number | null
+  proceso: string
+  codigo: string | null
+  cantidad: number
+  importe: number
+  verificados: number
+  pendientes: number
+}
+
+export interface RecDashboardData {
+  filtros: {
+    gestion: number
+    mes: number | null
+    proc_id: number | null
+  }
+  resumen: RecDashboardResumen
+  por_mes: RecDashboardPorMes[]
+  por_proceso: RecDashboardPorProceso[]
+  detalle: RecDashboardDetalle[]
+}

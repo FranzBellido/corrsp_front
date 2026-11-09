@@ -70,7 +70,18 @@ const defaultNavItems: NavItem[] = [
   {
     label: 'Recaudaciones',
     icon: 'i-lucide-banknote',
-    to: '/recaudaciones',
+    children: [
+      {
+        label: 'Boletas',
+        to: '/recaudaciones',
+        icon: 'i-lucide-receipt',
+      },
+      {
+        label: 'Dashboard',
+        to: '/rec_dashboard',
+        icon: 'i-lucide-chart-pie',
+      },
+    ],
   },
   {
     label: 'Administración',
