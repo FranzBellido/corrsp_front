@@ -120,13 +120,13 @@ const slideActual = computed(() => modulos[slideActivo.value])
           </UBadge>
 
           <h1
-            class="mb-6 text-4xl leading-[1.12] font-extrabold tracking-tight text-highlighted sm:text-5xl lg:text-[56px]"
+            class="mb-6 text-4xl leading-[1.12] font-extrabold tracking-tight text-primary-700 dark:text-primary-400 sm:text-5xl lg:text-[56px]"
           >
             Bienvenidos al
             <br>
-            <span class="text-success-600 dark:text-success-400">Sistema de</span>
+            Sistema de
             <br>
-            <span class="text-primary-700 dark:text-primary-400">Gestión de Procesos</span>
+            Gestión de Procesos
           </h1>
 
           <p class="mb-8 max-w-xl text-base leading-relaxed text-muted sm:text-lg">
@@ -154,22 +154,6 @@ const slideActual = computed(() => modulos[slideActivo.value])
               to="#modulos"
             />
           </div>
-
-          <UCard
-            variant="subtle"
-            class="max-w-md"
-            :ui="{ body: 'flex items-center gap-3 p-3' }"
-          >
-            <div
-              class="flex size-10 shrink-0 items-center justify-center rounded-md bg-success-500/10 text-success-600 dark:text-success-400"
-            >
-              <UIcon name="i-lucide-shield-check" class="size-5" />
-            </div>
-            <p class="text-xs font-medium text-muted">
-              Supervisión y regulación legal del Movimiento Cooperativo del Estado Plurinacional de
-              Bolivia.
-            </p>
-          </UCard>
         </div>
 
         <div id="modulos" class="relative lg:col-span-6">

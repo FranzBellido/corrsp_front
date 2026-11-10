@@ -88,44 +88,10 @@ const ingresarLabel = computed(() =>
       :ui="{ container: 'max-w-7xl flex flex-col gap-6' }"
     >
       <template #left>
-        <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-8">
-          <div class="flex items-center gap-3">
-            <img :src="logoUrl" alt="AFCOOP" class="h-10 w-auto object-contain">
-            <div>
-              <p class="text-sm font-bold text-highlighted">
-                AFCOOP
-              </p>
-              <p class="mt-1 text-[11px] text-muted">
-                Autoridad de Fiscalización y Control de Cooperativas
-              </p>
-            </div>
-          </div>
-          <p class="text-xs text-muted max-w-sm">
-            © {{ new Date().getFullYear() }} Sistema de Gestión de Procesos v1.
-            AFFCOOP — La Paz, Bolivia.
-          </p>
-        </div>
-      </template>
-
-      <template #right>
-        <div class="flex flex-wrap items-center gap-2">
-          <span class="text-xs text-muted hidden sm:inline">Sistema de Correspondencia</span>
-          <UButton
-            to="/#modulos"
-            variant="soft"
-            color="neutral"
-            size="sm"
-            label="Guía de usuario"
-          />
-          <UButton
-            to="mailto:contacto@afcoop.gob.bo"
-            icon="i-lucide-mail"
-            color="neutral"
-            variant="outline"
-            square
-            aria-label="Correo de contacto"
-          />
-        </div>
+        <p class="text-xs text-muted max-w-2xl lg:max-w-3xl leading-relaxed">
+          © {{ new Date().getFullYear() }} Sistema de Gestión de Procesos v1.
+          AFFCOOP — La Paz, Bolivia.
+        </p>
       </template>
     </UFooter>
   </div>

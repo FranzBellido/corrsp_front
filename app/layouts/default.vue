@@ -20,7 +20,7 @@ watch(() => route.path, () => {
   <div class="flex h-screen bg-neutral-100/60 dark:bg-neutral-950 font-sans antialiased text-neutral-900 dark:text-neutral-100 overflow-hidden">
     <!-- Desktop Sidebar -->
     <aside
-      class="hidden lg:block h-full shrink-0 transition-all duration-300 shadow-lg z-30"
+      class="hidden lg:block h-full shrink-0 transition-all duration-300 z-30"
       :class="[isCollapsed ? 'w-[4.5rem]' : 'w-[17rem]']"
     >
       <LayoutSidebar :collapsed="isCollapsed" />
@@ -31,7 +31,7 @@ watch(() => route.path, () => {
       v-model:open="isSidebarOpen"
       side="left"
       class="lg:hidden"
-      :ui="{ content: 'max-w-[17rem] p-0 overflow-hidden bg-[#0b1f3a] ring-0' }"
+      :ui="{ content: 'max-w-[17rem] p-0 overflow-hidden bg-neutral-200/95 dark:bg-neutral-900 ring-0' }"
     >
       <template #content>
         <div class="h-full w-full">

@@ -72,6 +72,8 @@ const procesoParams = computed(() => {
   return areaId ? { area_id: String(areaId) } : {}
 })
 
+const filtroAvanzadoAbierto = ref(false)
+
 const compartidosAlcance = ref<'todos' | 'recibidos' | 'enviados'>('todos')
 const compartidosAlcanceOptions = [
   { label: 'Todos', value: 'todos' },
@@ -579,6 +581,8 @@ onMounted(() => {
     </BandejaViewHeader>
 
     <AppFilter
+      v-model:open="filtroAvanzadoAbierto"
+      collapsible
       title="Filtros de búsqueda avanzada"
       description="Gestión, proceso, hoja de ruta o criterio libre"
     >

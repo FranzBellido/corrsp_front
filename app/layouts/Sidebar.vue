@@ -1,9 +1,10 @@
 <script setup lang="ts">
+import type { NavigationMenuItem } from '@nuxt/ui'
 import type { DashboardResumen } from '~/types/dashboard'
 import type { RespuestaApi } from '~/types/respuestas'
 import { get } from '~/services/backend.service'
 
-defineProps<{
+const props = defineProps<{
   collapsed?: boolean
 }>()
 
@@ -171,17 +172,6 @@ const isChildActive = (item: NavItem) => {
   )
 }
 
-const isItemActive = (item: NavItem) => {
-  if (!item.to) return false
-  if (item.to === '/dashboard') {
-    return route.path === '/dashboard' || route.path === '/'
-  }
-  return route.path === item.to || route.path.startsWith(`${item.to}/`)
-}
-
-const isLinkActive = (to: string) =>
-  route.path === to || route.path.startsWith(`${to}/`)
-
 function badgeValue(item: NavSubItem): number | null {
   if (!item.badgeKey) return null
   if (item.badgeKey === 'ingreso_nuevos') return ingresoNuevos.value
@@ -192,6 +182,55 @@ function badgeValue(item: NavSubItem): number | null {
 function formatBadge(n: number): string {
   return n > 99 ? '99+' : String(n)
 }
+
+function mapChild(child: NavSubItem): NavigationMenuItem {
+  const count = badgeValue(child)
+  return {
+    label: child.label,
+    to: child.to,
+    icon: child.icon,
+    onSelect: () => emit('navigate'),
+    ...(count != null
+      ? {
+          badge: {
+            label: formatBadge(count),
+            color: (child.badgeTone === 'success' ? 'success' : 'neutral') as
+              | 'success'
+              | 'neutral',
+            variant: 'subtle' as const,
+            size: 'sm' as const,
+          },
+        }
+      : {}),
+  }
+}
+
+function mapNavItem(item: NavItem): NavigationMenuItem {
+  if (item.children?.length) {
+    return {
+      label: item.label,
+      icon: item.icon,
+      defaultOpen: isChildActive(item),
+      children: item.children.map(mapChild),
+    }
+  }
+  return {
+    label: item.label,
+    icon: item.icon,
+    to: item.to,
+    onSelect: () => emit('navigate'),
+  }
+}
+
+const navigationGroups = computed<NavigationMenuItem[][]>(() => {
+  void route.path
+  void bandejaCounts.value
+  void ingresoNuevos.value
+  return [
+    mainNavItems.value.map(mapNavItem),
+    footerNavItems.value.map(mapNavItem),
+  ]
+})
 
 async function cargarConteos() {
   if (!isAuthenticated.value) return
@@ -223,183 +262,66 @@ watch(
 </script>
 
 <template>
-  <div class="flex flex-col h-full overflow-hidden select-none bg-[#0b1f3a] text-white">
-    <!-- Brand -->
-    <div class="p-3 shrink-0">
-      <div
-        class="rounded-xl bg-white px-3 py-2.5 shadow-sm flex items-center justify-center min-h-14"
-        :class="collapsed ? 'px-2' : ''"
+  <div
+    class="flex flex-col h-full overflow-hidden select-none bg-neutral-200/95 dark:bg-neutral-900 text-default border-r border-neutral-300/80 dark:border-neutral-800 shadow-sm"
+  >
+  <!-- Brand -->
+  <div
+    class="shrink-0 border-b border-neutral-300/70 dark:border-neutral-800 bg-neutral-300/40 dark:bg-neutral-950/50 flex items-center justify-center w-full"
+    :class="props.collapsed ? 'p-2 min-h-[3.75rem]' : 'px-3 py-3 min-h-[4.5rem]'"
+  >
+    <NuxtLink
+      to="/dashboard"
+      class="flex w-full items-center justify-center"
+      @click="emit('navigate')"
+    >
+      <img
+        src="/logo_afcoop.png"
+        alt="AFCOOP"
+        class="object-contain object-center"
+        :class="
+          props.collapsed
+            ? 'h-8 w-8'
+            : 'w-full max-w-full h-auto max-h-14'
+        "
       >
-        <img
-          src="/logo_afcoop.png"
-          alt="AFCOOP"
-          class="object-contain"
-          :class="collapsed ? 'h-8 w-auto' : 'h-10 w-auto max-w-full'"
-        >
-      </div>
-    </div>
+    </NuxtLink>
+  </div>
 
-    <!-- Navigation -->
-    <nav class="flex-1 px-2.5 pb-2 space-y-1 overflow-y-auto sidebar-scroll">
-      <div v-for="item in mainNavItems" :key="item.label" class="space-y-0.5">
-        <!-- Enlace simple -->
-        <UTooltip
-          v-if="!item.children"
-          :text="item.label"
-          :disabled="!collapsed"
-          side="right"
-        >
-          <NuxtLink
-            :to="item.to"
-            class="group relative flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-[13px] font-semibold transition-colors"
-            :class="[
-              isItemActive(item)
-                ? 'bg-sky-500 text-white shadow-md shadow-sky-900/40'
-                : 'text-slate-300 hover:bg-white/10 hover:text-white',
-              collapsed ? 'justify-center px-0' : '',
-            ]"
-            @click="emit('navigate')"
-          >
-            <UIcon
-              :name="item.icon"
-              class="size-[18px] shrink-0"
-              :class="isItemActive(item) ? 'text-white' : 'text-slate-400 group-hover:text-sky-300'"
-            />
-            <span v-if="!collapsed" class="truncate">{{ item.label }}</span>
-          </NuxtLink>
-        </UTooltip>
-
-        <!-- Grupo colapsable -->
-        <UCollapsible
-          v-else
-          :default-open="isChildActive(item)"
-          :unmount-on-hide="false"
-        >
-          <UTooltip
-            :text="item.label"
-            :disabled="!collapsed"
-            side="right"
-          >
-            <UButton
-              variant="ghost"
-              color="neutral"
-              class="w-full gap-2.5 py-2 px-2.5 rounded-xl transition-colors group"
-              :class="[
-                isChildActive(item)
-                  ? 'text-sky-300 bg-white/5'
-                  : 'text-slate-300 hover:bg-white/10 hover:text-white',
-                collapsed ? 'justify-center px-0' : 'justify-start',
-              ]"
-              :ui="{
-                leadingIcon: 'size-[18px]',
-                trailingIcon: 'size-4',
-                label: 'text-[13px] font-semibold',
-              }"
-            >
-              <template #leading>
-                <UIcon
-                  :name="item.icon"
-                  class="size-[18px] shrink-0"
-                  :class="isChildActive(item) ? 'text-sky-300' : 'text-slate-400 group-hover:text-sky-300'"
-                />
-              </template>
-              <span v-if="!collapsed" class="truncate flex-1 text-left">{{ item.label }}</span>
-              <template v-if="!collapsed" #trailing>
-                <UIcon
-                  name="i-lucide-chevron-down"
-                  class="size-4 transition-transform duration-200"
-                  :class="isChildActive(item) ? 'rotate-180 text-sky-400' : 'text-slate-500'"
-                />
-              </template>
-            </UButton>
-          </UTooltip>
-
-          <template #content>
-            <div
-              v-if="!collapsed"
-              class="mt-1 ml-3 space-y-0.5 border-l border-white/10 pl-2.5"
-            >
-              <NuxtLink
-                v-for="child in item.children"
-                :key="child.label"
-                :to="child.to"
-                class="flex items-center gap-2 py-1.5 px-2.5 rounded-lg text-xs font-medium transition-colors"
-                :class="[
-                  isLinkActive(child.to)
-                    ? 'bg-sky-500 text-white shadow-sm shadow-sky-900/30'
-                    : 'text-slate-400 hover:bg-white/10 hover:text-white',
-                ]"
-                @click="emit('navigate')"
-              >
-                <UIcon
-                  v-if="child.icon"
-                  :name="child.icon"
-                  class="size-4 shrink-0"
-                  :class="isLinkActive(child.to) ? 'text-white' : 'text-slate-500'"
-                />
-                <span class="truncate flex-1">{{ child.label }}</span>
-                <span
-                  v-if="badgeValue(child) != null"
-                  class="min-w-5 h-5 px-1 rounded-md text-[10px] font-bold tabular-nums flex items-center justify-center"
-                  :class="[
-                    isLinkActive(child.to)
-                      ? 'bg-white/20 text-white'
-                      : child.badgeTone === 'success'
-                        ? 'bg-emerald-500 text-white'
-                        : 'bg-slate-700 text-slate-100',
-                  ]"
-                >
-                  {{ formatBadge(badgeValue(child)!) }}
-                </span>
-              </NuxtLink>
-            </div>
-          </template>
-        </UCollapsible>
-      </div>
-    </nav>
-
-    <!-- Footer -->
-    <div class="shrink-0 px-2.5 pb-3 pt-2 border-t border-white/10 space-y-0.5">
-      <UTooltip
-        v-for="item in footerNavItems"
-        :key="item.label"
-        :text="item.label"
-        :disabled="!collapsed"
-        side="right"
-      >
-        <NuxtLink
-          :to="item.to"
-          class="group flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-[13px] font-medium transition-colors"
-          :class="[
-            isItemActive(item)
-              ? 'bg-sky-500 text-white'
-              : 'text-slate-400 hover:bg-white/10 hover:text-white',
-            collapsed ? 'justify-center px-0' : '',
-          ]"
-          @click="emit('navigate')"
-        >
-          <UIcon
-            :name="item.icon"
-            class="size-[18px] shrink-0"
-            :class="isItemActive(item) ? 'text-white' : 'text-slate-500 group-hover:text-sky-300'"
-          />
-          <span v-if="!collapsed" class="truncate">{{ item.label }}</span>
-        </NuxtLink>
-      </UTooltip>
-    </div>
+  <!-- Navigation (estilo Nuxt UI / dashboard) -->
+  <div class="flex-1 min-h-0 overflow-y-auto px-2 py-3 sidebar-scroll">
+    <UNavigationMenu
+      :collapsed="props.collapsed"
+      :items="navigationGroups"
+      orientation="vertical"
+      highlight
+      :unmount-on-hide="false"
+      class="w-full data-[orientation=vertical]:w-full"
+      :ui="{
+        link: 'py-2',
+        childLink: 'py-1.5',
+      }"
+    />
+  </div>
   </div>
 </template>
 
 <style scoped>
 .sidebar-scroll {
   scrollbar-width: thin;
-  scrollbar-color: rgb(71 85 105) transparent;
+  scrollbar-color: rgb(163 163 163 / 0.85) transparent;
+}
+:global(.dark) .sidebar-scroll {
+  scrollbar-color: rgb(64 64 64 / 0.9) transparent;
 }
 .sidebar-scroll::-webkit-scrollbar {
   width: 6px;
 }
 .sidebar-scroll::-webkit-scrollbar-thumb {
-  background: rgb(71 85 105);
+  background: rgb(163 163 163 / 0.85);
   border-radius: 999px;
+}
+:global(.dark) .sidebar-scroll::-webkit-scrollbar-thumb {
+  background: rgb(64 64 64 / 0.9);
 }
 </style>

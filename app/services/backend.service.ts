@@ -251,6 +251,27 @@ export async function descargarBlob(
 }
 
 /**
+ * Descarga binaria vía POST (cuerpo JSON), p. ej. reportes con lista de IDs.
+ */
+export async function descargarBlobPost(
+  endpoint: string,
+  body: Record<string, unknown>,
+  options?: DescargarBlobOptions,
+): Promise<Blob> {
+  const api = getApi();
+  const response = await api(endpoint, {
+    method: "POST",
+    body,
+    responseType: "blob",
+  });
+  let blob = await rechazarBlobSiEsErrorApi(response as Blob);
+  if (options?.expectPdf) {
+    blob = await normalizarBlobPdf(blob);
+  }
+  return blob;
+}
+
+/**
  * Convierte una clave de storage (ej: avatars/xxx.jpg) en un blob URL
  * listo para mostrar en <img> / UAvatar. Las URLs http(s)/blob se dejan igual.
  */
@@ -326,6 +347,7 @@ export const backendService = {
   buscar: buscarGenerico,
   crear: crearGenerico,
   descargarBlob,
+  descargarBlobPost,
   obtenerUrlDesdeStorage,
   postMultipart,
   patchMultipart,

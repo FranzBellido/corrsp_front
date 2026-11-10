@@ -11,7 +11,7 @@ import type {
 } from '~/types/derivacion'
 import type { RespuestaApi } from '~/types/respuestas'
 import { EstadoDerivacionEnum } from '~/types/estado'
-import { backendService, get, descargarBlob } from '~/services/backend.service'
+import { backendService, get, descargarBlob, descargarBlobPost } from '~/services/backend.service'
 import CorrespondenciaDetalleModal from '~/components/correspondencia/CorrespondenciaDetalleModal.vue'
 import CorAlertaDepositoPendiente from '~/components/correspondencia/CorAlertaDepositoPendiente.vue'
 import LegalizacionFormModal from '~/components/legalizacion/LegalizacionFormModal.vue'
@@ -38,6 +38,10 @@ import {
 import { getAccionesDerivacionBandeja } from '~/utils/derivacionActions'
 import CodificadorSelect from '~/components/codificador/CodificadorSelect.vue'
 import { useBandejaFiltros } from '~/composables/useBandejaFiltros'
+import {
+  filaReporteDesdeDerivacion,
+  type FilaReporteSalida,
+} from '~/utils/salida-reporte-impresion'
 
 const props = defineProps<{
   modo: 'salida' | 'ingreso' | 'con_copia'
@@ -48,6 +52,7 @@ const props = defineProps<{
 
 const UBadge = resolveComponent('UBadge')
 const UButton = resolveComponent('UButton')
+const UCheckbox = resolveComponent('UCheckbox')
 const UIcon = resolveComponent('UIcon')
 const UDropdownMenu = resolveComponent('UDropdownMenu')
 
@@ -187,6 +192,108 @@ const esIngreso = computed(() => props.modo === 'ingreso')
 const esSalida = computed(() => props.modo === 'salida')
 /** Salida: tabla compacta sin columna Instrucción */
 const tablaCompacta = computed(() => esSalida.value)
+
+const reporteSeleccion = ref<Map<string, FilaReporteSalida>>(new Map())
+const reportePosicionInicial = ref(1)
+const reporteImprimirEncabezado = ref(true)
+/** Filtro avanzado colapsable en todas las bandejas de derivación. */
+const filtroAvanzadoAbierto = ref(false)
+const reporteSalidaAbierto = ref(false)
+const opcionesPosicionReporte = Array.from({ length: 8 }, (_, i) => ({
+  label: `Posición ${i + 1}`,
+  value: i + 1,
+}))
+
+const reporteSeleccionadosCount = computed(() => reporteSeleccion.value.size)
+
+const idsPaginaReporte = computed(() =>
+  itemsVista.value
+    .map((row) => derivacionDeFila(row)?.id)
+    .filter((id): id is string => Boolean(id)),
+)
+
+const reportePaginaTodaSeleccionada = computed(() => {
+  const ids = idsPaginaReporte.value
+  return ids.length > 0 && ids.every((id) => reporteSeleccion.value.has(id))
+})
+
+const reportePaginaAlgunaSeleccionada = computed(() => {
+  const ids = idsPaginaReporte.value
+  return ids.some((id) => reporteSeleccion.value.has(id)) && !reportePaginaTodaSeleccionada.value
+})
+
+function toggleReporteSeleccion(d: Derivacion, sel: boolean) {
+  const next = new Map(reporteSeleccion.value)
+  if (sel) next.set(d.id, filaReporteDesdeDerivacion(d))
+  else next.delete(d.id)
+  reporteSeleccion.value = next
+}
+
+function seleccionarPaginaReporte() {
+  const next = new Map(reporteSeleccion.value)
+  for (const row of itemsVista.value) {
+    const d = derivacionDeFila(row)
+    if (d?.id) next.set(d.id, filaReporteDesdeDerivacion(d))
+  }
+  reporteSeleccion.value = next
+}
+
+function deseleccionarPaginaReporte() {
+  const next = new Map(reporteSeleccion.value)
+  for (const id of idsPaginaReporte.value) next.delete(id)
+  reporteSeleccion.value = next
+}
+
+function limpiarSeleccionReporte() {
+  reporteSeleccion.value = new Map()
+}
+
+const generandoReporteSalidaPdf = ref(false)
+
+async function imprimirReporteSalida() {
+  const ids = [...reporteSeleccion.value.keys()]
+  if (!ids.length) {
+    toast.add({
+      title: 'Sin selección',
+      description: 'Marque al menos un registro con la casilla del reporte.',
+      color: 'warning',
+      icon: 'i-lucide-triangle-alert',
+    })
+    return
+  }
+  generandoReporteSalidaPdf.value = true
+  try {
+    const blob = await descargarBlobPost(
+      'derivaciones/reporte/salida/pdf',
+      {
+        derivacion_ids: ids,
+        posicion_inicial: reportePosicionInicial.value,
+        imprimir_encabezado: reporteImprimirEncabezado.value,
+        cargo_id: resolveCargoOrigenId() || undefined,
+      },
+      { expectPdf: true },
+    )
+    const url = URL.createObjectURL(blob)
+    window.open(url, '_blank', 'noopener,noreferrer')
+    setTimeout(() => URL.revokeObjectURL(url), 60_000)
+    toast.add({
+      title: 'PDF generado',
+      description: 'Se abrió el reporte en una nueva pestaña.',
+      color: 'success',
+      icon: 'i-lucide-check',
+    })
+  } catch (error: unknown) {
+    const err = error as { data?: { message?: string }; message?: string }
+    toast.add({
+      title: 'No se pudo generar el PDF',
+      description: err?.data?.message || err?.message || 'Error al solicitar el reporte.',
+      color: 'error',
+      icon: 'i-lucide-alert-circle',
+    })
+  } finally {
+    generandoReporteSalidaPdf.value = false
+  }
+}
 
 /** Filtro rápido de vista sobre la página cargada. */
 const filtroVista = ref<'todos' | 'nuevos' | 'leidos'>('todos')
@@ -769,6 +876,7 @@ async function descargarReporteLegalizacion(
 const columns = computed<TableColumn<Derivacion | DestinatarioCopiaConDerivacion>[]>(() => {
   const compacto = tablaCompacta.value
   const ingreso = esIngreso.value
+  const salida = esSalida.value
   const auxCompacto = celdasAuxiliaresCompactas.value
 
   const cols: TableColumn<Derivacion | DestinatarioCopiaConDerivacion>[] = [
@@ -1037,6 +1145,36 @@ const columns = computed<TableColumn<Derivacion | DestinatarioCopiaConDerivacion
     },
   )
 
+  if (salida) {
+    cols.unshift({
+      id: 'reporte_sel',
+      header: () =>
+        h(UCheckbox, {
+          'modelValue': reportePaginaTodaSeleccionada.value
+            ? true
+            : reportePaginaAlgunaSeleccionada.value
+              ? 'indeterminate'
+              : false,
+          'onUpdate:modelValue': (value: boolean | 'indeterminate') => {
+            if (value === true || value === 'indeterminate') seleccionarPaginaReporte()
+            else deseleccionarPaginaReporte()
+          },
+          'ariaLabel': 'Seleccionar página para reporte de salida',
+        }),
+      cell: ({ row }) => {
+        const d = derivacionDeFila(row.original)
+        if (!d?.id) return null
+        const sel = reporteSeleccion.value.has(d.id)
+        return h(UCheckbox, {
+          'modelValue': sel,
+          'onUpdate:modelValue': (value: boolean | 'indeterminate') =>
+            toggleReporteSeleccion(d, !!value),
+          'ariaLabel': 'Incluir en reporte de salida',
+        })
+      },
+    })
+  }
+
   return cols
 })
 
@@ -1139,6 +1277,8 @@ onMounted(() => {
     </div>
 
     <AppFilter
+      v-model:open="filtroAvanzadoAbierto"
+      collapsible
       title="Filtros de búsqueda avanzada"
       description="Refine por gestión, proceso, hoja de ruta o criterio libre"
     >
@@ -1204,6 +1344,120 @@ onMounted(() => {
         />
       </div>
     </AppFilter>
+
+    <div
+      v-if="esSalida"
+      class="rounded-2xl border border-default bg-default/70 dark:bg-elevated/30 shadow-xs overflow-hidden"
+    >
+      <UCollapsible
+        v-model:open="reporteSalidaAbierto"
+        :unmount-on-hide="false"
+        class="w-full"
+      >
+        <div
+          class="px-4 py-3 flex flex-wrap items-center justify-between gap-2 border-b border-default/70 cursor-pointer hover:bg-elevated/40 transition-colors"
+          :aria-expanded="reporteSalidaAbierto"
+        >
+          <div class="min-w-0 flex items-center gap-2 flex-1">
+            <UIcon
+              :name="reporteSalidaAbierto ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
+              class="size-4 shrink-0 text-muted"
+            />
+            <div class="min-w-0 flex items-center gap-2 flex-wrap">
+              <p class="text-sm font-medium text-highlighted">
+                Libro de Registro
+              </p>
+              <UBadge
+                v-if="reporteSeleccionadosCount > 0"
+                color="primary"
+                variant="subtle"
+                size="xs"
+              >
+                {{ reporteSeleccionadosCount }} seleccionados
+              </UBadge>
+            </div>
+          </div>
+          <UButton
+            v-if="!reporteSalidaAbierto && reporteSeleccionadosCount > 0"
+            size="xs"
+            color="primary"
+            variant="soft"
+            icon="i-lucide-file-down"
+            :label="`PDF (${reporteSeleccionadosCount})`"
+            :loading="generandoReporteSalidaPdf"
+            :disabled="generandoReporteSalidaPdf"
+            @click.stop="imprimirReporteSalida"
+          />
+        </div>
+
+        <template #content>
+          <div class="p-4 sm:p-5 space-y-3 border-t border-default/50">
+            <p class="text-xs text-muted">
+              Generar libro de registro
+            </p>
+            <div class="flex flex-col lg:flex-row lg:items-end gap-4 justify-between">
+              <div class="flex flex-wrap items-end gap-3">
+                <AppFilterItem
+                  label="Posición inicial de impresión"
+                  min-w="200px"
+                >
+                  <USelect
+                    v-model="reportePosicionInicial"
+                    :items="opcionesPosicionReporte"
+                    value-key="value"
+                    class="w-full min-w-[200px]"
+                  />
+                </AppFilterItem>
+                <div class="flex items-center gap-2 pb-1 min-h-[2.25rem]">
+                  <UCheckbox
+                    v-model="reporteImprimirEncabezado"
+                    label="Imprimir encabezado"
+                  />
+                </div>
+              </div>
+              <div class="flex flex-wrap items-end gap-3">
+                <UButton
+                  size="sm"
+                  color="neutral"
+                  variant="outline"
+                  label="Seleccionar página"
+                  icon="i-lucide-check-square"
+                  :disabled="loading || !itemsVista.length"
+                  @click="seleccionarPaginaReporte"
+                />
+                <UButton
+                  size="sm"
+                  color="neutral"
+                  variant="ghost"
+                  label="Quitar página"
+                  icon="i-lucide-minus-square"
+                  :disabled="!idsPaginaReporte.some((id) => reporteSeleccion.has(id))"
+                  @click="deseleccionarPaginaReporte"
+                />
+                <UButton
+                  size="sm"
+                  color="neutral"
+                  variant="ghost"
+                  label="Limpiar todo"
+                  icon="i-lucide-x"
+                  :disabled="!reporteSeleccionadosCount"
+                  @click="limpiarSeleccionReporte"
+                />
+                <UButton
+                  size="sm"
+                  color="primary"
+                  :label="`Generar PDF (${reporteSeleccionadosCount})`"
+                  icon="i-lucide-file-down"
+                  :loading="generandoReporteSalidaPdf"
+                  :disabled="!reporteSeleccionadosCount || generandoReporteSalidaPdf"
+                  @click="imprimirReporteSalida"
+                />
+              </div>
+            </div>
+          </div>
+        </template>
+      </UCollapsible>
+    </div>
 
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
       <div class="flex flex-wrap items-center gap-1.5">
