@@ -6,8 +6,8 @@
     </div>
     <div class="flex items-center gap-5 text-neutral-400">
      
-      <NuxtLink to="/cargos" class="hover:text-primary-500 transition-colors">
-        Cargos
+      <NuxtLink to="/dashboard" class="hover:text-primary-500 transition-colors">
+        Inicio
       </NuxtLink>
       <NuxtLink to="/settings" class="hover:text-primary-500 transition-colors">
         Configuración
