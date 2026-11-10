@@ -561,121 +561,114 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="space-y-5">
     <BandejaViewHeader
-      v-if="props.modo === 'compartidos'"
       :titulo="props.titulo"
       :descripcion="props.descripcion"
       :icono="props.icono"
-    />
-    <BandejaViewHeader
-      v-else
-      :titulo="props.titulo"
-      :descripcion="props.descripcion"
-      :icono="props.icono"
+      :badge="total ? `${total} registros` : null"
     >
-      <template #actions>
+      <template v-if="props.modo !== 'compartidos'" #actions>
         <UButton
-          label="Nuevo Proceso"
+          label="Nuevo proceso"
           icon="i-lucide-plus"
           color="primary"
-          class="rounded-md shadow-xs"
           @click="handleNuevo"
         />
       </template>
     </BandejaViewHeader>
 
-    <!-- Barra de Filtros y Búsqueda -->
-    <div class="p-4 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-xs flex flex-col gap-3">
-      <div class="flex flex-col lg:flex-row lg:items-end gap-3">
-        <div
-          v-if="props.modo === 'compartidos'"
-          class="w-full lg:w-44 shrink-0"
-        >
-          <label class="mb-1 block text-xs font-medium text-muted">Alcance</label>
-          <USelect
-            v-model="compartidosAlcance"
-            :items="[...compartidosAlcanceOptions]"
-            value-key="value"
-            class="w-full"
-          />
-        </div>
+    <AppFilter
+      title="Filtros de búsqueda avanzada"
+      description="Gestión, proceso, hoja de ruta o criterio libre"
+    >
+      <template #actions>
+        <UButton
+          icon="i-lucide-eraser"
+          color="neutral"
+          variant="ghost"
+          size="xs"
+          label="Limpiar"
+          :disabled="loading"
+          @click="limpiarFiltros"
+        />
+        <UButton
+          icon="i-lucide-refresh-cw"
+          color="neutral"
+          variant="ghost"
+          size="xs"
+          :loading="loading"
+          @click="fetchCorrespondencias"
+        />
+      </template>
 
-        <div class="w-full lg:w-28 shrink-0">
-          <label class="mb-1 block text-xs font-medium text-muted">Gestión</label>
-          <USelect
-            v-model="searchGestion"
-            :items="opcionesGestion"
-            value-key="value"
-            class="w-full"
-          />
-        </div>
+      <AppFilterItem
+        v-if="props.modo === 'compartidos'"
+        label="Alcance"
+        min-w="160px"
+      >
+        <USelect
+          v-model="compartidosAlcance"
+          :items="[...compartidosAlcanceOptions]"
+          value-key="value"
+          class="w-full"
+        />
+      </AppFilterItem>
 
-        <div class="w-full lg:w-56 shrink-0">
-          <label class="mb-1 block text-xs font-medium text-muted">Proceso</label>
-          <CodificadorSelect
-            v-model="searchProcId"
-            endpoint="comun/codificador/procesos"
-            :params="procesoParams"
-            incluir-todos
-            placeholder="Todos los procesos"
-            class="w-full"
-          />
-        </div>
+      <AppFilterItem label="Gestión" min-w="120px" :border="props.modo === 'compartidos'">
+        <USelect
+          v-model="searchGestion"
+          :items="opcionesGestion"
+          value-key="value"
+          class="w-full"
+        />
+      </AppFilterItem>
 
-        <div class="w-full lg:w-44 shrink-0">
-          <label class="mb-1 block text-xs font-medium text-muted">Hoja de ruta</label>
-          <UInput
-            v-model="searchHojaRuta"
-            placeholder="142/2025"
-            icon="i-lucide-file-stack"
-            class="w-full"
-            @keydown="onFiltroEnter"
-          />
-        </div>
+      <AppFilterItem label="Proceso" min-w="220px" border>
+        <CodificadorSelect
+          v-model="searchProcId"
+          endpoint="comun/codificador/procesos"
+          :params="procesoParams"
+          incluir-todos
+          placeholder="Todos los procesos"
+          class="w-full"
+        />
+      </AppFilterItem>
 
-        <div class="w-full lg:flex-1 min-w-0">
-          <label class="mb-1 block text-xs font-medium text-muted">Criterio</label>
-          <UInput
-            v-model="searchCriterio"
-            placeholder="Referencia, CITE, área o proceso..."
-            icon="i-lucide-search"
-            class="w-full"
-            @keydown="onFiltroEnter"
-          />
-        </div>
+      <AppFilterItem label="Hoja de ruta" min-w="150px" border>
+        <UInput
+          v-model="searchHojaRuta"
+          placeholder="Ej. 142/2025"
+          icon="i-lucide-file-stack"
+          class="w-full"
+          @keydown="onFiltroEnter"
+        />
+      </AppFilterItem>
 
-        <div class="flex flex-wrap items-center gap-2 w-full lg:w-auto justify-end shrink-0">
-          <UButton
-            label="Buscar"
-            icon="i-lucide-search"
-            color="primary"
-            :loading="loading"
-            @click="buscar"
-          />
-          <UButton
-            label="Limpiar"
-            icon="i-lucide-eraser"
-            color="neutral"
-            variant="outline"
-            :disabled="loading"
-            @click="limpiarFiltros"
-          />
-          <UButton
-            icon="i-lucide-refresh-cw"
-            color="neutral"
-            variant="ghost"
-            title="Actualizar con los filtros actuales"
-            :loading="loading"
-            @click="fetchCorrespondencias"
-          />
-        </div>
+      <AppFilterItem label="Criterio" min-w="220px" flex1 border>
+        <UInput
+          v-model="searchCriterio"
+          placeholder="Referencia, CITE, área o proceso..."
+          icon="i-lucide-search"
+          class="w-full"
+          @keydown="onFiltroEnter"
+        />
+      </AppFilterItem>
+
+      <div class="pl-3 flex items-center">
+        <UButton
+          label="Buscar"
+          icon="i-lucide-search"
+          color="primary"
+          :loading="loading"
+          @click="buscar"
+        />
       </div>
-    </div>
+    </AppFilter>
 
     <!-- Tabla de Registros -->
     <div
-      class="corresp-bandeja-tabla min-w-0"
+      class="corresp-bandeja-tabla min-w-0 rounded-xl border border-default overflow-hidden bg-default/50 shadow-xs"
       :class="{
         'corresp-bandeja-tabla--borrador': modo === 'borrador',
         'corresp-bandeja-tabla--compartidos': modo === 'compartidos',

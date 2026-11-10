@@ -1,25 +1,6 @@
-<template>
-  <div 
-    class="flex flex-col gap-1 border-gray-100 dark:border-gray-800 transition-all duration-300"
-    :class="[
-      border ? 'border-l pl-6' : 'pl-2',
-      flex1 ? 'flex-1' : ''
-    ]"
-    :style="{ minWidth: minW }"
-  >
-    <label v-if="label" class="text-[9px] font-black text-gray-400 uppercase tracking-widest pl-1 mb-0.5">
-      {{ label }}
-    </label>
-    <div class="flex items-center">
-      <slot />
-    </div>
-  </div>
-</template>
-
 <script setup lang="ts">
 /**
- * Componente para cada elemento individual dentro de AppFilter.
- * Maneja la etiqueta, el ancho mínimo y el separador lateral opcional.
+ * Elemento de filtro dentro de AppFilter.
  */
 defineProps<{
   label?: string
@@ -28,3 +9,24 @@ defineProps<{
   flex1?: boolean
 }>()
 </script>
+
+<template>
+  <div
+    class="flex flex-col gap-1 transition-all duration-300"
+    :class="[
+      border ? 'border-l border-default pl-4 sm:pl-6' : 'pl-1',
+      flex1 ? 'flex-1 min-w-0' : '',
+    ]"
+    :style="{ minWidth: minW }"
+  >
+    <label
+      v-if="label"
+      class="text-[10px] font-bold text-muted uppercase tracking-wider pl-0.5 mb-0.5"
+    >
+      {{ label }}
+    </label>
+    <div class="flex items-center w-full">
+      <slot />
+    </div>
+  </div>
+</template>

@@ -187,6 +187,136 @@ const esIngreso = computed(() => props.modo === 'ingreso')
 const esSalida = computed(() => props.modo === 'salida')
 /** Salida: tabla compacta sin columna Instrucción */
 const tablaCompacta = computed(() => esSalida.value)
+
+/** Filtro rápido de vista sobre la página cargada. */
+const filtroVista = ref<'todos' | 'nuevos' | 'leidos'>('todos')
+
+const itemsVista = computed(() => {
+  if (filtroVista.value === 'todos') return items.value
+  if (filtroVista.value === 'nuevos') {
+    return items.value.filter((row) => !leidoDeFila(row))
+  }
+  return items.value.filter((row) => leidoDeFila(row))
+})
+
+const contadorNuevosPagina = computed(
+  () => items.value.filter((row) => !leidoDeFila(row)).length,
+)
+const contadorLeidosPagina = computed(
+  () => items.value.filter((row) => leidoDeFila(row)).length,
+)
+
+const headerBadge = computed(() => {
+  if (!total.value) return null
+  if (esSalida.value) return `${total.value} derivaciones`
+  if (esIngreso.value) return `${total.value} en bandeja`
+  return `${total.value} registros`
+})
+
+const kpiCards = computed(() => {
+  const pct =
+    items.value.length > 0
+      ? Math.round((contadorLeidosPagina.value / items.value.length) * 100)
+      : 0
+
+  if (esSalida.value) {
+    return [
+      {
+        label: 'Total despachados',
+        value: total.value,
+        hint: 'Según filtros actuales',
+        icon: 'i-lucide-send',
+        tone: 'primary' as const,
+      },
+      {
+        label: 'Sin recepcionar',
+        value: contadorNuevosPagina.value,
+        hint: 'En esta página · requieren lectura',
+        icon: 'i-lucide-mail-warning',
+        tone: 'error' as const,
+      },
+      {
+        label: 'Recepcionados',
+        value: contadorLeidosPagina.value,
+        hint: items.value.length ? `${pct}% de la página` : 'Sin datos',
+        icon: 'i-lucide-badge-check',
+        tone: 'success' as const,
+      },
+      {
+        label: 'Mostrando',
+        value: `${items.value.length}`,
+        hint: `Página ${page.value} · ${pageSize.value} por página`,
+        icon: 'i-lucide-rows-3',
+        tone: 'info' as const,
+      },
+    ]
+  }
+
+  if (esIngreso.value) {
+    return [
+      {
+        label: 'Total en ingreso',
+        value: total.value,
+        hint: 'Según filtros actuales',
+        icon: 'i-lucide-inbox',
+        tone: 'primary' as const,
+      },
+      {
+        label: 'Sin abrir',
+        value: contadorNuevosPagina.value,
+        hint: 'En esta página',
+        icon: 'i-lucide-mail',
+        tone: 'warning' as const,
+      },
+      {
+        label: 'Leídos',
+        value: contadorLeidosPagina.value,
+        hint: items.value.length ? `${pct}% de la página` : 'Sin datos',
+        icon: 'i-lucide-eye',
+        tone: 'success' as const,
+      },
+      {
+        label: 'Mostrando',
+        value: `${items.value.length}`,
+        hint: `Página ${page.value}`,
+        icon: 'i-lucide-rows-3',
+        tone: 'neutral' as const,
+      },
+    ]
+  }
+
+  return [
+    {
+      label: 'Total',
+      value: total.value,
+      hint: 'Según filtros',
+      icon: 'i-lucide-copy',
+      tone: 'primary' as const,
+    },
+    {
+      label: 'Sin leer',
+      value: contadorNuevosPagina.value,
+      hint: 'En esta página',
+      icon: 'i-lucide-mail-warning',
+      tone: 'warning' as const,
+    },
+    {
+      label: 'Leídos',
+      value: contadorLeidosPagina.value,
+      hint: 'En esta página',
+      icon: 'i-lucide-check',
+      tone: 'success' as const,
+    },
+    {
+      label: 'Mostrando',
+      value: `${items.value.length}`,
+      hint: `Página ${page.value}`,
+      icon: 'i-lucide-rows-3',
+      tone: 'neutral' as const,
+    },
+  ]
+})
+
 /** Ingreso: celdas de fecha/lectura compactas para evitar scroll horizontal */
 const celdasAuxiliaresCompactas = computed(() => tablaCompacta.value || esIngreso.value)
 /** Transferencia por baja: solo parámetro del cargo (no flags permite_* del estado). */
@@ -969,85 +1099,143 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="space-y-6">
-    <BandejaViewHeader :titulo="props.titulo" :descripcion="props.descripcion" :icono="props.icono" />
+  <div class="space-y-5">
+    <BandejaViewHeader
+      :titulo="props.titulo"
+      :descripcion="props.descripcion"
+      :icono="props.icono"
+      :badge="headerBadge"
+    >
+      <template #actions>
+        <UButton
+          icon="i-lucide-refresh-cw"
+          color="neutral"
+          variant="outline"
+          label="Actualizar"
+          :loading="loading"
+          @click="fetchItems"
+        />
+        <UButton
+          v-if="esIngreso"
+          to="/alertas"
+          icon="i-lucide-triangle-alert"
+          color="warning"
+          variant="soft"
+          label="Ver alertas"
+        />
+      </template>
+    </BandejaViewHeader>
 
-    <div class="p-4 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-xs flex flex-col gap-3">
-      <div class="flex flex-col lg:flex-row lg:items-end gap-3">
-        <div class="w-full lg:w-28 shrink-0">
-          <label class="mb-1 block text-xs font-medium text-muted">Gestión</label>
-          <USelect
-            v-model="searchGestion"
-            :items="opcionesGestion"
-            value-key="value"
-            class="w-full"
-          />
-        </div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+      <BandejaStatCard
+        v-for="kpi in kpiCards"
+        :key="kpi.label"
+        :label="kpi.label"
+        :value="kpi.value"
+        :hint="kpi.hint"
+        :icon="kpi.icon"
+        :tone="kpi.tone"
+      />
+    </div>
 
-        <div class="w-full lg:w-56 shrink-0">
-          <label class="mb-1 block text-xs font-medium text-muted">Proceso</label>
-          <CodificadorSelect
-            v-model="searchProcId"
-            endpoint="comun/codificador/procesos"
-            :params="procesoParams"
-            incluir-todos
-            placeholder="Todos los procesos"
-            class="w-full"
-          />
-        </div>
+    <AppFilter
+      title="Filtros de búsqueda avanzada"
+      description="Refine por gestión, proceso, hoja de ruta o criterio libre"
+    >
+      <template #actions>
+        <UButton
+          icon="i-lucide-eraser"
+          color="neutral"
+          variant="ghost"
+          size="xs"
+          label="Limpiar"
+          :disabled="loading"
+          @click="limpiarFiltros(); filtroVista = 'todos'"
+        />
+      </template>
 
-        <div class="w-full lg:w-44 shrink-0">
-          <label class="mb-1 block text-xs font-medium text-muted">Hoja de ruta</label>
-          <UInput
-            v-model="searchHojaRuta"
-            placeholder="142/2025"
-            icon="i-lucide-file-stack"
-            class="w-full"
-            @keydown="onFiltroEnter"
-          />
-        </div>
+      <AppFilterItem label="Gestión" min-w="120px">
+        <USelect
+          v-model="searchGestion"
+          :items="opcionesGestion"
+          value-key="value"
+          class="w-full"
+        />
+      </AppFilterItem>
 
-        <div class="w-full lg:flex-1 min-w-0">
-          <label class="mb-1 block text-xs font-medium text-muted">Criterio</label>
-          <UInput
-            v-model="searchCriterio"
-            placeholder="Referencia, instrucción, CITE..."
-            icon="i-lucide-search"
-            class="w-full"
-            @keydown="onFiltroEnter"
-          />
-        </div>
+      <AppFilterItem label="Proceso" min-w="220px" border>
+        <CodificadorSelect
+          v-model="searchProcId"
+          endpoint="comun/codificador/procesos"
+          :params="procesoParams"
+          incluir-todos
+          placeholder="Todos los procesos"
+          class="w-full"
+        />
+      </AppFilterItem>
 
-        <div class="flex flex-wrap items-center gap-2 w-full lg:w-auto justify-end shrink-0">
-          <UButton
-            label="Buscar"
-            icon="i-lucide-search"
-            color="primary"
-            :loading="loading"
-            @click="buscar"
-          />
-          <UButton
-            label="Limpiar"
-            icon="i-lucide-eraser"
-            color="neutral"
-            variant="outline"
-            :disabled="loading"
-            @click="limpiarFiltros"
-          />
-          <UButton
-            icon="i-lucide-refresh-cw"
-            color="neutral"
-            variant="ghost"
-            title="Actualizar con los filtros actuales"
-            :loading="loading"
-            @click="fetchItems"
-          />
-        </div>
+      <AppFilterItem label="Hoja de ruta" min-w="150px" border>
+        <UInput
+          v-model="searchHojaRuta"
+          placeholder="Ej. 142/2025"
+          icon="i-lucide-file-stack"
+          class="w-full"
+          @keydown="onFiltroEnter"
+        />
+      </AppFilterItem>
+
+      <AppFilterItem label="Criterio" min-w="220px" flex1 border>
+        <UInput
+          v-model="searchCriterio"
+          placeholder="Referencia, instrucción, CITE..."
+          icon="i-lucide-search"
+          class="w-full"
+          @keydown="onFiltroEnter"
+        />
+      </AppFilterItem>
+
+      <div class="pl-3 flex items-center">
+        <UButton
+          label="Buscar"
+          icon="i-lucide-search"
+          color="primary"
+          :loading="loading"
+          @click="buscar(); filtroVista = 'todos'"
+        />
       </div>
+    </AppFilter>
+
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div class="flex flex-wrap items-center gap-1.5">
+        <UButton
+          size="xs"
+          :color="filtroVista === 'todos' ? 'primary' : 'neutral'"
+          :variant="filtroVista === 'todos' ? 'soft' : 'ghost'"
+          :label="`Todos (${items.length})`"
+          @click="filtroVista = 'todos'"
+        />
+        <UButton
+          size="xs"
+          :color="filtroVista === 'nuevos' ? 'warning' : 'neutral'"
+          :variant="filtroVista === 'nuevos' ? 'soft' : 'ghost'"
+          :label="`${esSalida ? 'Sin recepcionar' : 'Nuevos'} (${contadorNuevosPagina})`"
+          @click="filtroVista = 'nuevos'"
+        />
+        <UButton
+          size="xs"
+          :color="filtroVista === 'leidos' ? 'success' : 'neutral'"
+          :variant="filtroVista === 'leidos' ? 'soft' : 'ghost'"
+          :label="`${esSalida ? 'Recepcionados' : 'Leídos'} (${contadorLeidosPagina})`"
+          @click="filtroVista = 'leidos'"
+        />
+      </div>
+      <p class="text-xs text-muted">
+        {{ filtroVista === 'todos' ? 'Vista completa de la página' : 'Filtro rápido sobre la página actual' }}
+      </p>
     </div>
 
     <div
-      class="derivacion-bandeja-tabla min-w-0"
+      class="derivacion-bandeja-tabla min-w-0 rounded-xl border border-default overflow-hidden bg-default/50 shadow-xs"
       :class="{
         'derivacion-bandeja-tabla--compacta': tablaCompacta,
         'derivacion-bandeja-tabla--ingreso': esIngreso,
@@ -1056,7 +1244,7 @@ onMounted(() => {
     >
       <CorTable
         :columns="columns"
-        :data="items"
+        :data="itemsVista"
         :loading="loading"
         :total="total"
         v-model:page="page"

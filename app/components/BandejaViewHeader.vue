@@ -3,30 +3,45 @@ const props = defineProps<{
   titulo: string
   descripcion: string
   icono: string
+  badge?: string | number | null
 }>()
 </script>
 
 <template>
   <div
-    class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-gray-100 dark:border-gray-800"
+    class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4 pb-5 border-b border-default"
   >
-    <div>
-      <div class="flex items-center gap-2.5">
-        <div class="p-2 rounded-md bg-primary-50 dark:bg-primary-950/50 text-primary-600 dark:text-primary-400">
-          <UIcon :name="props.icono" class="size-6" />
+    <div class="min-w-0 space-y-2">
+      <div class="flex flex-wrap items-center gap-2.5">
+        <div
+          class="size-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0"
+        >
+          <UIcon :name="props.icono" class="size-5" />
         </div>
-        <div>
-          <h1 class="text-xl font-bold tracking-tight text-gray-900 dark:text-white">
-            {{ props.titulo }}
-          </h1>
-          <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+        <div class="min-w-0">
+          <div class="flex flex-wrap items-center gap-2">
+            <h1 class="text-xl sm:text-2xl font-bold tracking-tight text-highlighted">
+              {{ props.titulo }}
+            </h1>
+            <UBadge
+              v-if="badge != null && badge !== ''"
+              color="primary"
+              variant="subtle"
+              size="sm"
+              class="uppercase tracking-wide"
+            >
+              {{ badge }}
+            </UBadge>
+          </div>
+          <p class="text-sm text-muted mt-0.5 max-w-2xl leading-relaxed">
             {{ props.descripcion }}
           </p>
         </div>
       </div>
+      <slot name="subtitle" />
     </div>
 
-    <div v-if="$slots.actions" class="flex items-center gap-2">
+    <div v-if="$slots.actions" class="flex flex-wrap items-center gap-2 shrink-0">
       <slot name="actions" />
     </div>
   </div>
