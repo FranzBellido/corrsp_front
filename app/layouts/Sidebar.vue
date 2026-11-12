@@ -104,6 +104,11 @@ const defaultNavItems: NavItem[] = [
     ],
   },
   {
+    label: 'Reportes',
+    icon: 'i-lucide-chart-column',
+    to: '/reportes',
+  },
+  {
     label: 'Administración',
     icon: 'i-lucide-folder-cog',
     requireAdmin: true,
