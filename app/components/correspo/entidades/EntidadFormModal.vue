@@ -2,7 +2,7 @@
 import { ref, watch, computed } from 'vue'
 import { z } from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
-import type { CreateEntidadPayload, Entidad, UpdateEntidadPayload } from '~/types/entidad'
+import type { CreateEntidadPayload, Entidad, UpdateEntidadPayload } from '~/types/correspo/entidad'
 import { backendService } from '~/services/backend.service'
 
 const props = defineProps<{

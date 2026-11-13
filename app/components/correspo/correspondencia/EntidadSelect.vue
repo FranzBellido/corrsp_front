@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { backendService } from '~/services/backend.service'
-import type { Entidad } from '~/types/entidad'
-import type { RespuestaApi } from '~/types/respuestas'
+import type { Entidad } from '~/types/correspo/entidad'
+import type { RespuestaApi } from '~/types/shared/respuestas'
 
 interface EntidadOpcion {
   id: number

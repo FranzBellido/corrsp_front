@@ -1,4 +1,4 @@
-import type { RespuestaApi, RespuestaLista } from "~/types/respuestas";
+import type { RespuestaApi, RespuestaLista } from "~/types/shared/respuestas";
 
 import type { $Fetch } from "ofetch";
 

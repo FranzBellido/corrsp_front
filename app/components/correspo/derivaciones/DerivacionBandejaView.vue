@@ -1,27 +1,27 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, h } from 'vue'
 import type { DropdownMenuItem, TableColumn } from '@nuxt/ui'
-import type { Correspondencia } from '~/types/correspondencia'
+import type { Correspondencia } from '~/types/correspo/correspondencia'
 import type {
   Derivacion,
   DerivacionCargo,
   DestinatarioCopiaConDerivacion,
   FiltroDerivacion,
   RespuestaBusquedaDerivacion,
-} from '~/types/derivacion'
-import type { RespuestaApi } from '~/types/respuestas'
-import { EstadoDerivacionEnum } from '~/types/estado'
+} from '~/types/correspo/derivacion'
+import type { RespuestaApi } from '~/types/shared/respuestas'
+import { EstadoDerivacionEnum } from '~/types/correspo/estado'
 import { backendService, get, descargarBlob, descargarBlobPost } from '~/services/backend.service'
-import CorrespondenciaDetalleModal from '~/components/correspondencia/CorrespondenciaDetalleModal.vue'
-import CorAlertaDepositoPendiente from '~/components/correspondencia/CorAlertaDepositoPendiente.vue'
-import LegalizacionFormModal from '~/components/legalizacion/LegalizacionFormModal.vue'
-import CorrespondenciaFormModal from '~/components/correspondencia/CorrespondenciaFormModal.vue'
-import DerivacionFormModal from '~/components/derivaciones/DerivacionFormModal.vue'
-import DerivacionFlujoFormModal from '~/components/derivaciones/DerivacionFlujoFormModal.vue'
-import CambioEstadoDerivacionModal from '~/components/derivaciones/CambioEstadoDerivacionModal.vue'
-import EstadoLogTimelineModal from '~/components/derivaciones/EstadoLogTimelineModal.vue'
-import CorTable from '~/components/CorTable.vue'
-import BandejaViewHeader from '~/components/BandejaViewHeader.vue'
+import CorrespondenciaDetalleModal from '~/components/correspo/correspondencia/CorrespondenciaDetalleModal.vue'
+import CorAlertaDepositoPendiente from '~/components/correspo/correspondencia/CorAlertaDepositoPendiente.vue'
+import LegalizacionFormModal from '~/components/correspo/legalizacion/LegalizacionFormModal.vue'
+import CorrespondenciaFormModal from '~/components/correspo/correspondencia/CorrespondenciaFormModal.vue'
+import DerivacionFormModal from '~/components/correspo/derivaciones/DerivacionFormModal.vue'
+import DerivacionFlujoFormModal from '~/components/correspo/derivaciones/DerivacionFlujoFormModal.vue'
+import CambioEstadoDerivacionModal from '~/components/correspo/derivaciones/CambioEstadoDerivacionModal.vue'
+import EstadoLogTimelineModal from '~/components/correspo/derivaciones/EstadoLogTimelineModal.vue'
+import CorTable from '~/components/shared/CorTable.vue'
+import BandejaViewHeader from '~/components/correspo/BandejaViewHeader.vue'
 import {
   correspondenciaPuedeDerivar,
   etiquetaHojaRuta,
@@ -29,19 +29,19 @@ import {
   etiquetaCiteCorrespondencia,
   etiquetaNumeroCorrespondencia,
   mensajeNoDerivarCorrespondencia,
-} from '~/utils/correspondencia'
+} from '~/utils/correspo/correspondencia'
 import {
   CLASE_CONTENEDOR_ACCIONES_CELDA,
   hMenuAccionesTabla,
   META_COLUMNA_ACCIONES_TABLA,
-} from '~/utils/acciones-menu'
-import { getAccionesDerivacionBandeja } from '~/utils/derivacionActions'
-import CodificadorSelect from '~/components/codificador/CodificadorSelect.vue'
-import { useBandejaFiltros } from '~/composables/useBandejaFiltros'
+} from '~/utils/shared/acciones-menu'
+import { getAccionesDerivacionBandeja } from '~/utils/correspo/derivacionActions'
+import CodificadorSelect from '~/components/comun/codificador/CodificadorSelect.vue'
+import { useBandejaFiltros } from '~/composables/correspo/useBandejaFiltros'
 import {
   filaReporteDesdeDerivacion,
   type FilaReporteSalida,
-} from '~/utils/salida-reporte-impresion'
+} from '~/utils/correspo/salida-reporte-impresion'
 
 const props = defineProps<{
   modo: 'salida' | 'ingreso' | 'con_copia'

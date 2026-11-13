@@ -101,7 +101,7 @@ const pageSizeProxy = computed({
 </script>
 
 <style scoped>
-@reference "../assets/css/main.css";
+@reference "~/assets/css/main.css";
 
 /* Transición suave para el estado de carga */
 :deep(.u-table-loading) {

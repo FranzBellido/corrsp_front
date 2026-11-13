@@ -1,5 +1,5 @@
 import Keycloak from 'keycloak-js'
-import { ensureCryptoRandomUuid } from '~/utils/crypto-random-uuid-polyfill'
+import { ensureCryptoRandomUuid } from '~/utils/shared/crypto-random-uuid-polyfill'
 
 export default defineNuxtPlugin(async (nuxtApp) => {
   ensureCryptoRandomUuid()

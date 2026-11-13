@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import type { RecDepositoPayload } from '~/types/correspondencia'
-import type { RespuestaApi } from '~/types/respuestas'
+import type { RecDepositoPayload } from '~/types/correspo/correspondencia'
+import type { RespuestaApi } from '~/types/shared/respuestas'
 import { get } from '~/services/backend.service'
 
 export type CorrespDepositoFormItem = RecDepositoPayload & { _key: string }

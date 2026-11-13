@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { Correspondencia } from '~/types/correspondencia'
+import type { Correspondencia } from '~/types/correspo/correspondencia'
 
 const props = defineProps<{
   correspondencia?: Correspondencia | null

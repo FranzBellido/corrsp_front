@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { NavigationMenuItem } from '@nuxt/ui'
-import type { DashboardResumen } from '~/types/dashboard'
-import type { RespuestaApi } from '~/types/respuestas'
+import type { DashboardResumen } from '~/types/correspo/dashboard'
+import type { RespuestaApi } from '~/types/shared/respuestas'
 import { get } from '~/services/backend.service'
 
 const props = defineProps<{
@@ -107,6 +107,44 @@ const defaultNavItems: NavItem[] = [
     label: 'Reportes',
     icon: 'i-lucide-chart-column',
     to: '/reportes',
+  },
+  {
+    label: 'Formulación POA',
+    icon: 'i-lucide-clipboard-list',
+    children: [
+      {
+        label: 'Resultados',
+        to: '/formulacion/resultados',
+        icon: 'i-lucide-target',
+      },
+      {
+        label: 'Operaciones',
+        to: '/formulacion/operaciones',
+        icon: 'i-lucide-hammer',
+      },
+    ],
+  },
+  {
+    label: 'Administrador POA',
+    icon: 'i-lucide-target',
+    requireAdmin: true,
+    children: [
+      {
+        label: 'Configuración POA',
+        to: '/configuracion',
+        icon: 'i-lucide-sliders-horizontal',
+      },
+      {
+        label: 'Versiones',
+        to: '/versiones',
+        icon: 'i-lucide-calendar-range',
+      },
+      {
+        label: 'ACP',
+        to: '/acp',
+        icon: 'i-lucide-list-checks',
+      },
+    ],
   },
   {
     label: 'Administración',

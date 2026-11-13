@@ -1,17 +1,17 @@
 <script setup lang="ts">
 import { computed, h, resolveComponent } from 'vue'
 import type { DropdownMenuItem } from '@nuxt/ui'
-import type { Correspondencia } from '~/types/correspondencia'
+import type { Correspondencia } from '~/types/correspo/correspondencia'
 import {
   observacionesPendientesCorrespondencia,
   textoTooltipObservacionesCorrespondencia,
-} from '~/utils/correspondencia'
+} from '~/utils/correspo/correspondencia'
 import {
   CLASE_CONTENEDOR_ACCIONES_CELDA,
   hMenuAccionesTabla,
-} from '~/utils/acciones-menu'
-import { getAccionesBandeja } from '~/utils/correpondenciaActions'
-import CorAlertaDepositoPendiente from '~/components/correspondencia/CorAlertaDepositoPendiente.vue'
+} from '~/utils/shared/acciones-menu'
+import { getAccionesBandeja } from '~/utils/correspo/correpondenciaActions'
+import CorAlertaDepositoPendiente from '~/components/correspo/correspondencia/CorAlertaDepositoPendiente.vue'
 
 const props = defineProps<{
   correspondencia: Correspondencia

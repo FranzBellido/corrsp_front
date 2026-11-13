@@ -2,7 +2,7 @@
 import { ref, watch, computed } from 'vue'
 import { z } from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
-import type { CambiarEstadoPayload } from '~/types/estado'
+import type { CambiarEstadoPayload } from '~/types/correspo/estado'
 import { backendService } from '~/services/backend.service'
 
 const props = defineProps<{

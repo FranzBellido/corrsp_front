@@ -1,6 +1,6 @@
 import type { DropdownMenuItem } from '@nuxt/ui'
-import { enriquecerItemMenuAcciones } from '~/utils/acciones-menu'
-import type { ActionMenuItem } from '~/utils/correpondenciaActions'
+import { enriquecerItemMenuAcciones } from '~/utils/shared/acciones-menu'
+import type { ActionMenuItem } from '~/utils/correspo/correpondenciaActions'
 
 export type AccionDerivacionCodigo =
   | 'RECEPCIONAR'

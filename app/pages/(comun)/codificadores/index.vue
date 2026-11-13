@@ -5,7 +5,7 @@ import type {
   CodificadorAdmin,
   FiltroCodificadorAdmin,
   RespuestaBusquedaCodificadorAdmin,
-} from '~/types/codificador-admin'
+} from '~/types/comun/codificador-admin'
 import { backendService } from '~/services/backend.service'
 
 const UBadge = resolveComponent('UBadge')
@@ -239,7 +239,7 @@ onMounted(() => {
       @update:page-size="cargar"
     />
 
-    <CodificadoresCodificadorFormModal
+    <CodificadorFormModal
       v-model:open="isModalOpen"
       :codificador="itemToEdit"
       @guardado="cargar"

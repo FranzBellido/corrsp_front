@@ -2,7 +2,7 @@
 import { ref, watch, computed, nextTick } from 'vue'
 import { z } from 'zod'
 import type { FormSubmitEvent, StepperItem } from '@nuxt/ui'
-import type { CodificadorDto } from '~/types/codificador'
+import type { CodificadorDto } from '~/types/comun/codificador'
 import type {
   Correspondencia,
   CorrespCooperativaPayload,
@@ -10,21 +10,21 @@ import type {
   CreateCorrespondenciaPayload,
   RecDepositosPayload,
   UpdateCorrespondenciaPayload,
-} from '~/types/correspondencia'
+} from '~/types/correspo/correspondencia'
 import { backendService } from '~/services/backend.service'
 import CorrespCooperativaFields, {
   type CorrespCooperativaFormState,
-} from '~/components/correspondencia/CorrespCooperativaFields.vue'
-import CorrespDatosGeneralesFields from '~/components/correspondencia/CorrespDatosGeneralesFields.vue'
+} from '~/components/correspo/correspondencia/CorrespCooperativaFields.vue'
+import CorrespDatosGeneralesFields from '~/components/correspo/correspondencia/CorrespDatosGeneralesFields.vue'
 import CorrespDepositosFields, {
   type CorrespDepositoFormItem,
-} from '~/components/correspondencia/CorrespDepositosFields.vue'
-import CorrespEntidadFields from '~/components/correspondencia/CorrespEntidadFields.vue'
+} from '~/components/correspo/correspondencia/CorrespDepositosFields.vue'
+import CorrespEntidadFields from '~/components/correspo/correspondencia/CorrespEntidadFields.vue'
 import {
   citeOrigenCorrespondencia,
   correspondenciaSinNumerar,
   correspondenciaTieneCite,
-} from '~/utils/correspondencia'
+} from '~/utils/correspo/correspondencia'
 
 type StepValue = 'generales' | 'cooperativa' | 'entidad' | 'depositos'
 

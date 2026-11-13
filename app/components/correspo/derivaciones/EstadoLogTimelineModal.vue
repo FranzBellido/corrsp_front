@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import type { TimelineItem } from '@nuxt/ui'
-import type { EstadoLogItem } from '~/types/estado'
-import { EstadoDerivacionEnum } from '~/types/estado'
+import type { EstadoLogItem } from '~/types/correspo/estado'
+import { EstadoDerivacionEnum } from '~/types/correspo/estado'
 import { backendService } from '~/services/backend.service'
 
 const props = defineProps<{

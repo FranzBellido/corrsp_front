@@ -1,8 +1,8 @@
-import type { Derivacion } from '~/types/derivacion'
+import type { Derivacion } from '~/types/correspo/derivacion'
 import {
   etiquetaCorrelativoBandeja,
   etiquetaHojaRuta,
-} from '~/utils/correspondencia'
+} from '~/utils/correspo/correspondencia'
 
 export const SALIDA_REPORTE_FILAS_POR_PAGINA = 8
 

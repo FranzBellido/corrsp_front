@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, h } from 'vue'
 import type { TableColumn } from '@nuxt/ui'
-import type { Cargo, FiltroCargo, RespuestaBusquedaCargo } from '~/types/cargo'
+import type { Cargo, FiltroCargo, RespuestaBusquedaCargo } from '~/types/correspo/cargo'
 import { backendService } from '~/services/backend.service'
 
 const UBadge = resolveComponent('UBadge')
@@ -274,7 +274,7 @@ onMounted(() => {
     />
 
       <!-- Modal de Creación / Edición -->
-      <CargosCargoFormModal
+      <CargoFormModal
         v-model:open="isModalOpen"
         :cargo="cargoToEdit"
         @guardado="cargarCargos"

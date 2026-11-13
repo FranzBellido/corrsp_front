@@ -2,8 +2,8 @@
 import { ref, watch, computed, onMounted } from 'vue'
 import { z } from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
-import type { Area, CreateAreaPayload, UpdateAreaPayload } from '~/types/area'
-import type { CodificadorDto } from '~/types/codificador'
+import type { Area, CreateAreaPayload, UpdateAreaPayload } from '~/types/comun/area'
+import type { CodificadorDto } from '~/types/comun/codificador'
 import { backendService } from '~/services/backend.service'
 
 const props = defineProps<{

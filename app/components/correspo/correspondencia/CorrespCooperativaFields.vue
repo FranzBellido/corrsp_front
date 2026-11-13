@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import CooperativaAutocomplete from '~/components/correspondencia/CooperativaAutocomplete.vue'
-import CodificadorSelect from '~/components/codificador/CodificadorSelect.vue'
-import { TipoCodificadorEnum } from '~/types/correspondencia'
+import CooperativaAutocomplete from '~/components/correspo/correspondencia/CooperativaAutocomplete.vue'
+import CodificadorSelect from '~/components/comun/codificador/CodificadorSelect.vue'
+import { TipoCodificadorEnum } from '~/types/correspo/correspondencia'
 
 export interface CorrespCooperativaFormState {
   cooperativa_id: number | undefined

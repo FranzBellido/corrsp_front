@@ -1,8 +1,8 @@
-import type { AlertasDashboard } from '~/types/alertas'
-import { ALERTAS_AMBITO_AREA } from '~/types/alertas'
-import type { RespuestaApi } from '~/types/respuestas'
+import type { AlertasDashboard } from '~/types/correspo/alertas'
+import { ALERTAS_AMBITO_AREA } from '~/types/correspo/alertas'
+import type { RespuestaApi } from '~/types/shared/respuestas'
 import { get } from '~/services/backend.service'
-import { useProfile } from '~/composables/useProfile'
+import { useProfile } from '~/composables/comun/useProfile'
 
 export function useAlertas() {
   const { resolveCargoOrigenId } = useProfile()

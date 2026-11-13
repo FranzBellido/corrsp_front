@@ -1,5 +1,5 @@
-import type { Correspondencia } from '~/types/correspondencia'
-import type { EstadoDerivacion } from '~/types/estado'
+import type { Correspondencia } from '~/types/correspo/correspondencia'
+import type { EstadoDerivacion } from '~/types/correspo/estado'
 
 export interface DerivacionCargo {
   id: string

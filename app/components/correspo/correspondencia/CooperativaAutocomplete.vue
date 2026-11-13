@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { refDebounced } from '@vueuse/core'
 import { backendService } from '~/services/backend.service'
-import type { RespuestaApi } from '~/types/respuestas'
+import type { RespuestaApi } from '~/types/shared/respuestas'
 
 export interface CooperativaOpcion {
   id: number

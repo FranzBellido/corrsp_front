@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { useAlertas } from '~/composables/useAlertas'
-import { useProfile } from '~/composables/useProfile'
+import { useAlertas } from '~/composables/correspo/useAlertas'
+import { useProfile } from '~/composables/comun/useProfile'
 
 const { totalAlertas, totalRojas, fetchAlertas } = useAlertas()
 const { resolveCargoOrigenId } = useProfile()

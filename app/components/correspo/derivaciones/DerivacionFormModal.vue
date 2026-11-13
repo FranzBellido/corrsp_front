@@ -2,22 +2,22 @@
 import { ref, watch, computed } from 'vue'
 import { z } from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
-import type { Correspondencia } from '~/types/correspondencia'
-import { TipoCodificadorEnum } from '~/types/correspondencia'
+import type { Correspondencia } from '~/types/correspo/correspondencia'
+import { TipoCodificadorEnum } from '~/types/correspo/correspondencia'
 import type {
   CreateDerivacionPayload,
   CreateDerivacionResultado,
   Derivacion,
   UpdateDerivacionPayload,
-} from '~/types/derivacion'
-import type { CodificadorDto } from '~/types/codificador'
+} from '~/types/correspo/derivacion'
+import type { CodificadorDto } from '~/types/comun/codificador'
 import { backendService } from '~/services/backend.service'
-import CodificadorSelect from '~/components/codificador/CodificadorSelect.vue'
+import CodificadorSelect from '~/components/comun/codificador/CodificadorSelect.vue'
 import {
   correspondenciaPuedeDerivar,
   etiquetaNumeroCorrespondencia,
   mensajeNoDerivarCorrespondencia,
-} from '~/utils/correspondencia'
+} from '~/utils/correspo/correspondencia'
 
 const props = defineProps<{
   correspondencia?: Correspondencia | null

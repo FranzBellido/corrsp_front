@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import type { AlertaNivel, AlertaTipo } from '~/types/alertas'
-import { ALERTAS_AMBITO_AREA } from '~/types/alertas'
-import { useAlertas } from '~/composables/useAlertas'
-import { useProfile } from '~/composables/useProfile'
+import type { AlertaNivel, AlertaTipo } from '~/types/correspo/alertas'
+import { ALERTAS_AMBITO_AREA } from '~/types/correspo/alertas'
+import { useAlertas } from '~/composables/correspo/useAlertas'
+import { useProfile } from '~/composables/comun/useProfile'
 
 useHead({
   title: 'Alertas del sistema - AFCOOP',

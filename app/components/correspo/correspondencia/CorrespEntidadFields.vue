@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import EntidadSelect from '~/components/correspondencia/EntidadSelect.vue'
+import EntidadSelect from '~/components/correspo/correspondencia/EntidadSelect.vue'
 
 const entidadId = defineModel<number | undefined>('entidadId')
 const remitenteEntidad = defineModel<string>('remitenteEntidad', { default: '' })

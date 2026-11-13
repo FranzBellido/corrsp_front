@@ -1,4 +1,4 @@
-import type { Correspondencia } from '~/types/correspondencia'
+import type { Correspondencia } from '~/types/correspo/correspondencia'
 
 /** CITE almacenado en corresp_entidad (o cite_origen mapeado en API). */
 export function citeOrigenCorrespondencia(

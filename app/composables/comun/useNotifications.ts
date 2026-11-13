@@ -1,5 +1,5 @@
 import { createSharedComposable } from '@vueuse/core'
-import type { NotificacionRealtime } from '~/types/notificacion'
+import type { NotificacionRealtime } from '~/types/comun/notificacion'
 import { backendService, getApi } from '~/services/backend.service'
 
 const MAX_ITEMS = 50

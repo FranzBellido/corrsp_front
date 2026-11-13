@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import type { Correspondencia } from '~/types/correspondencia'
+import type { Correspondencia } from '~/types/correspo/correspondencia'
 import { backendService } from '~/services/backend.service'
-import { citeOrigenCorrespondencia } from '~/utils/correspondencia'
+import { citeOrigenCorrespondencia } from '~/utils/correspo/correspondencia'
 
 const props = defineProps<{
   correspondencia: Correspondencia | null

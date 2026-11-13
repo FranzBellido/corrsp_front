@@ -2,7 +2,7 @@
 import { ref, watch, computed } from 'vue'
 import { z } from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
-import type { RecDepositoItem, UpdateRecDepositoPayload } from '~/types/recaudacion'
+import type { RecDepositoItem, UpdateRecDepositoPayload } from '~/types/correspo/recaudacion'
 import { backendService } from '~/services/backend.service'
 
 const props = defineProps<{

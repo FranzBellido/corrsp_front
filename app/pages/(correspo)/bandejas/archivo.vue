@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import CorrespondenciaBandejaView from '~/components/correspondencia/CorrespondenciaBandejaView.vue'
+import CorrespondenciaBandejaView from '~/components/correspo/correspondencia/CorrespondenciaBandejaView.vue'
 
 useHead({
   title: 'Bandeja de Archivo - Correspondencia AFCOOP',

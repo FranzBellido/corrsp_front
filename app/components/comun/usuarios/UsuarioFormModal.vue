@@ -2,7 +2,7 @@
 import { ref, watch, computed, onMounted, onBeforeUnmount } from 'vue'
 import { z } from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
-import type { Usuario, CreateUsuarioPayload, UpdateUsuarioPayload, Rol } from '~/types/usuario'
+import type { Usuario, CreateUsuarioPayload, UpdateUsuarioPayload, Rol } from '~/types/comun/usuario'
 import { backendService } from '~/services/backend.service'
 
 const props = defineProps<{

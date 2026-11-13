@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import DerivacionBandejaView from '~/components/derivaciones/DerivacionBandejaView.vue'
+import DerivacionBandejaView from '~/components/correspo/derivaciones/DerivacionBandejaView.vue'
 
 useHead({
   title: 'Bandeja Con Copia - Correspondencia AFCOOP',

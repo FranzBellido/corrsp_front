@@ -2,15 +2,15 @@
 import { ref, watch, computed } from 'vue'
 import { z } from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
-import type { Correspondencia } from '~/types/correspondencia'
-import type { CreateDerivacionPayload, Derivacion } from '~/types/derivacion'
-import type { FlujoAccion } from '~/types/flujo-accion'
+import type { Correspondencia } from '~/types/correspo/correspondencia'
+import type { CreateDerivacionPayload, Derivacion } from '~/types/correspo/derivacion'
+import type { FlujoAccion } from '~/types/correspo/flujo-accion'
 import { backendService } from '~/services/backend.service'
 import {
   correspondenciaPuedeDerivar,
   etiquetaNumeroCorrespondencia,
   mensajeNoDerivarCorrespondencia,
-} from '~/utils/correspondencia'
+} from '~/utils/correspo/correspondencia'
 
 const props = defineProps<{
   correspondencia?: Correspondencia | null

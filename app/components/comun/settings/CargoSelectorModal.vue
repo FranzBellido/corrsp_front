@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { useProfile } from '~/composables/useProfile'
+import { useProfile } from '~/composables/comun/useProfile'
 
 const open = defineModel<boolean>('open', { default: false })
 

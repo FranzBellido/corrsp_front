@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, h } from 'vue'
 import type { TableColumn } from '@nuxt/ui'
-import type { FiltroProceso, Proceso, RespuestaBusquedaProceso } from '~/types/proceso'
+import type { FiltroProceso, Proceso, RespuestaBusquedaProceso } from '~/types/correspo/proceso'
 import { backendService } from '~/services/backend.service'
 
 const UBadge = resolveComponent('UBadge')
@@ -356,7 +356,7 @@ onMounted(() => {
       @update:page-size="cargar"
     />
 
-    <ProcesosProcesoFormModal
+    <ProcesoFormModal
       v-model:open="isModalOpen"
       :proceso="itemToEdit"
       @guardado="cargar"

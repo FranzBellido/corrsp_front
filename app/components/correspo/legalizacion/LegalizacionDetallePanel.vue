@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import type { Derivacion } from '~/types/derivacion'
-import type { LegalizacionResumen } from '~/types/legalizacion'
-import type { RespuestaApi } from '~/types/respuestas'
-import { EstadoDerivacionEnum } from '~/types/estado'
+import type { Derivacion } from '~/types/correspo/derivacion'
+import type { LegalizacionResumen } from '~/types/correspo/legalizacion'
+import type { RespuestaApi } from '~/types/shared/respuestas'
+import { EstadoDerivacionEnum } from '~/types/correspo/estado'
 import { get, descargarBlob } from '~/services/backend.service'
 
 const props = defineProps<{

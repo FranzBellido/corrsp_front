@@ -1,4 +1,4 @@
-import { ROLE_PROC_ADMIN, ROLE_PROC_RECAUDACION } from '~/utils/auth-access'
+import { ROLE_PROC_ADMIN, ROLE_PROC_RECAUDACION } from '~/utils/comun/auth-access'
 
 export function useAuth() {
   const nuxtApp = useNuxtApp() as any

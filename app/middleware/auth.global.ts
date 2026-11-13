@@ -1,4 +1,4 @@
-import { useProfile } from '~/composables/useProfile'
+import { useProfile } from '~/composables/comun/useProfile'
 import {
   esRutaAdministracion,
   esRutaRecaudacion,
@@ -6,7 +6,7 @@ import {
   ROLE_PROC_ADMIN,
   ROLE_PROC_RECAUDACION,
   RUTA_ACCESO_DENEGADO,
-} from '~/utils/auth-access'
+} from '~/utils/comun/auth-access'
 
 const RUTA_BIENVENIDA = '/'
 const RUTA_INICIO_APP = '/dashboard'

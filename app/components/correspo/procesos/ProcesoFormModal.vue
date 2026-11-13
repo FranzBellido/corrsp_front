@@ -2,7 +2,7 @@
 import { ref, watch, computed, onBeforeUnmount } from 'vue'
 import { z } from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
-import type { CreateProcesoPayload, Proceso, UpdateProcesoPayload } from '~/types/proceso'
+import type { CreateProcesoPayload, Proceso, UpdateProcesoPayload } from '~/types/correspo/proceso'
 import { backendService } from '~/services/backend.service'
 
 const props = defineProps<{

@@ -6,7 +6,7 @@ import type {
   CodificadorAdmin,
   CreateCodificadorPayload,
   UpdateCodificadorPayload,
-} from '~/types/codificador-admin'
+} from '~/types/comun/codificador-admin'
 import { backendService } from '~/services/backend.service'
 
 const props = defineProps<{

@@ -1,6 +1,6 @@
 import { backendService } from './backendService';
 import type { ProfileDto } from '../types/profile';
-import type { RespuestaApi } from '~/types/respuestas';
+import type { RespuestaApi } from '~/types/shared/respuestas';
 
 export const profileService = {
   getProfile: async (): Promise<RespuestaApi<ProfileDto>> => {

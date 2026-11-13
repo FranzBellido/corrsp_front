@@ -3,18 +3,18 @@ import { computed, ref, watch } from 'vue'
 import { z } from 'zod'
 import CorrespCooperativaFields, {
   type CorrespCooperativaFormState,
-} from '~/components/correspondencia/CorrespCooperativaFields.vue'
+} from '~/components/correspo/correspondencia/CorrespCooperativaFields.vue'
 import type {
   Correspondencia,
   CorrespCooperativaPayload,
   UpdateCorrespondenciaPayload,
-} from '~/types/correspondencia'
+} from '~/types/correspo/correspondencia'
 import type {
   GuardarLegalizacionPayload,
   LeArancelTramite,
   LegalizacionResumen,
-} from '~/types/legalizacion'
-import type { RespuestaApi } from '~/types/respuestas'
+} from '~/types/correspo/legalizacion'
+import type { RespuestaApi } from '~/types/shared/respuestas'
 import {
   get,
   obtenerPorIdGenerico,

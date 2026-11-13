@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, computed, onBeforeUnmount } from 'vue'
-import type { UsuarioInfo } from '~/types/usuario'
-import type { RespuestaApi } from '~/types/respuestas'
+import type { UsuarioInfo } from '~/types/comun/usuario'
+import type { RespuestaApi } from '~/types/shared/respuestas'
 import { backendService } from '~/services/backend.service'
 
 const props = defineProps<{

@@ -8,7 +8,7 @@ import type {
   ReporteRecaudacionCooperativa,
   ReporteRecaudacionProceso,
   ReportesResumen,
-} from '~/types/reportes'
+} from '~/types/correspo/reportes'
 import { get } from '~/services/backend.service'
 
 useHead({

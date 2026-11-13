@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import type { CodificadorDto, ApiResponse } from '~/types/codificador'
+import type { CodificadorDto, ApiResponse } from '~/types/comun/codificador'
 import { backendService } from '~/services/backend.service'
 
 const props = withDefaults(defineProps<{
@@ -127,7 +127,7 @@ const truncateLabel = (text: string) => {
 </template>
 
 <style scoped>
-@reference "../../assets/css/main.css";
+@reference "~/assets/css/main.css";
 
 :deep(.u-select-menu-trigger) {
   @apply rounded-md border-neutral-200 dark:border-neutral-800 focus:ring-primary-500/20;

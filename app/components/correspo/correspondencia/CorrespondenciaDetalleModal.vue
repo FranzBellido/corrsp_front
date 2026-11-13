@@ -7,15 +7,15 @@ import type {
   HojaRutaCorrespondenciaItem,
   HojaRutaCorrespondenciasData,
   RecDeposito,
-} from '~/types/correspondencia'
-import type { CorrespondenciaDetalle, Derivacion } from '~/types/derivacion'
-import type { RespuestaApi } from '~/types/respuestas'
+} from '~/types/correspo/correspondencia'
+import type { CorrespondenciaDetalle, Derivacion } from '~/types/correspo/derivacion'
+import type { RespuestaApi } from '~/types/shared/respuestas'
 import { backendService } from '~/services/backend.service'
 import {
   citeOrigenCorrespondencia,
   correspondenciaTieneDocumentoOficial,
   etiquetaNumeroCorrespondencia,
-} from '~/utils/correspondencia'
+} from '~/utils/correspo/correspondencia'
 
 const props = defineProps<{
   correspondenciaId?: string | null

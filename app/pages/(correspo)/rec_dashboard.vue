@@ -5,9 +5,9 @@ import type {
   FiltroRecDashboard,
   RecDashboardData,
   RecDashboardDetalle,
-} from '~/types/recaudacion'
+} from '~/types/correspo/recaudacion'
 import { backendService } from '~/services/backend.service'
-import CodificadorSelect from '~/components/codificador/CodificadorSelect.vue'
+import CodificadorSelect from '~/components/comun/codificador/CodificadorSelect.vue'
 
 useHead({
   title: 'Dashboard recaudaciones - AFCOOP',

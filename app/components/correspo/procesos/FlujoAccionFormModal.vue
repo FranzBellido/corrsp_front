@@ -7,10 +7,10 @@ import type {
   CreateFlujoAccionPayload,
   UpdateFlujoAccionPayload,
   FlujoAccionEstado,
-} from '~/types/flujo-accion'
-import { TipoCodificadorEnum } from '~/types/correspondencia'
+} from '~/types/correspo/flujo-accion'
+import { TipoCodificadorEnum } from '~/types/correspo/correspondencia'
 import { backendService } from '~/services/backend.service'
-import CodificadorSelect from '~/components/codificador/CodificadorSelect.vue'
+import CodificadorSelect from '~/components/comun/codificador/CodificadorSelect.vue'
 
 const props = defineProps<{
   procId: number

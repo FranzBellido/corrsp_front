@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { DashboardResumen } from '~/types/dashboard'
-import type { RespuestaApi } from '~/types/respuestas'
+import type { DashboardResumen } from '~/types/correspo/dashboard'
+import type { RespuestaApi } from '~/types/shared/respuestas'
 import { get } from '~/services/backend.service'
 
 useHead({

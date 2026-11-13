@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import type { Correspondencia } from '~/types/correspondencia'
+import type { Correspondencia } from '~/types/correspo/correspondencia'
 import {
   correspondenciaTieneAlertaDepositoPendiente,
   MENSAJE_ALERTA_DEPOSITO_PENDIENTE,
-} from '~/utils/correspondencia'
+} from '~/utils/correspo/correspondencia'
 
 const props = defineProps<{
   correspondencia: Pick<

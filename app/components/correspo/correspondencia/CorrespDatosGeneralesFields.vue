@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import type { CodificadorDto } from '~/types/codificador'
-import { TipoCodificadorEnum } from '~/types/correspondencia'
-import CodificadorSelect from '~/components/codificador/CodificadorSelect.vue'
-import CorrespondenciaHojaRutaFields from '~/components/correspondencia/CorrespondenciaHojaRutaFields.vue'
+import type { CodificadorDto } from '~/types/comun/codificador'
+import { TipoCodificadorEnum } from '~/types/correspo/correspondencia'
+import CodificadorSelect from '~/components/comun/codificador/CodificadorSelect.vue'
+import CorrespondenciaHojaRutaFields from '~/components/correspo/correspondencia/CorrespondenciaHojaRutaFields.vue'
 
 defineProps<{
   remitenteParams: Record<string, string>

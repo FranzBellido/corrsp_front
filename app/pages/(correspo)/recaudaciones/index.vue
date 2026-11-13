@@ -5,7 +5,7 @@ import type {
   FiltroRecDeposito,
   RecDepositoItem,
   RespuestaBusquedaRecDeposito,
-} from '~/types/recaudacion'
+} from '~/types/correspo/recaudacion'
 import { backendService, getApi } from '~/services/backend.service'
 
 const UBadge = resolveComponent('UBadge')
@@ -340,7 +340,7 @@ onMounted(() => {
       @update:page-size="cargar"
     />
 
-    <RecaudacionesRecDepositoFormModal
+    <RecDepositoFormModal
       v-model:open="isModalOpen"
       :deposito="itemToEdit"
       @guardado="cargar"

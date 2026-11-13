@@ -1,17 +1,17 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, h, resolveComponent } from 'vue'
 import type { TableColumn } from '@nuxt/ui'
-import type { Correspondencia, FiltroCorrespondencia, RespuestaBusquedaCorrespondencia } from '~/types/correspondencia'
+import type { Correspondencia, FiltroCorrespondencia, RespuestaBusquedaCorrespondencia } from '~/types/correspo/correspondencia'
 import { backendService } from '~/services/backend.service'
-import CorrespondenciaFormModal from '~/components/correspondencia/CorrespondenciaFormModal.vue'
-import CorrespondenciaCompartirModal from '~/components/correspondencia/CorrespondenciaCompartirModal.vue'
-import DerivacionFormModal from '~/components/derivaciones/DerivacionFormModal.vue'
-import DerivacionFlujoFormModal from '~/components/derivaciones/DerivacionFlujoFormModal.vue'
-import CorrespondenciaDetalleModal from '~/components/correspondencia/CorrespondenciaDetalleModal.vue'
-import CorrespondenciaAdjuntosModal from '~/components/correspondencia/CorrespondenciaAdjuntosModal.vue'
-import CorAcciones from '~/components/correspondencia/CorAcciones.vue'
-import CorTable from '~/components/CorTable.vue'
-import BandejaViewHeader from '~/components/BandejaViewHeader.vue'
+import CorrespondenciaFormModal from '~/components/correspo/correspondencia/CorrespondenciaFormModal.vue'
+import CorrespondenciaCompartirModal from '~/components/correspo/correspondencia/CorrespondenciaCompartirModal.vue'
+import DerivacionFormModal from '~/components/correspo/derivaciones/DerivacionFormModal.vue'
+import DerivacionFlujoFormModal from '~/components/correspo/derivaciones/DerivacionFlujoFormModal.vue'
+import CorrespondenciaDetalleModal from '~/components/correspo/correspondencia/CorrespondenciaDetalleModal.vue'
+import CorrespondenciaAdjuntosModal from '~/components/correspo/correspondencia/CorrespondenciaAdjuntosModal.vue'
+import CorAcciones from '~/components/correspo/correspondencia/CorAcciones.vue'
+import CorTable from '~/components/shared/CorTable.vue'
+import BandejaViewHeader from '~/components/correspo/BandejaViewHeader.vue'
 import {
   correspondenciaPuedeDerivar,
   etiquetaHojaRuta,
@@ -20,10 +20,10 @@ import {
   clasesEtiquetaCorrelativoBandeja,
   mensajeNoDerivarCorrespondencia,
   MENSAJE_ELIMINAR_CORRELATIVO,
-} from '~/utils/correspondencia'
-import { META_COLUMNA_ACCIONES_TABLA } from '~/utils/acciones-menu'
-import CodificadorSelect from '~/components/codificador/CodificadorSelect.vue'
-import { useBandejaFiltros } from '~/composables/useBandejaFiltros'
+} from '~/utils/correspo/correspondencia'
+import { META_COLUMNA_ACCIONES_TABLA } from '~/utils/shared/acciones-menu'
+import CodificadorSelect from '~/components/comun/codificador/CodificadorSelect.vue'
+import { useBandejaFiltros } from '~/composables/correspo/useBandejaFiltros'
 
 const props = withDefaults(
   defineProps<{

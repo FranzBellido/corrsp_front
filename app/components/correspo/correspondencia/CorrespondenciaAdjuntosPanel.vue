@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
-import type { AdjuntoCorrespondencia } from '~/types/adjunto'
-import type { Correspondencia } from '~/types/correspondencia'
+import type { AdjuntoCorrespondencia } from '~/types/comun/adjunto'
+import type { Correspondencia } from '~/types/correspo/correspondencia'
 import { backendService } from '~/services/backend.service'
 
 const props = withDefaults(

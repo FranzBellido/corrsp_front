@@ -2,8 +2,8 @@
 import LayoutSidebar from './Sidebar.vue'
 import LayoutHeader from './Header.vue'
 import LayoutFooter from './Footer.vue'
-import CargoSelectorModal from '~/components/settings/CargoSelectorModal.vue'
-import { useProfile } from '~/composables/useProfile'
+import CargoSelectorModal from '~/components/comun/settings/CargoSelectorModal.vue'
+import { useProfile } from '~/composables/comun/useProfile'
 
 const { needsCargoSelection } = useProfile()
 

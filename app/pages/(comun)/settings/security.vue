@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useKeycloakAccountLinks } from '~/composables/useKeycloakAccountLinks'
+import { useKeycloakAccountLinks } from '~/composables/comun/useKeycloakAccountLinks'
 
 const toast = useToast()
 const {

@@ -2,11 +2,11 @@
 import { ref, watch, computed } from 'vue'
 import { z } from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
-import type { Cargo, CreateCargoPayload, UpdateCargoPayload } from '~/types/cargo'
-import type { CodificadorDto } from '~/types/codificador'
-import { TipoCodificadorEnum } from '~/types/correspondencia'
+import type { Cargo, CreateCargoPayload, UpdateCargoPayload } from '~/types/correspo/cargo'
+import type { CodificadorDto } from '~/types/comun/codificador'
+import { TipoCodificadorEnum } from '~/types/correspo/correspondencia'
 import { backendService } from '~/services/backend.service'
-import CodificadorSelect from '~/components/codificador/CodificadorSelect.vue'
+import CodificadorSelect from '~/components/comun/codificador/CodificadorSelect.vue'
 
 const props = defineProps<{
   cargo?: Cargo | null

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, h } from 'vue'
 import type { TableColumn } from '@nuxt/ui'
-import type { Usuario, FiltroUsuario, RespuestaBusquedaUsuario, Rol } from '~/types/usuario'
+import type { Usuario, FiltroUsuario, RespuestaBusquedaUsuario, Rol } from '~/types/comun/usuario'
 import { backendService } from '~/services/backend.service'
 
 const UBadge = resolveComponent('UBadge')
@@ -381,13 +381,13 @@ onMounted(() => {
     />
 
     <!-- Modal de Creación / Edición con Roles -->
-    <UsuariosUsuarioFormModal
+    <UsuarioFormModal
       v-model:open="isModalOpen"
       :usuario="usuarioToEdit"
       @guardado="cargarUsuarios"
     />
 
-    <UsuariosUsuarioDetalleModal
+    <UsuarioDetalleModal
       v-model:open="isDetalleOpen"
       :usuario-id="usuarioDetalleId"
     />

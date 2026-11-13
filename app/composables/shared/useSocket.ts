@@ -1,6 +1,6 @@
 import { io, type Socket } from 'socket.io-client'
-import type { NotificacionRealtime } from '~/types/notificacion'
-import { NOTIFICACION_EVENT } from '~/types/notificacion'
+import type { NotificacionRealtime } from '~/types/comun/notificacion'
+import { NOTIFICACION_EVENT } from '~/types/comun/notificacion'
 
 type NotificacionHandler = (payload: NotificacionRealtime) => void
 

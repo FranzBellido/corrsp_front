@@ -1,10 +1,10 @@
-import type { ProfileDto } from '~/types/profile'
-import type { RespuestaApi } from '~/types/respuestas'
+import type { ProfileDto } from '~/types/comun/profile'
+import type { RespuestaApi } from '~/types/shared/respuestas'
 import { backendService } from '~/services/backend.service'
 import {
   extractHttpStatus,
   isUsuarioNoRegistradoEnSistema,
-} from '~/utils/auth-access'
+} from '~/utils/comun/auth-access'
 
 const PROFILE_STORAGE_KEY = 'user_profile_data'
 export const CARGO_ORIGEN_STORAGE_KEY = 'cargo_origen_id'

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import * as z from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
-import { useProfile } from '~/composables/useProfile'
+import { useProfile } from '~/composables/comun/useProfile'
 import { backendService } from '~/services/backend.service'
 
 const toast = useToast()

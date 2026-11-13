@@ -14,6 +14,28 @@ export default defineNuxtConfig({
 
   css: ['~/assets/css/main.css'],
 
+  components: [
+    { path: '~/components/shared', pathPrefix: false },
+    { path: '~/components/comun', pathPrefix: false },
+    { path: '~/components/correspo', pathPrefix: false },
+    { path: '~/components/poa', pathPrefix: false },
+  ],
+
+  imports: {
+    dirs: [
+      'composables',
+      'composables/comun',
+      'composables/correspo',
+      'composables/shared',
+      'utils',
+      'utils/comun',
+      'utils/correspo',
+      'utils/shared',
+    ],
+  },
+
+  ignore: ['app/_archive/**'],
+
   routeRules: {
     '/api/**': {
       cors: true

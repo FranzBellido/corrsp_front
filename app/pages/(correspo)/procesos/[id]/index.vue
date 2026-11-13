@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, h } from 'vue'
 import type { TableColumn } from '@nuxt/ui'
-import type { Proceso } from '~/types/proceso'
-import type { FlujoAccion, FlujoAccionEstado } from '~/types/flujo-accion'
+import type { Proceso } from '~/types/correspo/proceso'
+import type { FlujoAccion, FlujoAccionEstado } from '~/types/correspo/flujo-accion'
 import { backendService } from '~/services/backend.service'
 
 const route = useRoute()
@@ -270,7 +270,7 @@ definePageMeta({
       :loading="loading || loadingProceso"
     />
 
-    <ProcesosFlujoAccionFormModal
+    <FlujoAccionFormModal
       v-if="procId"
       v-model:open="isModalOpen"
       :proc-id="procId"

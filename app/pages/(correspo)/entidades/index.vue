@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, h } from 'vue'
 import type { TableColumn } from '@nuxt/ui'
-import type { Entidad, FiltroEntidad, RespuestaBusquedaEntidad } from '~/types/entidad'
+import type { Entidad, FiltroEntidad, RespuestaBusquedaEntidad } from '~/types/correspo/entidad'
 import { backendService } from '~/services/backend.service'
 
 const UBadge = resolveComponent('UBadge')
@@ -250,7 +250,7 @@ onMounted(() => {
       @update:page-size="cargar"
     />
 
-    <EntidadesEntidadFormModal
+    <EntidadFormModal
       v-model:open="isModalOpen"
       :entidad="itemToEdit"
       @guardado="cargar"

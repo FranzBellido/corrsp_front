@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, h } from 'vue'
 import type { TableColumn } from '@nuxt/ui'
-import type { Area, FiltroArea, RespuestaBusquedaArea } from '~/types/area'
+import type { Area, FiltroArea, RespuestaBusquedaArea } from '~/types/comun/area'
 import { backendService } from '~/services/backend.service'
 
 const UBadge = resolveComponent('UBadge')
@@ -344,7 +344,7 @@ onMounted(() => {
     />
 
     <!-- Modal de Creación / Edición -->
-    <AreasAreaFormModal
+    <AreaFormModal
       v-model:open="isModalOpen"
       :area="areaToEdit"
       @guardado="cargarAreas"
