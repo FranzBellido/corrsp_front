@@ -1,3 +1,5 @@
+import type { PoaEstadoVista } from './poa-estado'
+
 export interface PoaFormulacionResumen {
   id: string
   area_id: string
@@ -16,7 +18,7 @@ export interface PoaFormulacionResumen {
     nombre: string
     trimestre_activo: number
   }
-  poa_estado?: {
+  poa_estado?: PoaEstadoVista & {
     id: number
     nombre: string
     permite_editar?: boolean
@@ -35,7 +37,7 @@ export interface PoaEstadoLogEntry {
   created_at?: string | null
   nombre?: string | null
   estado_id?: number | null
-  poa_estado?: {
+  poa_estado?: PoaEstadoVista & {
     id: number
     nombre: string
   }
@@ -43,6 +45,16 @@ export interface PoaEstadoLogEntry {
 
 export interface PoaFormulacionDetalleResponse {
   formulacion: PoaFormulacionResumen
+  historial_estado: PoaEstadoLogEntry[]
+}
+
+/** Historial de poa_estado_log para resultado u operación (GET …/historial-estado). */
+export interface PoaItemHistorialEstadoResponse {
+  item: {
+    id: string
+    titulo: string
+    estado_actual?: PoaEstadoVista | null
+  }
   historial_estado: PoaEstadoLogEntry[]
 }
 
@@ -86,8 +98,16 @@ export interface AcpDisponibleFormulacion {
   version_id: number
 }
 
+/** Área de formulación + subáreas dependientes (registra_poa = false). */
+export interface PoaAreaOperacionOption {
+  id: string
+  codigo: string
+  nombre: string
+}
+
 export interface PoaFormulacionContexto {
   formulacion: PoaFormulacionResumen
+  /** Unidad de formulación POA (usuarios.area_poa_id), no el área del cargo. */
   area_cargo: {
     id: string
     nombre: string
@@ -95,6 +115,7 @@ export interface PoaFormulacionContexto {
   }
   cargo_id: string | null
   acps_disponibles: AcpDisponibleFormulacion[]
+  areas_operacion?: PoaAreaOperacionOption[]
   trimestre_activo?: number
   modo_admin?: boolean
 }

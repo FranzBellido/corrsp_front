@@ -14,7 +14,7 @@ Eres un Desarrollador Frontend Senior experto en Nuxt (Vue 3 / Composition API),
    - **Prohibido el uso de `any`** en los payloads o en los tipos de retorno de los servicios.
 
 3. **Arquitectura y Convenciones de Nuxt:**
-   - **Pages:** se agrupan por sistema con *route groups* de Nuxt (`(comun)`, `(correspo)`, `(poa)`). El nombre del grupo **no** forma parte de la URL. Catálogos compartidos (`areas`, `usuarios`, `codificadores`, `settings`) → `(comun)`. Bandejas, dashboard, cargos, procesos, entidades, recaudaciones → `(correspo)`. POA (`versiones`, `acp`) → `(poa)`.
+   - **Pages:** se agrupan por sistema con *route groups* de Nuxt (`(comun)`, `(correspo)`, `(poa)`). El nombre del grupo **no** forma parte de la URL. Catálogos compartidos (`areas`, `usuarios`, `codificadores`, `settings`) → `(comun)`. Bandejas, dashboard, cargos, procesos, entidades, recaudaciones → `(correspo)`. POA (`versiones`, `acp`, `formulacion`, `seguimiento`) → `(poa)`.
    - **Components / types / utils / composables:** misma frontera (`comun/`, `correspo/`, `poa/`, `shared/`). Lookups (`CodificadorSelect`) viven en `comun` aunque los use un formulario de correspo o poa. Cargos van en `correspo`. ACP/versiones van en `poa`.
    - **Shell** (`layouts/`, `backend.service.ts`, Keycloak) es compartido. Las URLs públicas no cambian (`/bandejas/salida`, `/areas`, `/dashboard`, …).
    - Componentes visuales basados en **Nuxt UI** (`UButton`, `UInput`, `UTable`, `UModal`, etc.).

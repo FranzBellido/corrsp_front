@@ -10,7 +10,7 @@ import type {
 } from '~/types/poa/acp-resultado'
 import type { PoaOperacion } from '~/types/poa/poa-operacion'
 import type { PoaActividad } from '~/types/poa/poa-actividad'
-import { backendService } from '~/services/backend.service'
+import { backendService, descargarBlob } from '~/services/backend.service'
 import { useProfile } from '~/composables/comun/useProfile'
 import {
   CLASE_CONTENEDOR_ACCIONES_CELDA,
@@ -28,6 +28,7 @@ import {
 import { observacionesParaFilaTree } from '~/utils/poa/formulacion-envio-alertas'
 
 const UBadge = resolveComponent('UBadge')
+const PoaEstadoBadge = resolveComponent('PoaEstadoBadge')
 const UButton = resolveComponent('UButton')
 const UIcon = resolveComponent('UIcon')
 const UDropdownMenu = resolveComponent('UDropdownMenu')
@@ -82,6 +83,13 @@ const isDetalleOpen = ref(false)
 const detalleItem = ref<PoaFormTreeDetallePayload | null>(null)
 
 const isFormulacionDetalleOpen = ref(false)
+const isFormulacionHistorialOpen = ref(false)
+const descargandoPdf = ref(false)
+
+const isItemHistorialOpen = ref(false)
+const itemHistorialId = ref<string | null>(null)
+const itemHistorialApi = ref<string | null>(null)
+const itemHistorialTitulo = ref('Historial de estados')
 const isEnviarFormulacionOpen = ref(false)
 const alertasEnvio = ref<string[]>([])
 
@@ -216,6 +224,56 @@ const handleVerDetalle = (row: FormTreeRow) => {
   isDetalleOpen.value = true
 }
 
+const descargarReporteFormulacionPdf = async () => {
+  const id = contexto.value?.formulacion?.id
+  if (!id || descargandoPdf.value) return
+
+  descargandoPdf.value = true
+  try {
+    const resource = modoAdmin.value ? 'poa-formulacion-admin' : 'poa-formulacion'
+    const blob = await descargarBlob(`${resource}/${id}/reporte/pdf`, undefined, {
+      expectPdf: true,
+    })
+    const gestion = contexto.value?.formulacion?.version_id ?? ''
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `formulacion_poa_${gestion}.pdf`
+    a.click()
+    URL.revokeObjectURL(url)
+    toast.add({
+      title: 'Reporte PDF generado',
+      description: 'Formulario 01 — Formulación del Plan Operativo Anual.',
+      color: 'success',
+      icon: 'i-lucide-check',
+    })
+  } catch (error: unknown) {
+    const err = error as { data?: { message?: string }; message?: string }
+    toast.add({
+      title: 'No se pudo generar el PDF',
+      description: err?.data?.message || err?.message || 'Error al descargar el reporte.',
+      color: 'error',
+      icon: 'i-lucide-alert-circle',
+    })
+  } finally {
+    descargandoPdf.value = false
+  }
+}
+
+const handleHistorialEstado = (row: FormTreeRow) => {
+  if (row.tipo === 'resultado') {
+    itemHistorialApi.value = modoAdmin.value ? 'acp-resultados-admin' : 'acp-resultados'
+    itemHistorialTitulo.value = 'Historial — resultado'
+  } else if (row.tipo === 'operacion') {
+    itemHistorialApi.value = modoAdmin.value ? 'poa-operaciones-admin' : 'poa-operaciones'
+    itemHistorialTitulo.value = 'Historial — operación'
+  } else {
+    return
+  }
+  itemHistorialId.value = row.id
+  isItemHistorialOpen.value = true
+}
+
 const permiteEditarFormulacion = computed(
   () => contexto.value?.formulacion?.poa_estado?.permite_editar ?? true,
 )
@@ -259,6 +317,7 @@ const treeRows = computed<FormTreeRow[]>(() => {
       titulo: resultado.nombre,
       ponderacion: resultado.ponderacion,
       estadoNombre: resultado.poa_estado?.nombre || '—',
+      estado: resultado.poa_estado ?? null,
       permite_editar: editForm && Boolean(resultado.poa_estado?.permite_editar),
       permite_eliminar: delForm && Boolean(resultado.poa_estado?.permite_eliminar),
       resultado,
@@ -272,6 +331,7 @@ const treeRows = computed<FormTreeRow[]>(() => {
         titulo: op.descripcion,
         ponderacion: op.ponderacion,
         estadoNombre: op.poa_estado?.nombre || '—',
+        estado: op.poa_estado ?? null,
         permite_editar: editForm && Boolean(op.poa_estado?.permite_editar),
         permite_eliminar: delForm && Boolean(op.poa_estado?.permite_eliminar),
         operacion: op,
@@ -286,6 +346,7 @@ const treeRows = computed<FormTreeRow[]>(() => {
           titulo: act.descripcion || '—',
           ponderacion: act.ponderacion,
           estadoNombre: op.poa_estado?.nombre || '—',
+          estado: op.poa_estado ?? null,
           permite_editar: editForm && Boolean(op.poa_estado?.permite_editar),
           permite_eliminar: delForm && Boolean(op.poa_estado?.permite_eliminar),
           actividad: act,
@@ -652,7 +713,11 @@ const columns = computed<TableColumn<FormTreeRow>[]>(() => [
   {
     accessorKey: 'estadoNombre',
     header: 'Estado',
-    cell: ({ row }) => h('span', { class: 'text-xs' }, row.original.estadoNombre),
+    cell: ({ row }) =>
+      h(PoaEstadoBadge, {
+        estado: row.original.estado,
+        nombre: row.original.estado ? undefined : row.original.estadoNombre,
+      }),
   },
   {
     id: 'acciones',
@@ -680,6 +745,17 @@ const columns = computed<TableColumn<FormTreeRow>[]>(() => [
           title: 'Ver detalle',
           onClick: () => handleVerDetalle(item),
         }),
+        item.tipo === 'resultado' || item.tipo === 'operacion'
+          ? h(UButton, {
+              icon: 'i-lucide-history',
+              color: 'neutral',
+              variant: 'ghost',
+              size: 'xs',
+              class: 'shrink-0',
+              title: 'Historial de estados',
+              onClick: () => handleHistorialEstado(item),
+            })
+          : null,
         hMenuAccionesTabla(UDropdownMenu, UButton, menu),
       ].filter(Boolean)
 
@@ -888,7 +964,7 @@ onMounted(async () => {
 <template>
   <div class="space-y-6">
     <PageHeader
-      :title="modoAdmin ? 'Formulación (modo administrador)' : 'Resultados — Formulación POA'"
+      :title="modoAdmin ? 'Formulación (modo administrador)' : 'Formulación POA'"
       :description="
         modoAdmin
           ? 'Validación u observación de resultados y operaciones de la formulación del área.'
@@ -921,7 +997,7 @@ onMounted(async () => {
           "
           @click="handleCrear"
         >
-          Nuevo resultado
+          Nuevo resultado ACP
         </UButton>
       </template>
     </PageHeader>
@@ -931,7 +1007,7 @@ onMounted(async () => {
     <UCard v-else-if="contexto?.formulacion" class="border border-default">
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
         <div>
-          <p class="text-xs text-muted">Área (cargo activo)</p>
+          <p class="text-xs text-muted">Área POA</p>
           <p class="font-semibold">
             {{ contexto.area_cargo.nombre }}
             <span v-if="contexto.area_cargo.codigo" class="text-muted font-mono text-xs">
@@ -948,12 +1024,31 @@ onMounted(async () => {
             <p class="text-xs text-muted">Estado</p>
             <div class="flex items-center gap-1 shrink-0">
               <UButton
+                icon="i-lucide-file-down"
+                color="neutral"
+                variant="ghost"
+                size="xs"
+                aria-label="Descargar reporte PDF de formulación"
+                title="Descargar Formulario 01 (PDF)"
+                :loading="descargandoPdf"
+                @click="descargarReporteFormulacionPdf"
+              />
+              <UButton
                 icon="i-lucide-eye"
                 color="neutral"
                 variant="ghost"
                 size="xs"
                 aria-label="Ver detalle de la formulación"
                 @click="isFormulacionDetalleOpen = true"
+              />
+              <UButton
+                icon="i-lucide-history"
+                color="neutral"
+                variant="ghost"
+                size="xs"
+                aria-label="Historial de estados"
+                title="Historial de estados"
+                @click="isFormulacionHistorialOpen = true"
               />
               <UDropdownMenu :items="[menuFormulacionItems]" size="xs">
                 <UButton
@@ -966,7 +1061,10 @@ onMounted(async () => {
               </UDropdownMenu>
             </div>
           </div>
-          <p class="font-semibold">{{ contexto.formulacion.poa_estado?.nombre || '—' }}</p>
+          <PoaEstadoBadge
+            :estado="contexto.formulacion.poa_estado"
+            size="sm"
+          />
         </div>
       </div>
     </UCard>
@@ -1018,6 +1116,8 @@ onMounted(async () => {
       :operacion="operacionToEdit"
       :resultado-id="operacionResultadoId"
       :resultado-nombre="operacionResultadoNombre"
+      :areas-operacion="contexto?.areas_operacion ?? []"
+      :area-raiz-id="contexto?.formulacion?.area_id"
       @guardado="cargar"
     />
 
@@ -1106,6 +1206,20 @@ onMounted(async () => {
       v-model:open="isFormulacionDetalleOpen"
       :formulacion-id="contexto.formulacion.id"
       :api-resource="modoAdmin ? 'poa-formulacion-admin' : 'poa-formulacion'"
+    />
+
+    <PoaFormulacionHistorialEstadosModal
+      v-if="contexto?.formulacion?.id"
+      v-model:open="isFormulacionHistorialOpen"
+      :formulacion-id="contexto.formulacion.id"
+      :api-resource="modoAdmin ? 'poa-formulacion-admin' : 'poa-formulacion'"
+    />
+
+    <PoaItemHistorialEstadosModal
+      v-model:open="isItemHistorialOpen"
+      :item-id="itemHistorialId"
+      :api-resource="itemHistorialApi"
+      :titulo-modal="itemHistorialTitulo"
     />
 
     <PoaFormulacionCambioEstadoModal

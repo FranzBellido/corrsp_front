@@ -8,7 +8,7 @@ import CorrespondenciaCompartirModal from '~/components/correspo/correspondencia
 import DerivacionFormModal from '~/components/correspo/derivaciones/DerivacionFormModal.vue'
 import DerivacionFlujoFormModal from '~/components/correspo/derivaciones/DerivacionFlujoFormModal.vue'
 import CorrespondenciaDetalleModal from '~/components/correspo/correspondencia/CorrespondenciaDetalleModal.vue'
-import CorrespondenciaAdjuntosModal from '~/components/correspo/correspondencia/CorrespondenciaAdjuntosModal.vue'
+import AdjuntosModal from '~/components/comun/adjuntos/AdjuntosModal.vue'
 import CorAcciones from '~/components/correspo/correspondencia/CorAcciones.vue'
 import CorTable from '~/components/shared/CorTable.vue'
 import BandejaViewHeader from '~/components/correspo/BandejaViewHeader.vue'
@@ -721,9 +721,14 @@ onMounted(() => {
       @leido="fetchCorrespondencias"
     />
 
-    <CorrespondenciaAdjuntosModal
+    <AdjuntosModal
       v-model:open="isAdjuntosOpen"
-      :correspondencia="correspAdjuntos"
+      title="Adjuntos"
+      :description="adjuntosSoloLectura
+        ? 'Consulta de archivos adjuntos (solo lectura).'
+        : 'Suba archivos y registre una descripción.'"
+      api-resource="correspondencia"
+      :item-id="correspAdjuntos?.id"
       :solo-lectura="adjuntosSoloLectura"
     />
 

@@ -83,48 +83,6 @@ const columns: TableColumn<Usuario>[] = [
     },
   },
   {
-    accessorKey: 'email',
-    header: 'Correo Electrónico',
-    cell: ({ row }) => {
-      const u = row.original
-      return h('div', { class: 'flex items-center gap-1.5' }, [
-        h(UIcon, { name: 'i-lucide-mail', class: 'size-4 text-gray-400 shrink-0' }),
-        h('span', { class: 'text-xs text-gray-700 dark:text-gray-300' }, u.email || '—'),
-      ])
-    },
-  },
-  {
-    accessorKey: 'roles',
-    header: 'Roles Asignados',
-    cell: ({ row }) => {
-      const roles = row.original.roles || []
-      if (roles.length === 0) {
-        return h(
-          UBadge,
-          { color: 'neutral', variant: 'subtle', size: 'xs' },
-          () => 'Sin rol',
-        )
-      }
-      return h(
-        'div',
-        { class: 'flex flex-wrap gap-1 max-w-xs' },
-        roles.map((r: Rol) =>
-          h(
-            UBadge,
-            {
-              key: r.id,
-              color: 'primary',
-              variant: 'subtle',
-              size: 'xs',
-              class: 'font-medium',
-            },
-            () => r.nombre,
-          ),
-        ),
-      )
-    },
-  },
-  {
     accessorKey: 'cargos',
     header: 'Cargo / Unidad',
     cell: ({ row }) => {

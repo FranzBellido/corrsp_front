@@ -1,15 +1,20 @@
 import type { PoaActividad } from './poa-actividad'
+import type { PoaEstadoVista } from './poa-estado'
 
-export interface PoaEstadoPermisos {
+export type PoaEstadoPermisos = PoaEstadoVista & {
   id: number
   nombre: string
-  permite_editar?: boolean
-  permite_eliminar?: boolean
 }
 
 export interface PoaOperacion {
   id: string
   resultado_id: string
+  area_id?: string
+  areas?: {
+    id: string
+    codigo: string
+    nombre: string
+  } | null
   numero: number
   descripcion: string
   ponderacion: number
@@ -25,6 +30,7 @@ export interface PoaOperacion {
 
 export interface CreatePoaOperacionPayload {
   resultado_id: string
+  area_id: string
   descripcion: string
   ponderacion: number
   meta: string

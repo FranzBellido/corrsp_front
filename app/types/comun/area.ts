@@ -23,6 +23,7 @@ export interface Area {
   codigo: string;
   nombre: string;
   activo: boolean;
+  registra_poa?: boolean;
   id_anterior?: number | null;
   area_padre_id?: string | null;
   area_comunicacion_id?: string | null;
@@ -47,6 +48,7 @@ export interface CreateAreaPayload {
   codigo: string;
   nombre: string;
   activo?: boolean;
+  registra_poa?: boolean;
   id_anterior?: number;
   area_padre_id?: string;
   area_comunicacion_id?: string;

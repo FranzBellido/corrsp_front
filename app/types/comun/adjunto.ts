@@ -1,4 +1,5 @@
 export const ENTIDAD_ADJUNTO_CORRESPONDENCIA = 'correspondencia'
+export const ENTIDAD_ADJUNTO_SEGUIMIENTO_ACTIVIDAD = 'seguimiento_actividad'
 
 export interface AdjuntoCorrespondencia {
   id: string

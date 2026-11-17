@@ -38,6 +38,12 @@ const subtitulo = computed(() => {
 
 type DetalleCampo = { label: string; value: string }
 
+const etiquetaArea = (areas?: { codigo?: string; nombre?: string } | null) => {
+  if (!areas?.nombre?.trim()) return '—'
+  const codigo = areas.codigo?.trim()
+  return codigo ? `[${codigo}] ${areas.nombre}` : areas.nombre
+}
+
 const campos = computed<DetalleCampo[]>(() => {
   const d = props.detalle
   if (!d) return []
@@ -67,6 +73,7 @@ const campos = computed<DetalleCampo[]>(() => {
     const pr = d.parentResultado
     return [
       { label: 'Número', value: String(o.numero) },
+      { label: 'Área', value: etiquetaArea(o.areas) },
       {
         label: 'Resultado padre',
         value: pr ? `${pr.numero}. ${pr.nombre}` : '—',
@@ -88,6 +95,7 @@ const campos = computed<DetalleCampo[]>(() => {
     const po = d.parentOperacion
     return [
       { label: 'Número', value: String(a.numero) },
+      { label: 'Área', value: etiquetaArea(po?.areas) },
       {
         label: 'Operación padre',
         value: po ? `${po.numero}. ${po.descripcion}` : '—',

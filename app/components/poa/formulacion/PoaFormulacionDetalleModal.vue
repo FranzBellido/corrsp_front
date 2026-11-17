@@ -81,7 +81,12 @@ watch(
           </div>
           <div>
             <dt class="text-xs text-muted">Estado</dt>
-            <dd class="font-medium">{{ detalle.formulacion.poa_estado?.nombre || '—' }}</dd>
+            <dd>
+              <PoaEstadoBadge
+                :estado="detalle.formulacion.poa_estado"
+                size="sm"
+              />
+            </dd>
           </div>
           <div>
             <dt class="text-xs text-muted">Área</dt>
@@ -117,9 +122,12 @@ watch(
                 {{ formatFecha(row.created_at) }}
                 <span v-if="row.nombre"> · {{ row.nombre }}</span>
               </p>
-              <p class="font-medium text-sm mt-0.5">
-                {{ row.poa_estado?.nombre || `Estado #${row.estado_id ?? '—'}` }}
-              </p>
+              <div class="mt-0.5">
+                <PoaEstadoBadge
+                  :estado="row.poa_estado"
+                  :nombre="row.poa_estado?.nombre || `Estado #${row.estado_id ?? '—'}`"
+                />
+              </div>
               <p class="text-default mt-1 whitespace-pre-wrap">{{ row.observaciones }}</p>
             </li>
           </ul>

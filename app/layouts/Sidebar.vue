@@ -12,7 +12,7 @@ const emit = defineEmits<{
   (e: 'navigate'): void
 }>()
 
-const { isAuthenticated, isProcAdmin, isProcRecaudacion } = useAuth()
+const { isAuthenticated, isProcAdmin, isProcRecaudacion, isPoaAdmin, canAccessPoaFormulacion } = useAuth()
 const { profile, fetchProfile } = useProfile()
 const route = useRoute()
 
@@ -31,6 +31,8 @@ interface NavItem {
   children?: NavSubItem[]
   requireAdmin?: boolean
   requireRecaudacion?: boolean
+  requirePoaAdmin?: boolean
+  requirePoaFormulacion?: boolean
   footer?: boolean
 }
 
@@ -111,23 +113,24 @@ const defaultNavItems: NavItem[] = [
   {
     label: 'Plan Operativo Anual',
     icon: 'i-lucide-clipboard-list',
+    requirePoaFormulacion: true,
     children: [
       {
         label: 'Formulación',
         to: '/formulacion/resultados',
-        icon: 'i-lucide-target',
+        icon: 'i-lucide-folder-tree',
       },
       {
-        label: 'Operaciones',
-        to: '/formulacion/operaciones',
-        icon: 'i-lucide-hammer',
+        label: 'Seguimiento',
+        to: '/seguimiento',
+        icon: 'i-lucide-activity',
       },
     ],
   },
   {
     label: 'Administrador POA',
     icon: 'i-lucide-target',
-    requireAdmin: true,
+    requirePoaAdmin: true,
     children: [
       {
         label: 'Configuración POA',
@@ -138,6 +141,11 @@ const defaultNavItems: NavItem[] = [
         label: 'Administrador Formulaciones',
         to: '/formulaciones-admin',
         icon: 'i-lucide-clipboard-check',
+      },
+      {
+        label: 'Administrador Seguimientos',
+        to: '/seguimientos-admin',
+        icon: 'i-lucide-clipboard-list',
       },
       {
         label: 'Versiones',
@@ -206,6 +214,8 @@ const navItems = computed(() =>
   defaultNavItems.filter((item) => {
     if (item.requireAdmin && !isProcAdmin.value) return false
     if (item.requireRecaudacion && !isProcRecaudacion.value) return false
+    if (item.requirePoaAdmin && !isPoaAdmin.value) return false
+    if (item.requirePoaFormulacion && !canAccessPoaFormulacion.value) return false
     return true
   }),
 )

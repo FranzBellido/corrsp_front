@@ -1,11 +1,15 @@
 import { useProfile } from '~/composables/comun/useProfile'
 import {
   esRutaAdministracion,
+  esRutaPoaAdmin,
+  esRutaPoaUser,
   esRutaRecaudacion,
   isUsuarioNoRegistradoEnSistema,
+  ROLE_POA_ADMIN,
   ROLE_PROC_ADMIN,
   ROLE_PROC_RECAUDACION,
   RUTA_ACCESO_DENEGADO,
+  tieneRolPoaFormulacion,
 } from '~/utils/comun/auth-access'
 
 const RUTA_BIENVENIDA = '/'
@@ -98,6 +102,27 @@ export default defineNuxtRouteMiddleware(async (to) => {
   if (esRutaRecaudacion(to.path)) {
     const roles = $keycloak.tokenParsed?.realm_access?.roles ?? []
     if (!roles.includes(ROLE_PROC_RECAUDACION)) {
+      return navigateTo(RUTA_INICIO_APP)
+    }
+  }
+
+  const roles = $keycloak.tokenParsed?.realm_access?.roles ?? []
+
+  if (esRutaPoaAdmin(to.path)) {
+    if (!roles.includes(ROLE_POA_ADMIN)) {
+      return navigateTo(RUTA_INICIO_APP)
+    }
+  }
+
+  if (esRutaPoaUser(to.path)) {
+    const modoAdmin =
+      to.path.startsWith('/formulacion/resultados') &&
+      String(to.query.modo || '') === 'admin'
+    if (modoAdmin) {
+      if (!roles.includes(ROLE_POA_ADMIN)) {
+        return navigateTo(RUTA_INICIO_APP)
+      }
+    } else if (!tieneRolPoaFormulacion(roles)) {
       return navigateTo(RUTA_INICIO_APP)
     }
   }

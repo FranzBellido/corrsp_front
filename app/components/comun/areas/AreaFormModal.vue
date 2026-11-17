@@ -41,6 +41,7 @@ const areaSchema = z.object({
     .min(1, 'El nombre del área es obligatorio')
     .max(150, 'No puede exceder 150 caracteres'),
   activo: z.boolean().default(true),
+  registra_poa: z.boolean().default(false),
   id_anterior: z.number().int().optional(),
   area_padre_id: z.string().optional(),
   area_comunicacion_id: z.string().optional(),
@@ -52,6 +53,7 @@ const form = ref<AreaSchemaType>({
   codigo: '',
   nombre: '',
   activo: true,
+  registra_poa: false,
   id_anterior: undefined,
   area_padre_id: '',
   area_comunicacion_id: '',
@@ -118,6 +120,7 @@ watch(
         codigo: val.codigo || '',
         nombre: val.nombre || '',
         activo: val.activo ?? true,
+        registra_poa: val.registra_poa ?? false,
         id_anterior: val.id_anterior !== null && val.id_anterior !== undefined ? val.id_anterior : undefined,
         area_padre_id: val.area_padre_id || '',
         area_comunicacion_id: val.area_comunicacion_id || '',
@@ -129,6 +132,7 @@ watch(
         codigo: '',
         nombre: '',
         activo: true,
+        registra_poa: false,
         id_anterior: undefined,
         area_padre_id: '',
         area_comunicacion_id: '',
@@ -198,6 +202,7 @@ const handleSave = async (event?: FormSubmitEvent<AreaSchemaType>) => {
       codigo: data.codigo.trim(),
       nombre: data.nombre.trim(),
       activo: data.activo,
+      registra_poa: data.registra_poa,
       id_anterior: data.id_anterior !== undefined ? Number(data.id_anterior) : undefined,
       area_padre_id: data.area_padre_id || undefined,
       procesos_ids: selectedProcesosIds.value,
@@ -326,15 +331,31 @@ const handleSave = async (event?: FormSubmitEvent<AreaSchemaType>) => {
             />
           </UFormField>
 
-          <div class="flex items-center gap-3 pt-4 sm:pt-0">
-            <USwitch
-              v-model="form.activo"
-              label="Área Activa"
-              color="primary"
-            />
-            <span class="text-xs text-neutral-500">
-              {{ form.activo ? 'Habilitada para trámites y cargos' : 'Deshabilitada temporalmente' }}
-            </span>
+          <div class="flex flex-col gap-3 pt-2 sm:pt-0">
+            <div class="flex items-center gap-3">
+              <USwitch
+                v-model="form.activo"
+                label="Área Activa"
+                color="primary"
+              />
+              <span class="text-xs text-neutral-500">
+                {{ form.activo ? 'Habilitada para trámites y cargos' : 'Deshabilitada temporalmente' }}
+              </span>
+            </div>
+            <UFormField
+              name="registra_poa"
+              help="Las unidades marcadas participan en la formulación del POA."
+            >
+              <div class="flex items-center gap-3">
+                <UCheckbox
+                  v-model="form.registra_poa"
+                  label="Realiza POA"
+                />
+                <span class="text-xs text-neutral-500">
+                  {{ form.registra_poa ? 'El área elabora y registra su POA' : 'No aplica formulación POA para esta área' }}
+                </span>
+              </div>
+            </UFormField>
           </div>
         </div>
 

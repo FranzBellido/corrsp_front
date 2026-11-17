@@ -48,6 +48,7 @@ export interface Usuario {
   emitido_en?: string | null;
   titulo?: string | null;
   foto_url?: string | null;
+  area_poa_id?: string | null;
   cargos?: UsuarioCargo[];
   roles?: Rol[];
 }
@@ -62,6 +63,7 @@ export interface CreateUsuarioPayload {
   emitido_en?: string;
   titulo?: string;
   roles_ids?: string[];
+  area_poa_id?: string | null;
 }
 
 export interface UpdateUsuarioPayload extends Partial<CreateUsuarioPayload> {}

@@ -11,6 +11,7 @@ export interface PoaConfiguracion {
   acp_version_id: number
   nombre_formulacion: string
   nombre_seguimiento: string
+  trimestre_activo?: number
   formulacion_version?: PoaConfiguracionVersionRef | null
   seguimiento_version?: PoaConfiguracionVersionRef | null
   certificacion_version?: PoaConfiguracionVersionRef | null

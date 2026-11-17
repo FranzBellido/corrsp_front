@@ -4,6 +4,7 @@ import type { TableColumn } from '@nuxt/ui'
 import type { Acp, FiltroAcp, RespuestaBusquedaAcp } from '~/types/poa/acp'
 import type { PoaVersionLookup } from '~/types/poa/poa-version'
 import { backendService } from '~/services/backend.service'
+import { CLASE_CONTENEDOR_ACCIONES_CELDA } from '~/utils/shared/acciones-menu'
 
 const UBadge = resolveComponent('UBadge')
 const UButton = resolveComponent('UButton')
@@ -29,6 +30,8 @@ const gestionFilterOptions = computed(() => [
 
 const isModalOpen = ref(false)
 const itemToEdit = ref<Acp | null>(null)
+const isDetalleOpen = ref(false)
+const acpIdDetalle = ref<string | null>(null)
 const isDeleteOpen = ref(false)
 const itemToDelete = ref<Acp | null>(null)
 const deleting = ref(false)
@@ -59,18 +62,6 @@ const columns: TableColumn<Acp>[] = [
       ),
   },
   {
-    accessorKey: 'aei',
-    header: 'AEI',
-    cell: ({ row }) => {
-      const aei = row.original.aei
-      if (!aei) return h('span', { class: 'text-xs text-muted' }, '—')
-      return h('div', { class: 'flex flex-col gap-0.5 max-w-xs' }, [
-        h('span', { class: 'text-xs font-mono text-muted' }, `AEI ${aei.numero}`),
-        h('span', { class: 'text-xs line-clamp-1' }, aei.descripcion),
-      ])
-    },
-  },
-  {
     accessorKey: 'ponderacion',
     header: 'Pond.',
     cell: ({ row }) =>
@@ -87,7 +78,16 @@ const columns: TableColumn<Acp>[] = [
     header: 'Acciones',
     cell: ({ row }) => {
       const item = row.original
-      return h('div', { class: 'flex items-center justify-end gap-1.5' }, [
+      return h('div', { class: CLASE_CONTENEDOR_ACCIONES_CELDA }, [
+        h(UButton, {
+          icon: 'i-lucide-eye',
+          color: 'neutral',
+          variant: 'ghost',
+          size: 'xs',
+          class: 'shrink-0',
+          title: 'Ver detalle',
+          onClick: () => handleVerDetalle(item),
+        }),
         h(UButton, {
           icon: 'i-lucide-pencil',
           color: 'neutral',
@@ -161,6 +161,11 @@ const handleCrear = () => {
 const handleEditar = (item: Acp) => {
   itemToEdit.value = item
   isModalOpen.value = true
+}
+
+const handleVerDetalle = (item: Acp) => {
+  acpIdDetalle.value = item.id
+  isDetalleOpen.value = true
 }
 
 const handleConfirmarEliminar = (item: Acp) => {
@@ -258,6 +263,11 @@ onMounted(() => {
       v-model:open="isModalOpen"
       :acp="itemToEdit"
       @guardado="cargar"
+    />
+
+    <AcpDetalleModal
+      v-model:open="isDetalleOpen"
+      :acp-id="acpIdDetalle"
     />
 
     <UModal

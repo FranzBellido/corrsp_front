@@ -7,12 +7,15 @@ import type {
   PoaOperacion,
   UpdatePoaOperacionPayload,
 } from '~/types/poa/poa-operacion'
+import type { PoaAreaOperacionOption } from '~/types/poa/formulacion'
 import { backendService } from '~/services/backend.service'
 
 const props = defineProps<{
   operacion?: PoaOperacion | null
   resultadoId: string
   resultadoNombre?: string
+  areasOperacion: PoaAreaOperacionOption[]
+  areaRaizId?: string
 }>()
 
 const open = defineModel<boolean>('open', { default: false })
@@ -24,6 +27,7 @@ const toast = useToast()
 const saving = ref(false)
 
 const schema = z.object({
+  area_id: z.string().uuid('Seleccione el área'),
   descripcion: z.string().trim().min(1).max(4000),
   ponderacion: z
     .number({ invalid_type_error: 'La ponderación es obligatoria' })
@@ -36,7 +40,11 @@ const schema = z.object({
 
 type SchemaType = z.infer<typeof schema>
 
+const defaultAreaId = () =>
+  props.areaRaizId || props.areasOperacion[0]?.id || ''
+
 const form = ref<SchemaType>({
+  area_id: defaultAreaId(),
   descripcion: '',
   ponderacion: 1,
   meta: '',
@@ -46,12 +54,37 @@ const form = ref<SchemaType>({
 const numeroCorrelativo = ref<number | null>(null)
 const isEditing = computed(() => !!props.operacion?.id)
 
+const labelArea = (a: PoaAreaOperacionOption) => {
+  const cod = a.codigo?.trim()
+  return cod ? `[${cod}] ${a.nombre}` : a.nombre
+}
+
+const areaOptions = computed(() => {
+  const opts = props.areasOperacion.map((a) => ({
+    label: labelArea(a),
+    value: a.id,
+  }))
+  const operacion = props.operacion
+  if (
+    operacion?.area_id &&
+    !opts.some((o) => o.value === operacion.area_id) &&
+    operacion.areas
+  ) {
+    opts.unshift({
+      label: labelArea(operacion.areas),
+      value: operacion.area_id,
+    })
+  }
+  return opts
+})
+
 watch(
   () => props.operacion,
   (val) => {
     if (val) {
       numeroCorrelativo.value = val.numero ?? null
       form.value = {
+        area_id: val.area_id || defaultAreaId(),
         descripcion: val.descripcion || '',
         ponderacion: val.ponderacion > 0 ? val.ponderacion : 1,
         meta: val.meta || '',
@@ -60,6 +93,7 @@ watch(
     } else {
       numeroCorrelativo.value = null
       form.value = {
+        area_id: defaultAreaId(),
         descripcion: '',
         ponderacion: 1,
         meta: '',
@@ -70,6 +104,18 @@ watch(
   { immediate: true },
 )
 
+watch(
+  () => [props.areaRaizId, props.areasOperacion] as const,
+  () => {
+    if (!isEditing.value && !props.operacion) {
+      const id = defaultAreaId()
+      if (id && !form.value.area_id) {
+        form.value.area_id = id
+      }
+    }
+  },
+)
+
 const handleSave = async (event?: FormSubmitEvent<SchemaType>) => {
   const data = event?.data || form.value
   if (!props.resultadoId) return
@@ -77,6 +123,7 @@ const handleSave = async (event?: FormSubmitEvent<SchemaType>) => {
   saving.value = true
   try {
     const base = {
+      area_id: data.area_id,
       descripcion: data.descripcion.trim(),
       ponderacion: Number(data.ponderacion),
       meta: data.meta.trim(),
@@ -143,6 +190,21 @@ const handleSave = async (event?: FormSubmitEvent<SchemaType>) => {
         class="space-y-4"
         @submit="handleSave"
       >
+        <UFormField
+          label="Área"
+          name="area_id"
+          required
+          help="Su área de formulación o una unidad dependiente que no registra POA propio."
+        >
+          <USelect
+            v-model="form.area_id"
+            :items="areaOptions"
+            :disabled="areaOptions.length === 0"
+            placeholder="Seleccione área..."
+            class="w-full"
+          />
+        </UFormField>
+
         <UFormField
           v-if="isEditing"
           label="Número correlativo"

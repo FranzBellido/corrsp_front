@@ -6,6 +6,12 @@ export const ROLE_PROC_ADMIN = 'proc_admin'
 /** Rol Keycloak para el menú y gestión de recaudaciones. */
 export const ROLE_PROC_RECAUDACION = 'proc_recaudacion'
 
+/** Administración POA (configuración, ACP, versiones, validación). */
+export const ROLE_POA_ADMIN = 'poa_admin'
+
+/** Formulación POA del área (resultados, operaciones, actividades). */
+export const ROLE_POA_USER = 'poa_user'
+
 /** Prefijos de rutas del menú Administración. */
 export const RUTAS_ADMINISTRACION = [
   '/areas',
@@ -29,6 +35,34 @@ export function esRutaRecaudacion(path: string): boolean {
   return RUTAS_RECAUDACION.some(
     (ruta) => path === ruta || path.startsWith(`${ruta}/`),
   )
+}
+
+/** Catálogo y validación POA (menú Administrador POA). */
+export const RUTAS_POA_ADMIN = [
+  '/configuracion',
+  '/formulaciones-admin',
+  '/seguimientos-admin',
+  '/versiones',
+  '/acp',
+] as const
+
+export function esRutaPoaAdmin(path: string): boolean {
+  return RUTAS_POA_ADMIN.some(
+    (ruta) => path === ruta || path.startsWith(`${ruta}/`),
+  )
+}
+
+/** Formulación / seguimiento POA por área. */
+export const RUTAS_POA_USER = ['/formulacion', '/seguimiento'] as const
+
+export function esRutaPoaUser(path: string): boolean {
+  return RUTAS_POA_USER.some(
+    (ruta) => path === ruta || path.startsWith(`${ruta}/`),
+  )
+}
+
+export function tieneRolPoaFormulacion(roles: string[]): boolean {
+  return roles.includes(ROLE_POA_USER) || roles.includes(ROLE_POA_ADMIN)
 }
 
 export function extractHttpStatus(error: unknown): number | undefined {

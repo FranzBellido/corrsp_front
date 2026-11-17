@@ -1,4 +1,5 @@
 import type { PoaEstadoPermisos, PoaOperacion } from './poa-operacion'
+import type { PoaEstadoVista } from './poa-estado'
 import type { PoaActividad } from './poa-actividad'
 
 export interface AcpResultado {
@@ -63,6 +64,7 @@ export interface FormTreeRow {
   titulo: string
   ponderacion: number
   estadoNombre: string
+  estado?: PoaEstadoVista | null
   permite_editar: boolean
   permite_eliminar: boolean
   resultado?: AcpResultado

@@ -1,3 +1,5 @@
+import type { PoaEstadoVista } from './poa-estado'
+
 export interface AeiLookup {
   id: string
   descripcion: string
@@ -10,6 +12,20 @@ export interface AcpAreaItem {
   codigo: string
   nombre: string
   activo?: boolean
+}
+
+/** Resultado vinculado al ACP (detalle GET `acp/:id`). */
+export interface AcpResultadoEnDetalle {
+  id: string
+  numero: number
+  nombre: string
+  indicador?: string | null
+  ponderacion: number
+  poa_formulacion_id?: string | null
+  estado_nombre?: string | null
+  estado?: PoaEstadoVista | null
+  formulacion_nombre?: string | null
+  area?: AcpAreaItem | null
 }
 
 export interface Acp {
@@ -26,6 +42,7 @@ export interface Acp {
   } | null
   areas?: AcpAreaItem[]
   areas_ids?: string[]
+  resultados?: AcpResultadoEnDetalle[]
   _count?: {
     acp_area?: number
     acp_resultados?: number

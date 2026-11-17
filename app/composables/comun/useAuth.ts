@@ -1,4 +1,10 @@
-import { ROLE_PROC_ADMIN, ROLE_PROC_RECAUDACION } from '~/utils/comun/auth-access'
+import {
+  ROLE_POA_ADMIN,
+  ROLE_POA_USER,
+  ROLE_PROC_ADMIN,
+  ROLE_PROC_RECAUDACION,
+  tieneRolPoaFormulacion,
+} from '~/utils/comun/auth-access'
 
 export function useAuth() {
   const nuxtApp = useNuxtApp() as any
@@ -53,12 +59,23 @@ export function useAuth() {
   /** Acceso al menú Recaudaciones (Keycloak realm role). */
   const isProcRecaudacion = computed(() => hasRole(ROLE_PROC_RECAUDACION))
 
+  const isPoaAdmin = computed(() => hasRole(ROLE_POA_ADMIN))
+
+  const isPoaUser = computed(() => hasRole(ROLE_POA_USER))
+
+  const canAccessPoaFormulacion = computed(() =>
+    tieneRolPoaFormulacion(user.value?.roles ?? []),
+  )
+
   return {
     user,
     isAuthenticated,
     hasRole,
     isProcAdmin,
     isProcRecaudacion,
+    isPoaAdmin,
+    isPoaUser,
+    canAccessPoaFormulacion,
     login,
     logout
   }

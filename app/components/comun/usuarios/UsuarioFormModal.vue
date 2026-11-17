@@ -96,6 +96,10 @@ const usuarioSchema = z.object({
   activo: z.boolean().default(true),
   disponible: z.boolean().default(true),
   roles_ids: z.array(z.string()).default([]),
+  area_poa_id: z
+    .union([z.string().uuid(), z.literal('')])
+    .optional()
+    .nullable(),
 })
 
 type UsuarioSchemaType = z.infer<typeof usuarioSchema>
@@ -110,6 +114,7 @@ const form = ref<UsuarioSchemaType>({
   activo: true,
   disponible: true,
   roles_ids: [],
+  area_poa_id: '',
 })
 
 const isEditing = computed(() => !!props.usuario?.id)
@@ -143,6 +148,7 @@ const aplicarUsuarioAlFormulario = (val: Usuario | null | undefined) => {
       activo: val.activo ?? true,
       disponible: val.disponible ?? true,
       roles_ids: val.roles?.map((r) => r.id) || [],
+      area_poa_id: val.area_poa_id || '',
     }
     void cargarFotoDesdeStorage(val.foto_url)
   } else {
@@ -156,6 +162,7 @@ const aplicarUsuarioAlFormulario = (val: Usuario | null | undefined) => {
       activo: true,
       disponible: true,
       roles_ids: [],
+      area_poa_id: '',
     }
     liberarFotoActual()
     fotoPathActual.value = null
@@ -179,6 +186,9 @@ watch(open, async (isOpen) => {
   try {
     const res = await backendService.getById<Usuario>('usuarios', val.id)
     const data = (res as { data?: Usuario })?.data ?? (res as Usuario)
+    if (data?.area_poa_id !== undefined) {
+      form.value.area_poa_id = data.area_poa_id || ''
+    }
     if (data?.foto_url && data.foto_url !== fotoPathActual.value) {
       await cargarFotoDesdeStorage(data.foto_url)
     } else if (!fotoUrlActual.value && (data?.foto_url || val.foto_url)) {
@@ -301,6 +311,7 @@ const handleSave = async (event?: FormSubmitEvent<UsuarioSchemaType>) => {
 
   saving.value = true
   try {
+    const areaPoaRaw = data.area_poa_id?.trim()
     const payload: CreateUsuarioPayload = {
       nombre_completo: data.nombre_completo.trim(),
       nombre_usuario: data.nombre_usuario.trim(),
@@ -311,6 +322,7 @@ const handleSave = async (event?: FormSubmitEvent<UsuarioSchemaType>) => {
       emitido_en: data.emitido_en?.trim() || undefined,
       titulo: data.titulo?.trim() || undefined,
       roles_ids: data.roles_ids || [],
+      area_poa_id: areaPoaRaw ? areaPoaRaw : null,
     }
 
     let usuarioId = props.usuario?.id
@@ -486,6 +498,31 @@ const handleSave = async (event?: FormSubmitEvent<UsuarioSchemaType>) => {
             icon="i-lucide-graduation-cap"
             class="w-full"
           />
+        </UFormField>
+
+        <UFormField
+          label="Área asociada al POA"
+          name="area_poa_id"
+          help="Unidad que formula POA cuando difiere del cargo operativo. Solo áreas con formulación POA propia."
+        >
+          <div class="flex flex-col sm:flex-row gap-2 sm:items-center">
+            <CodificadorSelect
+              v-model="form.area_poa_id"
+              endpoint="comun/codificador/areas-poa"
+              placeholder="Sin área POA (opcional)..."
+              class="w-full flex-1"
+            />
+            <UButton
+              v-if="form.area_poa_id"
+              type="button"
+              label="Quitar"
+              color="neutral"
+              variant="ghost"
+              size="sm"
+              icon="i-lucide-x"
+              @click="form.area_poa_id = ''"
+            />
+          </div>
         </UFormField>
 
         <!-- Documento de Identidad (NI / CI) y Emitido en -->

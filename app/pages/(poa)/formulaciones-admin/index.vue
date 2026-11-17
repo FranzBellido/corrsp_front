@@ -21,6 +21,7 @@ import {
 } from '~/utils/shared/acciones-menu'
 
 const UBadge = resolveComponent('UBadge')
+const PoaEstadoBadge = resolveComponent('PoaEstadoBadge')
 const UButton = resolveComponent('UButton')
 const UDropdownMenu = resolveComponent('UDropdownMenu')
 
@@ -37,6 +38,8 @@ const gestiones = ref<PoaVersionLookup[]>([])
 
 const isDetalleOpen = ref(false)
 const detalleId = ref<string | null>(null)
+const isHistorialOpen = ref(false)
+const historialId = ref<string | null>(null)
 
 const isCambioEstadoOpen = ref(false)
 const cambioEstadoId = ref<string | null>(null)
@@ -61,6 +64,11 @@ const puedeAccionarAdmin = (row: PoaFormulacionResumen) =>
 const abrirDetalle = (row: PoaFormulacionResumen) => {
   detalleId.value = row.id
   isDetalleOpen.value = true
+}
+
+const abrirHistorial = (row: PoaFormulacionResumen) => {
+  historialId.value = row.id
+  isHistorialOpen.value = true
 }
 
 const abrirCambioEstado = (
@@ -173,11 +181,9 @@ const columns: TableColumn<PoaFormulacionResumen>[] = [
     accessorKey: 'poa_estado',
     header: 'Estado',
     cell: ({ row }) =>
-      h(
-        UBadge,
-        { color: 'neutral', variant: 'subtle', size: 'xs' },
-        () => row.original.poa_estado?.nombre || '—',
-      ),
+      h(PoaEstadoBadge, {
+        estado: row.original.poa_estado,
+      }),
   },
   {
     id: 'acciones',
@@ -194,6 +200,15 @@ const columns: TableColumn<PoaFormulacionResumen>[] = [
           class: 'shrink-0',
           title: 'Ver detalle',
           onClick: () => abrirDetalle(item),
+        }),
+        h(UButton, {
+          icon: 'i-lucide-history',
+          color: 'neutral',
+          variant: 'ghost',
+          size: 'xs',
+          class: 'shrink-0',
+          title: 'Historial de estados',
+          onClick: () => abrirHistorial(item),
         }),
         hMenuAccionesTabla(UDropdownMenu, UButton, buildMenu(item)),
       ])
@@ -300,6 +315,12 @@ onMounted(async () => {
     <PoaFormulacionDetalleModal
       v-model:open="isDetalleOpen"
       :formulacion-id="detalleId"
+      api-resource="poa-formulacion-admin"
+    />
+
+    <PoaFormulacionHistorialEstadosModal
+      v-model:open="isHistorialOpen"
+      :formulacion-id="historialId"
       api-resource="poa-formulacion-admin"
     />
 
