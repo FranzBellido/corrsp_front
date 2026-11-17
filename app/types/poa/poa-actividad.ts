@@ -14,12 +14,22 @@ export interface PoaActividad {
   ponderacion: number
   tareas?: string | null
   medios?: string | null
-  meta?: number | null
   linea_base?: number | null
+  porcentual: boolean
+  /** Suma de cant_programada por trimestre (calculada en API o localmente). */
+  meta_programada?: number
   seguimiento_actividades?: PoaActividadSeguimiento[]
   _count?: {
     seguimiento_actividades?: number
   }
+}
+
+export function metaProgramadaDeActividad(act: PoaActividad): number {
+  if (act.meta_programada != null) return act.meta_programada
+  return (act.seguimiento_actividades ?? []).reduce(
+    (acc, s) => acc + (Number(s.cant_programada) || 0),
+    0,
+  )
 }
 
 export interface CreatePoaActividadPayload {
@@ -28,8 +38,8 @@ export interface CreatePoaActividadPayload {
   ponderacion: number
   tareas?: string | null
   medios?: string | null
-  meta?: number | null
   linea_base?: number | null
+  porcentual: boolean
   cant_programada_trimestres: [number, number, number, number]
 }
 

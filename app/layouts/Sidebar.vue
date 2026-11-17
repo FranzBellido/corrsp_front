@@ -109,11 +109,11 @@ const defaultNavItems: NavItem[] = [
     to: '/reportes',
   },
   {
-    label: 'Formulación POA',
+    label: 'Plan Operativo Anual',
     icon: 'i-lucide-clipboard-list',
     children: [
       {
-        label: 'Resultados',
+        label: 'Formulación',
         to: '/formulacion/resultados',
         icon: 'i-lucide-target',
       },
@@ -133,6 +133,11 @@ const defaultNavItems: NavItem[] = [
         label: 'Configuración POA',
         to: '/configuracion',
         icon: 'i-lucide-sliders-horizontal',
+      },
+      {
+        label: 'Administrador Formulaciones',
+        to: '/formulaciones-admin',
+        icon: 'i-lucide-clipboard-check',
       },
       {
         label: 'Versiones',

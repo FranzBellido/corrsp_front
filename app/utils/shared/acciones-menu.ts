@@ -42,7 +42,7 @@ export const META_COLUMNA_ACCIONES_TABLA = {
 }
 
 export const CLASE_CONTENEDOR_ACCIONES_CELDA =
-  'flex w-full min-w-0 items-center justify-end gap-0'
+  'flex w-full min-w-0 items-center justify-end gap-0.5'
 
 export const CONTENT_DROPDOWN_ACCIONES_TABLA = {
   align: 'end' as const,

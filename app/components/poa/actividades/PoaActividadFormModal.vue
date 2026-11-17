@@ -30,34 +30,61 @@ const trimestreActivoNorm = computed(() => {
   return t >= 1 && t <= 4 ? t : 1
 })
 
-const cantProgramadaSchema = z.tuple([
-  z.number({ invalid_type_error: 'Requerido' }).int().min(0),
-  z.number({ invalid_type_error: 'Requerido' }).int().min(0),
-  z.number({ invalid_type_error: 'Requerido' }).int().min(0),
-  z.number({ invalid_type_error: 'Requerido' }).int().min(0),
-])
+const cantProgramadaBase = z.number({ invalid_type_error: 'Requerido' }).int().min(0)
 
-const schema = z.object({
-  descripcion: z.string().trim().min(1).max(1000),
-  ponderacion: z
-    .number({ invalid_type_error: 'La ponderación es obligatoria' })
-    .int()
-    .min(1, 'Mayor a 0')
-    .max(100, 'No puede superar 100'),
-  tareas: z.string().trim().max(2000).optional().nullable(),
-  medios: z.string().trim().max(500).optional().nullable(),
-  meta: z.number().int().min(0).optional().nullable(),
-  linea_base: z.number().int().min(0).optional().nullable(),
-  cant_programada_trimestres: cantProgramadaSchema,
+const schema = computed(() => {
+  const trimCant = (porcentual: boolean) =>
+    porcentual
+      ? cantProgramadaBase.max(100, 'No puede superar 100% en modo porcentual')
+      : cantProgramadaBase
+
+  return z
+    .object({
+      descripcion: z.string().trim().min(1).max(1000),
+      ponderacion: z
+        .number({ invalid_type_error: 'La ponderación es obligatoria' })
+        .int()
+        .min(1, 'Mayor a 0')
+        .max(100, 'No puede superar 100'),
+      tareas: z.string().trim().max(2000).optional().nullable(),
+      medios: z.string().trim().max(500).optional().nullable(),
+      linea_base: z.number().int().min(0).optional().nullable(),
+      porcentual: z.boolean(),
+      cant_programada_trimestres: z.tuple([
+        trimCant(form.value.porcentual),
+        trimCant(form.value.porcentual),
+        trimCant(form.value.porcentual),
+        trimCant(form.value.porcentual),
+      ]),
+    })
+    .superRefine((data, ctx) => {
+      if (!data.porcentual) return
+      const suma = data.cant_programada_trimestres.reduce((a, b) => a + b, 0)
+      if (suma > 100) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `La suma de los 4 trimestres no puede superar 100% (suma: ${suma}%).`,
+          path: ['cant_programada_trimestres'],
+        })
+      }
+    })
 })
 
-type SchemaType = z.infer<typeof schema>
+type SchemaTypeResolved = {
+  descripcion: string
+  ponderacion: number
+  tareas?: string | null
+  medios?: string | null
+  linea_base?: number | null
+  porcentual: boolean
+  cant_programada_trimestres: [number, number, number, number]
+}
 
-const cantidadesPorDefecto = (): SchemaType['cant_programada_trimestres'] => [0, 0, 0, 0]
+const cantidadesPorDefecto = (): SchemaTypeResolved['cant_programada_trimestres'] => [0, 0, 0, 0]
 
 const cantidadesDesdeActividad = (
   val?: PoaActividad | null,
-): SchemaType['cant_programada_trimestres'] => {
+): SchemaTypeResolved['cant_programada_trimestres'] => {
   const out = cantidadesPorDefecto()
   for (const row of val?.seguimiento_actividades ?? []) {
     const t = row.seguimiento?.trimestre
@@ -68,15 +95,25 @@ const cantidadesDesdeActividad = (
   return out
 }
 
-const form = ref<SchemaType>({
+const form = ref<SchemaTypeResolved>({
   descripcion: '',
   ponderacion: 1,
   tareas: '',
   medios: '',
-  meta: null,
   linea_base: null,
+  porcentual: false,
   cant_programada_trimestres: cantidadesPorDefecto(),
 })
+
+const metaCalculada = computed(() =>
+  form.value.cant_programada_trimestres.reduce((a, b) => a + (Number(b) || 0), 0),
+)
+
+const metaCalculadaEtiqueta = computed(() =>
+  form.value.porcentual ? `${metaCalculada.value}%` : String(metaCalculada.value),
+)
+
+const trimestreMax = computed(() => (form.value.porcentual ? 100 : undefined))
 
 const numeroCorrelativo = ref<number | null>(null)
 const isEditing = computed(() => !!props.actividad?.id)
@@ -91,8 +128,8 @@ watch(
         ponderacion: val.ponderacion > 0 ? val.ponderacion : 1,
         tareas: val.tareas || '',
         medios: val.medios || '',
-        meta: val.meta ?? null,
         linea_base: val.linea_base ?? null,
+        porcentual: Boolean(val.porcentual),
         cant_programada_trimestres: cantidadesDesdeActividad(val),
       }
     } else {
@@ -102,8 +139,8 @@ watch(
         ponderacion: 1,
         tareas: '',
         medios: '',
-        meta: null,
         linea_base: null,
+        porcentual: false,
         cant_programada_trimestres: cantidadesPorDefecto(),
       }
     }
@@ -112,7 +149,7 @@ watch(
 )
 
 const buildCantTrimestres = (
-  data: SchemaType,
+  data: SchemaTypeResolved,
 ): [number, number, number, number] =>
   data.cant_programada_trimestres.map((n) => Number(n)) as [
     number,
@@ -121,7 +158,7 @@ const buildCantTrimestres = (
     number,
   ]
 
-const handleSave = async (event?: FormSubmitEvent<SchemaType>) => {
+const handleSave = async (event?: FormSubmitEvent<SchemaTypeResolved>) => {
   const data = event?.data || form.value
   if (!props.operacionId) return
 
@@ -133,15 +170,13 @@ const handleSave = async (event?: FormSubmitEvent<SchemaType>) => {
       ponderacion: Number(data.ponderacion),
       tareas: data.tareas?.trim() || null,
       medios: data.medios?.trim() || null,
-      meta: data.meta === null || data.meta === undefined || Number.isNaN(Number(data.meta))
-        ? null
-        : Number(data.meta),
       linea_base:
         data.linea_base === null ||
         data.linea_base === undefined ||
         Number.isNaN(Number(data.linea_base))
           ? null
           : Number(data.linea_base),
+      porcentual: Boolean(data.porcentual),
       cant_programada_trimestres,
     }
 
@@ -244,19 +279,32 @@ const trimestreFieldClass = (t: number) =>
         </UFormField>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <UFormField label="Meta" name="meta">
-            <UInput v-model.number="form.meta" type="number" min="0" class="w-full" />
+          <UFormField
+            label="Medición porcentual"
+            name="porcentual"
+            help="Si está activo, cada trimestre es % y el total no puede superar 100%."
+          >
+            <USwitch v-model="form.porcentual" />
           </UFormField>
-          <UFormField label="Línea base" name="linea_base">
-            <UInput v-model.number="form.linea_base" type="number" min="0" class="w-full" />
+          <UFormField
+            label="Meta programada (calculada)"
+            help="Suma de las cantidades programadas por trimestre."
+          >
+            <UInput :model-value="metaCalculadaEtiqueta" disabled class="w-full" />
           </UFormField>
         </div>
 
+        <UFormField label="Línea base" name="linea_base">
+          <UInput v-model.number="form.linea_base" type="number" min="0" class="w-full" />
+        </UFormField>
+
         <div class="space-y-2 pt-1 border-t border-default">
-          <p class="text-sm font-medium">Cantidad programada por trimestre</p>
+          <p class="text-sm font-medium">
+            Cantidad programada por trimestre
+            <span v-if="form.porcentual" class="text-muted font-normal">(%)</span>
+          </p>
           <p class="text-xs text-muted">
-            Se registran 4 filas en seguimiento de actividades (descripción, justificación y ejecutado en blanco).
-            Trimestre activo: T{{ trimestreActivoNorm }}.
+            La meta anual se deriva de la suma de estos valores. Trimestre activo: T{{ trimestreActivoNorm }}.
           </p>
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <UFormField
@@ -271,6 +319,7 @@ const trimestreFieldClass = (t: number) =>
                 v-model.number="form.cant_programada_trimestres[t - 1]"
                 type="number"
                 min="0"
+                :max="trimestreMax"
                 class="w-full"
               />
             </UFormField>

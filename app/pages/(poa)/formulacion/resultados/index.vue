@@ -19,14 +19,32 @@ import {
   META_COLUMNA_ACCIONES_TABLA,
 } from '~/utils/shared/acciones-menu'
 import type { PoaFormTreeDetallePayload } from '~/components/poa/formulacion/PoaFormTreeDetalleModal.vue'
+import {
+  POA_FORMULACION_ESTADO_ENVIADO_ID,
+  POA_FORMULACION_ESTADO_OBSERVADO_ID,
+  POA_FORMULACION_ESTADO_VALIDADO_ID,
+  type PoaFormulacionValidacionEnvio,
+} from '~/types/poa/formulacion'
+import { observacionesParaFilaTree } from '~/utils/poa/formulacion-envio-alertas'
 
 const UBadge = resolveComponent('UBadge')
 const UButton = resolveComponent('UButton')
 const UIcon = resolveComponent('UIcon')
 const UDropdownMenu = resolveComponent('UDropdownMenu')
+const UTooltip = resolveComponent('UTooltip')
 
 const toast = useToast()
 const { fetchProfile } = useProfile()
+const route = useRoute()
+
+const modoAdmin = computed(
+  () =>
+    String(route.query.modo || '') === 'admin' &&
+    Boolean(route.query.formulacion_id),
+)
+const formulacionAdminId = computed(() =>
+  modoAdmin.value ? String(route.query.formulacion_id) : null,
+)
 
 const loadingContexto = ref(true)
 const loading = ref(false)
@@ -63,6 +81,129 @@ const deletingActividad = ref(false)
 const isDetalleOpen = ref(false)
 const detalleItem = ref<PoaFormTreeDetallePayload | null>(null)
 
+const isFormulacionDetalleOpen = ref(false)
+const isEnviarFormulacionOpen = ref(false)
+const alertasEnvio = ref<string[]>([])
+
+const isAdminEstadoOpen = ref(false)
+const adminEstadoItemId = ref<string | null>(null)
+const adminEstadoApi = ref('acp-resultados-admin')
+const adminEstadoDestino = ref(0)
+const adminEstadoTitulo = ref('')
+const adminEstadoDescripcion = ref('')
+const adminEstadoLabel = ref('')
+const adminEstadoIcon = ref('i-lucide-check')
+const adminEstadoColor = ref<'primary' | 'success' | 'warning'>('primary')
+
+const formulacionEnviada = computed(
+  () =>
+    contexto.value?.formulacion?.poa_estado_id ===
+    POA_FORMULACION_ESTADO_ENVIADO_ID,
+)
+
+const puedeEnviarPorEstado = computed(() => {
+  if (modoAdmin.value) return false
+  const f = contexto.value?.formulacion
+  if (!f) return false
+  if (f.poa_estado_id === POA_FORMULACION_ESTADO_ENVIADO_ID) return false
+  return f.poa_estado_id === 1 || Boolean(f.poa_estado?.permite_enviar)
+})
+
+const puedeEnviarFormulacion = computed(
+  () =>
+    !modoAdmin.value &&
+    puedeEnviarPorEstado.value &&
+    alertasEnvio.value.length === 0,
+)
+
+const motivoEnvioDeshabilitado = computed(() => {
+  if (modoAdmin.value) return 'Modo administrador: no se envía desde aquí.'
+  if (!puedeEnviarPorEstado.value) {
+    return 'El estado actual no permite enviar la formulación.'
+  }
+  if (alertasEnvio.value.length > 0) {
+    return 'Corrija las observaciones de validación antes de enviar.'
+  }
+  return undefined
+})
+
+const menuFormulacionItems = computed<DropdownMenuItem[]>(() => {
+  if (modoAdmin.value) {
+    return [
+      {
+        label: 'Volver al administrador',
+        icon: 'i-lucide-arrow-left',
+        onSelect: () => navigateTo('/formulaciones-admin'),
+      },
+    ]
+  }
+  return [
+    enriquecerItemMenuAcciones(
+      {
+        label: 'Enviar formulación',
+        icon: 'i-lucide-send',
+        disabled: !puedeEnviarFormulacion.value,
+        onSelect: () => {
+          isEnviarFormulacionOpen.value = true
+        },
+      },
+      motivoEnvioDeshabilitado.value,
+    ),
+  ]
+})
+
+const abrirAdminEstado = (
+  itemId: string,
+  apiResource: string,
+  estadoId: number,
+  opts: {
+    titulo: string
+    descripcion: string
+    label: string
+    icon: string
+    color: 'primary' | 'success' | 'warning'
+  },
+) => {
+  adminEstadoItemId.value = itemId
+  adminEstadoApi.value = apiResource
+  adminEstadoDestino.value = estadoId
+  adminEstadoTitulo.value = opts.titulo
+  adminEstadoDescripcion.value = opts.descripcion
+  adminEstadoLabel.value = opts.label
+  adminEstadoIcon.value = opts.icon
+  adminEstadoColor.value = opts.color
+  isAdminEstadoOpen.value = true
+}
+
+const onFormulacionEstadoCambiado = async () => {
+  await cargarContexto()
+  await cargarValidacionEnvio()
+}
+
+const onAdminRegistroEstadoCambiado = async () => {
+  await cargar()
+}
+
+const cargarValidacionEnvio = async () => {
+  const id = contexto.value?.formulacion?.id
+  if (!id) {
+    alertasEnvio.value = []
+    return
+  }
+  try {
+    const res = await backendService.getById<PoaFormulacionValidacionEnvio>(
+      'poa-formulacion',
+      `${id}/validacion-envio`,
+    )
+    const data =
+      (res as { data?: PoaFormulacionValidacionEnvio })?.data ||
+      (res as PoaFormulacionValidacionEnvio)
+    alertasEnvio.value = data.observaciones ?? []
+  } catch {
+    alertasEnvio.value = []
+  }
+}
+
 const handleVerDetalle = (row: FormTreeRow) => {
   detalleItem.value = {
     tipo: row.tipo,
@@ -74,6 +215,24 @@ const handleVerDetalle = (row: FormTreeRow) => {
   }
   isDetalleOpen.value = true
 }
+
+const permiteEditarFormulacion = computed(
+  () => contexto.value?.formulacion?.poa_estado?.permite_editar ?? true,
+)
+
+const permiteEliminarFormulacion = computed(
+  () => contexto.value?.formulacion?.poa_estado?.permite_eliminar ?? true,
+)
+
+const motivoBloqueoFormulacion = computed(() => {
+  if (permiteEditarFormulacion.value && permiteEliminarFormulacion.value) {
+    return undefined
+  }
+  const nom = contexto.value?.formulacion?.poa_estado?.nombre
+  return nom
+    ? `La formulación está en estado «${nom}» y no admite cambios en los registros.`
+    : 'La formulación no admite cambios en este estado.'
+})
 
 const acpFilterOptions = computed(() => {
   const base = [{ label: 'Todos los ACP', value: 'todos' as const }]
@@ -89,6 +248,8 @@ const acpFilterOptions = computed(() => {
 
 const treeRows = computed<FormTreeRow[]>(() => {
   const rows: FormTreeRow[] = []
+  const editForm = permiteEditarFormulacion.value
+  const delForm = permiteEliminarFormulacion.value
   for (const resultado of items.value) {
     rows.push({
       rowKey: `r-${resultado.id}`,
@@ -98,8 +259,8 @@ const treeRows = computed<FormTreeRow[]>(() => {
       titulo: resultado.nombre,
       ponderacion: resultado.ponderacion,
       estadoNombre: resultado.poa_estado?.nombre || '—',
-      permite_editar: Boolean(resultado.poa_estado?.permite_editar),
-      permite_eliminar: Boolean(resultado.poa_estado?.permite_eliminar),
+      permite_editar: editForm && Boolean(resultado.poa_estado?.permite_editar),
+      permite_eliminar: delForm && Boolean(resultado.poa_estado?.permite_eliminar),
       resultado,
     })
     for (const op of resultado.poa_operacion ?? []) {
@@ -111,8 +272,8 @@ const treeRows = computed<FormTreeRow[]>(() => {
         titulo: op.descripcion,
         ponderacion: op.ponderacion,
         estadoNombre: op.poa_estado?.nombre || '—',
-        permite_editar: Boolean(op.poa_estado?.permite_editar),
-        permite_eliminar: Boolean(op.poa_estado?.permite_eliminar),
+        permite_editar: editForm && Boolean(op.poa_estado?.permite_editar),
+        permite_eliminar: delForm && Boolean(op.poa_estado?.permite_eliminar),
         operacion: op,
         parentResultado: resultado,
       })
@@ -125,8 +286,8 @@ const treeRows = computed<FormTreeRow[]>(() => {
           titulo: act.descripcion || '—',
           ponderacion: act.ponderacion,
           estadoNombre: op.poa_estado?.nombre || '—',
-          permite_editar: Boolean(op.poa_estado?.permite_editar),
-          permite_eliminar: Boolean(op.poa_estado?.permite_eliminar),
+          permite_editar: editForm && Boolean(op.poa_estado?.permite_editar),
+          permite_eliminar: delForm && Boolean(op.poa_estado?.permite_eliminar),
           actividad: act,
           parentOperacion: op,
           parentResultado: resultado,
@@ -138,8 +299,54 @@ const treeRows = computed<FormTreeRow[]>(() => {
 })
 
 const buildMenuResultado = (resultado: AcpResultado): DropdownMenuItem[] => {
-  const puedeEditar = Boolean(resultado.poa_estado?.permite_editar)
-  const puedeEliminar = Boolean(resultado.poa_estado?.permite_eliminar)
+  if (modoAdmin.value) {
+    const activo = formulacionEnviada.value
+    const motivo = activo
+      ? undefined
+      : 'La formulación debe estar Enviada para validar u observar.'
+    const yaValidado = resultado.estado_id === POA_FORMULACION_ESTADO_VALIDADO_ID
+    const yaObservado = resultado.estado_id === POA_FORMULACION_ESTADO_OBSERVADO_ID
+    return [
+      enriquecerItemMenuAcciones(
+        {
+          label: 'Validar',
+          icon: 'i-lucide-badge-check',
+          disabled: !activo || yaValidado,
+          onSelect: () =>
+            abrirAdminEstado(resultado.id, 'acp-resultados-admin', POA_FORMULACION_ESTADO_VALIDADO_ID, {
+              titulo: 'Validar resultado',
+              descripcion: 'El resultado pasará al estado Validado (5).',
+              label: 'Validar',
+              icon: 'i-lucide-badge-check',
+              color: 'success',
+            }),
+        },
+        !activo ? motivo : yaValidado ? 'El resultado ya está validado.' : undefined,
+      ),
+      enriquecerItemMenuAcciones(
+        {
+          label: 'Observar',
+          icon: 'i-lucide-message-square-warning',
+          disabled: !activo || yaObservado,
+          onSelect: () =>
+            abrirAdminEstado(resultado.id, 'acp-resultados-admin', POA_FORMULACION_ESTADO_OBSERVADO_ID, {
+              titulo: 'Observar resultado',
+              descripcion: 'El resultado pasará al estado Observado (4).',
+              label: 'Observar',
+              icon: 'i-lucide-message-square-warning',
+              color: 'warning',
+            }),
+        },
+        !activo ? motivo : yaObservado ? 'El resultado ya está observado.' : undefined,
+      ),
+    ]
+  }
+
+  const bloqueoForm = motivoBloqueoFormulacion.value
+  const puedeEditar =
+    permiteEditarFormulacion.value && Boolean(resultado.poa_estado?.permite_editar)
+  const puedeEliminar =
+    permiteEliminarFormulacion.value && Boolean(resultado.poa_estado?.permite_eliminar)
   const tieneOps = (resultado._count?.poa_operacion ?? resultado.poa_operacion?.length ?? 0) > 0
 
   return [
@@ -150,7 +357,9 @@ const buildMenuResultado = (resultado: AcpResultado): DropdownMenuItem[] => {
         disabled: !puedeEditar,
         onSelect: () => handleEditar(resultado),
       },
-      !puedeEditar ? 'El estado del resultado no permite editar.' : undefined,
+      !puedeEditar
+        ? bloqueoForm || 'El estado del resultado no permite editar.'
+        : undefined,
     ),
     enriquecerItemMenuAcciones(
       {
@@ -160,7 +369,7 @@ const buildMenuResultado = (resultado: AcpResultado): DropdownMenuItem[] => {
         onSelect: () => handleCrearOperacion(resultado),
       },
       !puedeEditar
-        ? 'El estado del resultado no permite registrar operaciones.'
+        ? bloqueoForm || 'El estado del resultado no permite registrar operaciones.'
         : undefined,
     ),
     enriquecerItemMenuAcciones(
@@ -172,7 +381,7 @@ const buildMenuResultado = (resultado: AcpResultado): DropdownMenuItem[] => {
         onSelect: () => handleConfirmarEliminar(resultado),
       },
       !puedeEliminar
-        ? 'El estado del resultado no permite eliminar.'
+        ? bloqueoForm || 'El estado del resultado no permite eliminar.'
         : tieneOps
           ? 'Elimine primero las operaciones asociadas.'
           : undefined,
@@ -184,8 +393,54 @@ const buildMenuOperacion = (
   operacion: PoaOperacion,
   parent: AcpResultado,
 ): DropdownMenuItem[] => {
-  const puedeEditar = Boolean(operacion.poa_estado?.permite_editar)
-  const puedeEliminar = Boolean(operacion.poa_estado?.permite_eliminar)
+  if (modoAdmin.value) {
+    const activo = formulacionEnviada.value
+    const motivo = activo
+      ? undefined
+      : 'La formulación debe estar Enviada para validar u observar.'
+    const yaValidado = operacion.estado_id === POA_FORMULACION_ESTADO_VALIDADO_ID
+    const yaObservado = operacion.estado_id === POA_FORMULACION_ESTADO_OBSERVADO_ID
+    return [
+      enriquecerItemMenuAcciones(
+        {
+          label: 'Validar',
+          icon: 'i-lucide-badge-check',
+          disabled: !activo || yaValidado,
+          onSelect: () =>
+            abrirAdminEstado(operacion.id, 'poa-operaciones-admin', POA_FORMULACION_ESTADO_VALIDADO_ID, {
+              titulo: 'Validar operación',
+              descripcion: 'La operación pasará al estado Validado (5).',
+              label: 'Validar',
+              icon: 'i-lucide-badge-check',
+              color: 'success',
+            }),
+        },
+        !activo ? motivo : yaValidado ? 'La operación ya está validada.' : undefined,
+      ),
+      enriquecerItemMenuAcciones(
+        {
+          label: 'Observar',
+          icon: 'i-lucide-message-square-warning',
+          disabled: !activo || yaObservado,
+          onSelect: () =>
+            abrirAdminEstado(operacion.id, 'poa-operaciones-admin', POA_FORMULACION_ESTADO_OBSERVADO_ID, {
+              titulo: 'Observar operación',
+              descripcion: 'La operación pasará al estado Observado (4).',
+              label: 'Observar',
+              icon: 'i-lucide-message-square-warning',
+              color: 'warning',
+            }),
+        },
+        !activo ? motivo : yaObservado ? 'La operación ya está observada.' : undefined,
+      ),
+    ]
+  }
+
+  const bloqueoForm = motivoBloqueoFormulacion.value
+  const puedeEditar =
+    permiteEditarFormulacion.value && Boolean(operacion.poa_estado?.permite_editar)
+  const puedeEliminar =
+    permiteEliminarFormulacion.value && Boolean(operacion.poa_estado?.permite_eliminar)
   const tieneActs = (operacion._count?.poa_actividades ?? operacion.poa_actividades?.length ?? 0) > 0
 
   return [
@@ -196,7 +451,9 @@ const buildMenuOperacion = (
         disabled: !puedeEditar,
         onSelect: () => handleEditarOperacion(operacion, parent),
       },
-      !puedeEditar ? 'El estado de la operación no permite editar.' : undefined,
+      !puedeEditar
+        ? bloqueoForm || 'El estado de la operación no permite editar.'
+        : undefined,
     ),
     enriquecerItemMenuAcciones(
       {
@@ -206,7 +463,7 @@ const buildMenuOperacion = (
         onSelect: () => handleCrearActividad(operacion),
       },
       !puedeEditar
-        ? 'El estado de la operación no permite registrar actividades.'
+        ? bloqueoForm || 'El estado de la operación no permite registrar actividades.'
         : undefined,
     ),
     enriquecerItemMenuAcciones(
@@ -218,7 +475,7 @@ const buildMenuOperacion = (
         onSelect: () => handleConfirmarEliminarOperacion(operacion),
       },
       !puedeEliminar
-        ? 'El estado de la operación no permite eliminar.'
+        ? bloqueoForm || 'El estado de la operación no permite eliminar.'
         : tieneActs
           ? 'Elimine primero las actividades asociadas.'
           : undefined,
@@ -230,8 +487,21 @@ const buildMenuActividad = (
   actividad: PoaActividad,
   parentOp: PoaOperacion,
 ): DropdownMenuItem[] => {
-  const puedeEditar = Boolean(parentOp.poa_estado?.permite_editar)
-  const puedeEliminar = Boolean(parentOp.poa_estado?.permite_eliminar)
+  if (modoAdmin.value) {
+    return [
+      {
+        label: 'Sin acciones de administración',
+        disabled: true,
+        icon: 'i-lucide-info',
+      },
+    ]
+  }
+
+  const bloqueoForm = motivoBloqueoFormulacion.value
+  const puedeEditar =
+    permiteEditarFormulacion.value && Boolean(parentOp.poa_estado?.permite_editar)
+  const puedeEliminar =
+    permiteEliminarFormulacion.value && Boolean(parentOp.poa_estado?.permite_eliminar)
   const tieneSeg = (actividad._count?.seguimiento_actividades ?? 0) > 0
 
   return [
@@ -243,7 +513,7 @@ const buildMenuActividad = (
         onSelect: () => handleEditarActividad(actividad, parentOp),
       },
       !puedeEditar
-        ? 'El estado de la operación no permite editar actividades.'
+        ? bloqueoForm || 'El estado de la operación no permite editar actividades.'
         : undefined,
     ),
     enriquecerItemMenuAcciones(
@@ -255,7 +525,7 @@ const buildMenuActividad = (
         onSelect: () => handleConfirmarEliminarActividad(actividad),
       },
       !puedeEliminar
-        ? 'El estado de la operación no permite eliminar actividades.'
+        ? bloqueoForm || 'El estado de la operación no permite eliminar actividades.'
         : tieneSeg
           ? 'Elimine primero los seguimientos asociados.'
           : undefined,
@@ -263,7 +533,39 @@ const buildMenuActividad = (
   ]
 }
 
-const columns: TableColumn<FormTreeRow>[] = [
+function hAlertaFilaEnvio(item: FormTreeRow, alertas: string[]) {
+  const obs = observacionesParaFilaTree(item, alertas)
+  if (!obs.length) return null
+
+  return h(
+    UTooltip,
+    {
+      delayDuration: 0,
+      ui: { content: 'max-w-sm' },
+    },
+    {
+      default: () =>
+        h(UButton, {
+          icon: 'i-lucide-triangle-alert',
+          color: 'warning',
+          variant: 'ghost',
+          size: 'xs',
+          class: 'shrink-0',
+          'aria-label': 'Observaciones antes de enviar',
+        }),
+      content: () =>
+        h(
+          'ul',
+          {
+            class: 'list-disc ps-4 space-y-1 text-left text-xs max-h-48 overflow-y-auto',
+          },
+          obs.map((text, idx) => h('li', { key: idx }, text)),
+        ),
+    },
+  )
+}
+
+const columns = computed<TableColumn<FormTreeRow>[]>(() => [
   {
     accessorKey: 'tipo',
     header: 'Tipo',
@@ -367,7 +669,8 @@ const columns: TableColumn<FormTreeRow>[] = [
         menu = buildMenuActividad(item.actividad, item.parentOperacion)
       }
 
-      return h('div', { class: CLASE_CONTENEDOR_ACCIONES_CELDA }, [
+      const nodos = [
+        hAlertaFilaEnvio(item, alertasEnvio.value),
         h(UButton, {
           icon: 'i-lucide-eye',
           color: 'neutral',
@@ -378,29 +681,47 @@ const columns: TableColumn<FormTreeRow>[] = [
           onClick: () => handleVerDetalle(item),
         }),
         hMenuAccionesTabla(UDropdownMenu, UButton, menu),
-      ])
+      ].filter(Boolean)
+
+      return h('div', { class: CLASE_CONTENEDOR_ACCIONES_CELDA }, nodos)
     },
   },
-]
+])
 
 const cargarContexto = async () => {
   loadingContexto.value = true
   try {
     await fetchProfile()
-    const res = await backendService.get<PoaFormulacionContexto>('poa-formulacion/mi')
-    const data = (res as { data?: PoaFormulacionContexto })?.data || res
-    contexto.value = data as PoaFormulacionContexto
+    if (modoAdmin.value && formulacionAdminId.value) {
+      const res = await backendService.getById<PoaFormulacionContexto>(
+        'poa-formulacion-admin',
+        `${formulacionAdminId.value}/contexto`,
+      )
+      const data = (res as { data?: PoaFormulacionContexto })?.data || res
+      contexto.value = { ...(data as PoaFormulacionContexto), modo_admin: true }
+    } else {
+      const res = await backendService.get<PoaFormulacionContexto>('poa-formulacion/mi')
+      const data = (res as { data?: PoaFormulacionContexto })?.data || res
+      contexto.value = data as PoaFormulacionContexto
+    }
   } catch (error: unknown) {
     const err = error as { data?: { message?: string }; message?: string }
     contexto.value = null
     toast.add({
-      title: 'No se pudo iniciar formulación',
+      title: modoAdmin.value
+        ? 'No se pudo cargar la formulación (admin)'
+        : 'No se pudo iniciar formulación',
       description: err?.data?.message || err?.message || 'Verifique cargo y configuración POA.',
       color: 'error',
       icon: 'i-lucide-alert-circle',
     })
   } finally {
     loadingContexto.value = false
+  }
+  if (!modoAdmin.value) {
+    await cargarValidacionEnvio()
+  } else {
+    alertasEnvio.value = []
   }
 }
 
@@ -414,8 +735,11 @@ const cargar = async () => {
       limite: pageSize.value,
       acp_id: filtroAcpId.value === 'todos' ? undefined : filtroAcpId.value,
     }
+    const endpoint = modoAdmin.value
+      ? 'acp-resultados-admin/buscar'
+      : 'acp-resultados/buscar'
     const res = await backendService.post<RespuestaBusquedaAcpResultado>(
-      'acp-resultados/buscar',
+      endpoint,
       filtro,
     )
     const data = (res as { data?: RespuestaBusquedaAcpResultado })?.data || res
@@ -431,6 +755,7 @@ const cargar = async () => {
   } finally {
     loading.value = false
   }
+  await cargarValidacionEnvio()
 }
 
 const onGuardado = async () => {
@@ -563,15 +888,37 @@ onMounted(async () => {
 <template>
   <div class="space-y-6">
     <PageHeader
-      title="Resultados — Formulación POA"
-      description="Resultados, operaciones y actividades de la formulación de su área"
+      :title="modoAdmin ? 'Formulación (modo administrador)' : 'Resultados — Formulación POA'"
+      :description="
+        modoAdmin
+          ? 'Validación u observación de resultados y operaciones de la formulación del área.'
+          : 'Resultados, operaciones y actividades de la formulación de su área'
+      "
     >
       <template #actions>
         <UButton
+          v-if="modoAdmin"
+          icon="i-lucide-arrow-left"
+          color="neutral"
+          variant="outline"
+          class="justify-center h-10 rounded-md font-bold px-6"
+          @click="navigateTo('/formulaciones-admin')"
+        >
+          Volver
+        </UButton>
+        <UButton
+          v-else
           icon="i-lucide-plus"
           color="primary"
           class="justify-center h-10 rounded-md font-bold px-6"
-          :disabled="!contexto?.formulacion?.id || !(contexto?.acps_disponibles?.length)"
+          :disabled="
+            !contexto?.formulacion?.id
+              || !(contexto?.acps_disponibles?.length)
+              || !permiteEditarFormulacion
+          "
+          :title="
+            !permiteEditarFormulacion ? (motivoBloqueoFormulacion || undefined) : undefined
+          "
           @click="handleCrear"
         >
           Nuevo resultado
@@ -597,7 +944,28 @@ onMounted(async () => {
           <p class="font-semibold line-clamp-2">{{ contexto.formulacion.nombre }}</p>
         </div>
         <div>
-          <p class="text-xs text-muted">Estado</p>
+          <div class="flex items-center justify-between gap-2">
+            <p class="text-xs text-muted">Estado</p>
+            <div class="flex items-center gap-1 shrink-0">
+              <UButton
+                icon="i-lucide-eye"
+                color="neutral"
+                variant="ghost"
+                size="xs"
+                aria-label="Ver detalle de la formulación"
+                @click="isFormulacionDetalleOpen = true"
+              />
+              <UDropdownMenu :items="[menuFormulacionItems]" size="xs">
+                <UButton
+                  icon="i-lucide-ellipsis-vertical"
+                  color="neutral"
+                  variant="ghost"
+                  size="xs"
+                  aria-label="Acciones de la formulación"
+                />
+              </UDropdownMenu>
+            </div>
+          </div>
           <p class="font-semibold">{{ contexto.formulacion.poa_estado?.nombre || '—' }}</p>
         </div>
       </div>
@@ -636,7 +1004,7 @@ onMounted(async () => {
     />
 
     <AcpResultadoFormModal
-      v-if="contexto?.formulacion?.id"
+      v-if="!modoAdmin && contexto?.formulacion?.id"
       v-model:open="isModalOpen"
       :resultado="itemToEdit"
       :poa-formulacion-id="contexto.formulacion.id"
@@ -645,6 +1013,7 @@ onMounted(async () => {
     />
 
     <PoaOperacionFormModal
+      v-if="!modoAdmin"
       v-model:open="isOperacionModalOpen"
       :operacion="operacionToEdit"
       :resultado-id="operacionResultadoId"
@@ -653,6 +1022,7 @@ onMounted(async () => {
     />
 
     <PoaActividadFormModal
+      v-if="!modoAdmin"
       v-model:open="isActividadModalOpen"
       :actividad="actividadToEdit"
       :operacion-id="actividadOperacionId"
@@ -730,5 +1100,41 @@ onMounted(async () => {
         </div>
       </template>
     </UModal>
+
+    <PoaFormulacionDetalleModal
+      v-if="contexto?.formulacion?.id"
+      v-model:open="isFormulacionDetalleOpen"
+      :formulacion-id="contexto.formulacion.id"
+      :api-resource="modoAdmin ? 'poa-formulacion-admin' : 'poa-formulacion'"
+    />
+
+    <PoaFormulacionCambioEstadoModal
+      v-if="!modoAdmin && contexto?.formulacion?.id"
+      v-model:open="isEnviarFormulacionOpen"
+      :item-id="contexto.formulacion.id"
+      :estado-id="POA_FORMULACION_ESTADO_ENVIADO_ID"
+      titulo="Enviar formulación"
+      descripcion="La formulación pasará al estado Enviado (2). Registre una observación si lo desea."
+      confirm-label="Enviar formulación"
+      confirm-icon="i-lucide-send"
+      success-title="Formulación enviada"
+      error-title="No se pudo enviar la formulación"
+      @cambiado="onFormulacionEstadoCambiado"
+    />
+
+    <PoaFormulacionCambioEstadoModal
+      v-if="modoAdmin"
+      v-model:open="isAdminEstadoOpen"
+      :item-id="adminEstadoItemId"
+      :estado-id="adminEstadoDestino"
+      :api-resource="adminEstadoApi"
+      :titulo="adminEstadoTitulo"
+      :descripcion="adminEstadoDescripcion"
+      :confirm-label="adminEstadoLabel"
+      :confirm-icon="adminEstadoIcon"
+      :confirm-color="adminEstadoColor"
+      success-title="Estado actualizado"
+      @cambiado="onAdminRegistroEstadoCambiado"
+    />
   </div>
 </template>

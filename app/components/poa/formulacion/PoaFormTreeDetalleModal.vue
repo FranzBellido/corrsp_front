@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import type { AcpResultado, FormRowTipo } from '~/types/poa/acp-resultado'
 import type { PoaOperacion } from '~/types/poa/poa-operacion'
 import type { PoaActividad } from '~/types/poa/poa-actividad'
+import { metaProgramadaDeActividad } from '~/types/poa/poa-actividad'
 
 export interface PoaFormTreeDetallePayload {
   tipo: FormRowTipo
@@ -96,8 +97,14 @@ const campos = computed<DetalleCampo[]>(() => {
       { label: 'Tareas', value: a.tareas?.trim() || '—' },
       { label: 'Medios', value: a.medios?.trim() || '—' },
       {
-        label: 'Meta',
-        value: a.meta != null ? String(a.meta) : '—',
+        label: 'Medición',
+        value: a.porcentual ? 'Porcentual (máx. 100%)' : 'Absoluta',
+      },
+      {
+        label: 'Meta programada',
+        value: a.porcentual
+          ? `${metaProgramadaDeActividad(a)}%`
+          : String(metaProgramadaDeActividad(a)),
       },
       {
         label: 'Línea base',
